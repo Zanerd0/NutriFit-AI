@@ -4,6 +4,7 @@ const cookieParser = require("cookie-parser");
 const env = require("./src/config/env"); // Load validated environment variables
 const connectDB = require("./src/config/db"); // Load Database connection
 const authRoutes = require("./src/routes/authRoutes"); // Load Authentication routes
+const healthRoutes = require("./src/routes/healthRoutes"); // Load Health routes
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use(cookieParser());
 // --- ROUTES ---
 // Mount the authentication routes
 app.use("/api/auth", authRoutes);
+app.use("/api/health", healthRoutes);
 
 // A simple test route to verify the server is up
 app.get("/", (req, res) => {
