@@ -1,9 +1,23 @@
 // src/config/env.js
+const fs = require("fs");
+const path = require("path");
 const dotenv = require("dotenv");
 const { z } = require("zod");
 
 // Load .env file
-dotenv.config();
+const envPaths = [
+  path.resolve(process.cwd(), ".env"),
+  path.resolve(__dirname, "../../.env"),
+  path.resolve(__dirname, "../../../.env"),
+];
+
+const loadedEnvPath = envPaths.find((envPath) => fs.existsSync(envPath));
+
+if (loadedEnvPath) {
+  dotenv.config({ path: loadedEnvPath });
+} else {
+  dotenv.config();
+}
 
 // Define the schema using Zod
 const envSchema = z.object({
@@ -17,7 +31,9 @@ const envSchema = z.object({
 const envVars = envSchema.safeParse(process.env);
 
 if (!envVars.success) {
-  console.error("❌ Invalid environment variables:", envVars.error.format());
+  console.error("❌ Invalid environment variables.");
+  console.error("Create a .env file in /backend (or project root) using backend/.env.example.");
+  console.error(envVars.error.format());
   process.exit(1);
 }
 
