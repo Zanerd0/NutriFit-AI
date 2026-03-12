@@ -1,6 +1,12 @@
 // src/config/db.js
+const dns = require("dns");
 const mongoose = require("mongoose");
 const env = require("./env"); // Import validated env
+
+// Force Node.js to use Google's public DNS — fixes SRV lookup failures
+// on systems where the default DNS resolver can't resolve mongodb+srv:// URIs
+dns.setDefaultResultOrder("ipv4first");
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
 
 const printMongoHelp = (error, mongoUri) => {
   const message = error?.message || "Unknown MongoDB connection error";
@@ -26,7 +32,7 @@ const printMongoHelp = (error, mongoUri) => {
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(env.MONGO_URI);
+    const conn = await mongoose.connect(env.MONGO_URI, { family: 4 });
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     printMongoHelp(error, env.MONGO_URI);

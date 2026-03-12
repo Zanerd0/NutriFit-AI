@@ -10,16 +10,18 @@ const app = express();
 
 // --- MIDDLEWARE ---
 // CORS configured strictly to allow cookies to pass between frontend and backend
-app.use(cors({ 
-  origin: "http://localhost:5173", 
-  credentials: true 
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true
 }));
 
+
+
 // Parse incoming JSON payloads
-app.use(express.json()); 
+app.use(express.json());
 
 // Parse incoming cookies
-app.use(cookieParser()); 
+app.use(cookieParser());
 
 // --- ROUTES ---
 // Mount the authentication routes
@@ -36,7 +38,7 @@ const startServer = async () => {
   try {
     // 1. Connect to MongoDB
     await connectDB();
-    
+
     // 2. Start the Express server
     app.listen(env.PORT, () => {
       console.log(`🚀 Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
