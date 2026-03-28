@@ -30,9 +30,9 @@
 }
 
 .home-orb--1 {
-  width: 600px;
-  height: 600px;
-  background: #6c63ff;
+  width: 500px;
+  height: 500px;
+  background: #3e35e6;
   top: -150px;
   left: -150px;
   animation-delay: 0s;
@@ -41,7 +41,7 @@
 .home-orb--2 {
   width: 500px;
   height: 500px;
-  background: #10b981;
+  background: #3e35e6a2;
   bottom: -100px;
   right: -100px;
   animation-delay: -3s;
@@ -50,17 +50,22 @@
 .home-orb--3 {
   width: 350px;
   height: 350px;
-  background: #f59e0b;
+  background: #74f50b;
   top: 50%;
   left: 60%;
   transform: translate(-50%, -50%);
   animation-delay: -5s;
-  opacity: 0.1;
+  opacity: 0.07;
 }
 
 @keyframes orbFloat {
-  from { transform: scale(1) translate(0, 0); }
-  to   { transform: scale(1.1) translate(20px, -20px); }
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+
+  to {
+    transform: scale(1.1) translate(20px, -20px);
+  }
 }
 
 /* ── Hero content ────────────────────────────────────────────────────────── */
@@ -78,8 +83,15 @@
 }
 
 @keyframes heroFadeIn {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Badge pill ──────────────────────────────────────────────────────────── */
@@ -90,8 +102,8 @@
   gap: 0.5rem;
   padding: 0.4rem 1rem;
   border-radius: 999px;
-  background: rgba(108, 99, 255, 0.12);
-  border: 1px solid rgba(108, 99, 255, 0.3);
+  background: rgba(107, 99, 255, 0.199);
+  border: 1px solid rgba(107, 99, 255, 0.219);
   color: var(--color-primary);
   font-size: 0.8rem;
   font-weight: 600;
@@ -108,14 +120,24 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.5; transform: scale(0.8); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
 }
 
 /* ── The massive title ───────────────────────────────────────────────────── */
 
 .home-title {
-  font-size: clamp(4rem, 12vw, 9rem); /* Fluid: huge on desktop, still big on mobile */
+  font-size: clamp(4rem, 12vw, 9rem);
+  /* Fluid: huge on desktop, still big on mobile */
   font-weight: 800;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -123,13 +145,13 @@
 
   /* Subtle glow on the white text */
   text-shadow:
-    0 0 80px rgba(108, 99, 255, 0.4),
-    0 0 160px rgba(108, 99, 255, 0.15);
+    0 0 80px rgba(107, 99, 255, 0.055),
+    0 0 160px rgba(107, 99, 255, 0.034);
 }
 
 /* The "-AI" part gets the gradient accent */
 .home-title__accent {
-  background: linear-gradient(135deg, #6c63ff 0%, #a78bfa 50%, #10b981 100%);
+  background: linear-gradient(135deg, #8f8bdb 0%, #4ce9a8 50%, #4cec0d 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
