@@ -31,6 +31,7 @@ import Login          from "./pages/Login";
 import Signup         from "./pages/Signup";
 import Dashboard      from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import HomePage      from "./pages/HomePage";
 
 // Route Guards
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -46,7 +47,7 @@ const LayoutManager = () => {
 
   useEffect(() => {
     const root = document.getElementById("root");
-    // Dashboard-style pages need full-screen layout
+    // Dashboard-style pages need full-screen layout; all others stay centered
     const isFullscreen = ["/dashboard", "/admin"].some((path) =>
       location.pathname.startsWith(path)
     );
@@ -63,7 +64,10 @@ function App() {
       <LayoutManager />
 
       <Routes>
-        {/* ── Public Routes ── */}
+        {/* ── Home / Landing Page ── */}
+        <Route path="/"       element={<HomePage />} />
+
+        {/* ── Public Auth Routes ── */}
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
@@ -87,8 +91,8 @@ function App() {
           }
         />
 
-        {/* ── Catch-all: redirect unknown URLs to Login ── */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* ── Catch-all: redirect unknown URLs to Home ── */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
