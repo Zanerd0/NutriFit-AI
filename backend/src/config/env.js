@@ -1,10 +1,8 @@
-// src/config/env.js
 const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
 const { z } = require("zod");
 
-// Load .env file
 const envPaths = [
   path.resolve(process.cwd(), ".env"),
   path.resolve(__dirname, "../../.env"),

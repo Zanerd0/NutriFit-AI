@@ -12,7 +12,12 @@ const Login = () => {
     try {
       const response = await axios.post("/auth/login", formData);
       localStorage.setItem("user", JSON.stringify(response.data));
-      navigate("/dashboard");
+      // Redirect based on role: Admins go to the Admin Dashboard
+      if (response.data.role === "Admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.response?.data?.error || "Login failed");
     }

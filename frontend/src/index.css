@@ -1,16 +1,50 @@
-body, html {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+/* ── Design System Tokens ────────────────────────────────────────────── */
+:root {
+  --color-bg:          #0f1117;
+  --color-surface:     #1a1d27;
+  --color-surface-2:   #22263a;
+  --color-border:      rgba(255,255,255,0.07);
+  --color-primary:     #6c63ff;
+  --color-primary-glow:rgba(108,99,255,0.25);
+  --color-danger:      #ff4d6d;
+  --color-warning:     #f59e0b;
+  --color-success:     #10b981;
+  --color-text:        #e8eaf0;
+  --color-text-muted:  #6b7280;
+  --radius:            12px;
+  --radius-sm:         8px;
+  --shadow:            0 4px 24px rgba(0,0,0,0.35);
+  --transition:        all 0.2s ease;
+}
+
+/* ── Base Reset ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  height: 100vh;
+}
+
+body, html {
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Default root: centered layout (for auth pages) ─────────────────── */
+#root {
+  width: 100%;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f3f4f6;
-  font-family: system-ui, -apple-system, sans-serif;
 }
 
-#root {
-  width: 100%;
-  display: flex;
-  justify-content: center;
+/* ── Full-screen layout (for dashboard / admin pages) ───────────────── */
+#root.page-fullscreen {
+  align-items: stretch;
+  justify-content: flex-start;
 }

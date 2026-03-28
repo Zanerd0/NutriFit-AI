@@ -7,16 +7,17 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ["Consumer", "Dietician", "Instructor"], 
+    enum: ["Consumer", "Dietician", "Instructor", "Admin"], 
     default: "Consumer" 
   }
 }, { timestamps: true });
 
 // Hash password before saving to database
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+// NOTE: In Mongoose 7+, async pre-hooks do NOT receive a `next` callback.
+// Mongoose resolves the returned Promise automatically. Use `return` to exit early.
+userSchema.pre("save", async function () {
+  if (!this.isModified("password")) return; // Exit early if password unchanged
   this.password = await bcrypt.hash(this.password, 10);
-  next();
 });
 
 // Helper method to check password

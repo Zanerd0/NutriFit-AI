@@ -34,6 +34,7 @@ exports.signup = async (req, res) => {
       role: user.role,
     });
   } catch (error) {
+    console.error("❌ Signup error:", error.message); // Log the real error
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
@@ -58,6 +59,7 @@ exports.login = async (req, res) => {
       role: user.role,
     });
   } catch (error) {
+    console.error("❌ Login error:", error.message); // Log the real error
     res.status(500).json({ error: "Internal Server Error" });
   }
 };
