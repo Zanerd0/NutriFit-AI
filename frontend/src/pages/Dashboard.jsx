@@ -1,9 +1,18 @@
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
+
+  // Safety-net: if a role-specific user lands here via a direct URL or
+  // bookmark, redirect them to their correct dedicated dashboard.
+  useEffect(() => {
+    if (user?.role === "Admin")       navigate("/admin",      { replace: true });
+    if (user?.role === "Dietician")   navigate("/dietician",  { replace: true });
+    if (user?.role === "Instructor")  navigate("/instructor", { replace: true });
+  }, [user?.role, navigate]);
 
   const handleLogout = async () => {
     try {

@@ -32,12 +32,14 @@ import Signup              from "./pages/Signup";
 import Dashboard           from "./pages/Dashboard";
 import AdminDashboard      from "./pages/AdminDashboard";
 import DieticianDashboard  from "./pages/DieticianDashboard";
+import InstructorDashboard from "./pages/InstructorDashboard";
 import HomePage            from "./pages/HomePage";
 
 // Route Guards
 import ProtectedRoute  from "./components/ProtectedRoute";
 import AdminRoute      from "./components/AdminRoute";
 import DieticianRoute  from "./components/DieticianRoute";
+import InstructorRoute from "./components/InstructorRoute";
 
 /**
  * LayoutManager - Listens to the current route and toggles the #root
@@ -50,7 +52,7 @@ const LayoutManager = () => {
   useEffect(() => {
     const root = document.getElementById("root");
     // Dashboard-style pages need full-screen layout; all others stay centered
-    const isFullscreen = ["/dashboard", "/admin", "/dietician"].some((path) =>
+    const isFullscreen = ["/dashboard", "/admin", "/dietician", "/instructor"].some((path) =>
       location.pathname.startsWith(path)
     );
     root.classList.toggle("page-fullscreen", isFullscreen);
@@ -100,6 +102,16 @@ function App() {
             <DieticianRoute>
               <DieticianDashboard />
             </DieticianRoute>
+          }
+        />
+
+        {/* ── Protected Instructor Dashboard ── */}
+        <Route
+          path="/instructor"
+          element={
+            <InstructorRoute>
+              <InstructorDashboard />
+            </InstructorRoute>
           }
         />
 

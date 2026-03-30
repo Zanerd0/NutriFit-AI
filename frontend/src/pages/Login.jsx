@@ -12,10 +12,18 @@ const Login = () => {
     try {
       const response = await axios.post("/auth/login", formData);
       localStorage.setItem("user", JSON.stringify(response.data));
-      // Redirect based on role: Admins go to the Admin Dashboard
-      if (response.data.role === "Admin") {
+
+      // Route each role to its dedicated dashboard.
+      // This keeps role-specific UIs completely separate from each other.
+      const { role } = response.data;
+      if (role === "Admin") {
         navigate("/admin");
+      } else if (role === "Dietician") {
+        navigate("/dietician");
+      } else if (role === "Instructor") {
+        navigate("/instructor");
       } else {
+        // Consumer and any future roles land on /dashboard
         navigate("/dashboard");
       }
     } catch (err) {

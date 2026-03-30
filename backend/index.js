@@ -6,7 +6,8 @@ const connectDB = require("./src/config/db"); // Load Database connection
 const authRoutes = require("./src/routes/authRoutes"); // Load Authentication routes
 const healthRoutes = require("./src/routes/healthRoutes"); // Load Health routes
 const adminRoutes     = require("./src/routes/adminRoutes");     // Load Admin routes
-const dieticianRoutes = require("./src/routes/dieticianRoutes"); // Load Dietician routes
+const dieticianRoutes  = require("./src/routes/dieticianRoutes");  // Load Dietician routes
+const instructorRoutes = require("./src/routes/instructorRoutes"); // Load Instructor routes
 
 const app = express();
 
@@ -32,7 +33,9 @@ app.use("/api/health", healthRoutes);
 // Mount admin routes — all endpoints require verifyToken + isAdmin middleware
 app.use("/api/admin",     adminRoutes);
 // Mount dietician routes — all endpoints require verifyToken + isDietician middleware
-app.use("/api/dietician", dieticianRoutes);
+app.use("/api/dietician",  dieticianRoutes);
+// Mount instructor routes — all endpoints require verifyToken + isInstructor middleware
+app.use("/api/instructor", instructorRoutes);
 
 // A simple test route to verify the server is up
 app.get("/", (req, res) => {
