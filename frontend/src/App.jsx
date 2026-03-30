@@ -27,15 +27,17 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { useEffect } from "react";
 
 // Pages
-import Login          from "./pages/Login";
-import Signup         from "./pages/Signup";
-import Dashboard      from "./pages/Dashboard";
-import AdminDashboard from "./pages/AdminDashboard";
-import HomePage      from "./pages/HomePage";
+import Login               from "./pages/Login";
+import Signup              from "./pages/Signup";
+import Dashboard           from "./pages/Dashboard";
+import AdminDashboard      from "./pages/AdminDashboard";
+import DieticianDashboard  from "./pages/DieticianDashboard";
+import HomePage            from "./pages/HomePage";
 
 // Route Guards
-import ProtectedRoute from "./components/ProtectedRoute";
-import AdminRoute     from "./components/AdminRoute";
+import ProtectedRoute  from "./components/ProtectedRoute";
+import AdminRoute      from "./components/AdminRoute";
+import DieticianRoute  from "./components/DieticianRoute";
 
 /**
  * LayoutManager - Listens to the current route and toggles the #root
@@ -48,7 +50,7 @@ const LayoutManager = () => {
   useEffect(() => {
     const root = document.getElementById("root");
     // Dashboard-style pages need full-screen layout; all others stay centered
-    const isFullscreen = ["/dashboard", "/admin"].some((path) =>
+    const isFullscreen = ["/dashboard", "/admin", "/dietician"].some((path) =>
       location.pathname.startsWith(path)
     );
     root.classList.toggle("page-fullscreen", isFullscreen);
@@ -88,6 +90,16 @@ function App() {
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
+          }
+        />
+
+        {/* ── Protected Dietician Dashboard ── */}
+        <Route
+          path="/dietician"
+          element={
+            <DieticianRoute>
+              <DieticianDashboard />
+            </DieticianRoute>
           }
         />
 

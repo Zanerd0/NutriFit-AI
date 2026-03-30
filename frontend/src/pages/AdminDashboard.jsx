@@ -296,7 +296,7 @@ const AdminDashboard = () => {
 
         {/* Brand logo area */}
         <div className="sidebar-brand">
-          <span className="brand-icon">🥦</span>
+          {/*<span className="brand-icon">🥦</span>*/}
           <div className="brand-text">
             <span className="brand-name">NutriFit AI</span>
             <span className="brand-sub">Admin Panel</span>
