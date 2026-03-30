@@ -23,7 +23,7 @@ const Login = () => {
       } else if (role === "Instructor") {
         navigate("/instructor");
       } else {
-        // Consumer and any future roles land on /dashboard
+        // Consumers (and any unrecognised future roles) land on /dashboard
         navigate("/dashboard");
       }
     } catch (err) {

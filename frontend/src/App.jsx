@@ -33,6 +33,7 @@ import Dashboard           from "./pages/Dashboard";
 import AdminDashboard      from "./pages/AdminDashboard";
 import DieticianDashboard  from "./pages/DieticianDashboard";
 import InstructorDashboard from "./pages/InstructorDashboard";
+import ConsumerDashboard   from "./pages/ConsumerDashboard";
 import HomePage            from "./pages/HomePage";
 
 // Route Guards
@@ -40,6 +41,7 @@ import ProtectedRoute  from "./components/ProtectedRoute";
 import AdminRoute      from "./components/AdminRoute";
 import DieticianRoute  from "./components/DieticianRoute";
 import InstructorRoute from "./components/InstructorRoute";
+import ConsumerRoute   from "./components/ConsumerRoute";
 
 /**
  * LayoutManager - Listens to the current route and toggles the #root
@@ -75,13 +77,13 @@ function App() {
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* ── Protected User Dashboard ── */}
+        {/* ── Protected Consumer Dashboard (/dashboard) ── */}
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
+            <ConsumerRoute>
+              <ConsumerDashboard />
+            </ConsumerRoute>
           }
         />
 
