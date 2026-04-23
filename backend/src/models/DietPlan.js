@@ -2,14 +2,16 @@
  * @file DietPlan.js
  * @description Mongoose model for a Diet Plan document.
  *
- * A DietPlan is created by a Dietician and assigned to a Consumer (client).
- * It stores high-level metadata (title, description) together with a flexible
- * array of meal entries so that dieticians can capture any meal structure
- * without being locked into a rigid schema.
+ * Phase 1 — Dietician-created plan assigned to a Consumer.
+ * Phase 2 — Extended to support AI-generated weekly schedules:
+ *   • userId        → the Consumer this plan belongs to
+ *   • status        → lifecycle state of the plan
+ *   • week_schedule → raw JSON blob returned by the AI (Schema.Types.Mixed)
  *
  * Schema Relations:
- *   dieticianId  →  User (role: "Dietician")  — the plan creator
- *   clientId     →  User (role: "Consumer")   — the plan recipient
+ *   userId       →  User (role: "Consumer")   — plan owner  [Phase 2]
+ *   dieticianId  →  User (role: "Dietician")  — plan creator
+ *   clientId     →  User (role: "Consumer")   — plan recipient (Phase 1 alias)
  */
 
 const mongoose = require("mongoose");
@@ -48,6 +50,45 @@ const mealSchema = new mongoose.Schema(
 
 const dietPlanSchema = new mongoose.Schema(
   {
+    // ── Phase 2: AI Plan Fields ──────────────────────────────────────────────
+
+    /**
+     * userId - The Consumer this plan belongs to.
+     * Used by AI-generation routes to associate the plan with its owner
+     * directly, without going through the dieticianId → clientId chain.
+     */
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    /**
+     * status - Lifecycle state of the diet plan.
+     *   'No_Plan'   → no plan has been generated yet
+     *   'Active'    → currently in use by the consumer
+     *   'Completed' → the scheduled week has passed
+     *   'Archived'  → manually archived, no longer active
+     */
+    status: {
+      type: String,
+      enum: ["No_Plan", "Active", "Completed", "Archived"],
+      default: "Active",
+    },
+
+    /**
+     * week_schedule - Raw JSON structure returned by the AI planner.
+     * Stored as Schema.Types.Mixed so any object/array shape can be persisted
+     * without a rigid sub-document definition.
+     * Example shape: { monday: { breakfast: "...", lunch: "..." }, tuesday: … }
+     */
+    week_schedule: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+
+    // ── Phase 1: Dietician-Created Plan Fields ───────────────────────────────
+
     /**
      * dieticianId - Reference to the User who created this plan.
      * Automatically populated in queries via Model.populate("dieticianId").
