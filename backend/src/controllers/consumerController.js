@@ -7,9 +7,10 @@
  *   2. isConsumer   — req.user  is a User with role "Consumer"
  *
  * Controller Functions:
- *   getMyDietPlans    — GET   /api/consumer/diet-plans     → Consumer's assigned diet plans
- *   getMyWorkoutPlans — GET   /api/consumer/workout-plans  → Consumer's assigned workout plans
- *   updateProfile     — PATCH /api/consumer/profile        → Update health metrics
+ *   getMyDietPlans      — GET   /api/consumer/diet-plans     → Consumer's assigned diet plans
+ *   getMyWorkoutPlans   — GET   /api/consumer/workout-plans  → Consumer's assigned workout plans
+ *   updateProfile       — PATCH /api/consumer/profile        → Update health metrics
+ *   completeOnboarding  — PUT   /api/consumer/onboarding     → Save first-time health profile
  */
 
 const User        = require("../models/User");
@@ -90,7 +91,7 @@ const getMyWorkoutPlans = async (req, res) => {
 const updateProfile = async (req, res) => {
   try {
     // Whitelist of fields a consumer is permitted to update on their own document
-    const ALLOWED_FIELDS = ["weight", "height", "goal"];
+    const ALLOWED_FIELDS = ["weight", "height", "goal", "primary_goal"];
 
     // Build the update object — only include keys that are whitelisted AND
     // actually present in the request body
@@ -127,7 +128,79 @@ const updateProfile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/consumer/onboarding
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * completeOnboarding
+ * @description Saves the consumer's first-time health profile collected on the
+ * Onboarding page. This endpoint is intentionally separate from updateProfile
+ * so the onboarding flow has its own clear contract and can be versioned
+ * independently.
+ *
+ * Fields accepted (all required for a complete onboarding submission):
+ * {
+ *   age:                  number   — Age in whole years
+ *   weight:               number   — Body weight in kg
+ *   height:               number   — Body height in cm
+ *   primary_goal:         string   — e.g. 'Weight Loss', 'Muscle Gain'
+ *   dietary_preferences:  string[] — e.g. ['Keto', 'Vegan']
+ * }
+ *
+ * Returns the updated user document (password excluded) so the frontend can
+ * refresh localStorage with the latest profile data in one round-trip.
+ */
+const completeOnboarding = async (req, res) => {
+  try {
+    // Strict allowlist — consumers cannot overwrite role, email, password, etc.
+    const ONBOARDING_FIELDS = [
+      "age",
+      "weight",
+      "height",
+      "primary_goal",
+      "dietary_preferences",
+    ];
+
+    const updates = {};
+    ONBOARDING_FIELDS.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    if (Object.keys(updates).length === 0) {
+      return res
+        .status(400)
+        .json({ error: "No valid onboarding fields provided." });
+    }
+
+    // req.userId is injected by verifyToken; isConsumer has already confirmed
+    // the account exists and holds the Consumer role.
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password -__v");
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.status(200).json({
+      message: "Onboarding complete. Profile saved successfully.",
+      user: updatedUser,
+    });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("completeOnboarding error:", error.message);
+    res.status(500).json({ error: "Failed to save onboarding data." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
-module.exports = { getMyDietPlans, getMyWorkoutPlans, updateProfile };
+module.exports = { getMyDietPlans, getMyWorkoutPlans, updateProfile, completeOnboarding };

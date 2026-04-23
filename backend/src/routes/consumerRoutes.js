@@ -19,6 +19,7 @@
  *   GET   /api/consumer/diet-plans     → getMyDietPlans
  *   GET   /api/consumer/workout-plans  → getMyWorkoutPlans
  *   PATCH /api/consumer/profile        → updateProfile
+ *   PUT   /api/consumer/onboarding     → completeOnboarding
  */
 
 const express = require("express");
@@ -33,6 +34,7 @@ const {
   getMyDietPlans,
   getMyWorkoutPlans,
   updateProfile,
+  completeOnboarding,
 } = require("../controllers/consumerController");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -56,5 +58,15 @@ router.get("/workout-plans", verifyToken, isConsumer, getMyWorkoutPlans);
 // Uses PATCH (not PUT) because only a subset of fields is being modified.
 // ─────────────────────────────────────────────────────────────────────────────
 router.patch("/profile", verifyToken, isConsumer, updateProfile);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ONBOARDING
+// PUT /api/consumer/onboarding
+// Saves the consumer's first-time health profile (age, weight, height,
+// primary_goal, dietary_preferences). Called once from ConsumerOnboarding.jsx.
+// Uses PUT (not PATCH) because the intent is a full replacement of the
+// onboarding fields, not a partial update.
+// ─────────────────────────────────────────────────────────────────────────────
+router.put("/onboarding", verifyToken, isConsumer, completeOnboarding);
 
 module.exports = router;

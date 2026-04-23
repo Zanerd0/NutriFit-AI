@@ -5,16 +5,27 @@
  * Route Architecture:
  * ──────────────────
  * Public Routes (no auth required):
- *   /login   → Login page
- *   /signup  → Signup page
+ *   /          → Home / landing page
+ *   /login     → Login page
+ *   /signup    → Signup page
  *
- * Protected Routes (require a valid JWT cookie + localStorage user):
- *   /dashboard → Standard user dashboard (Consumer, Dietician, Instructor)
- *                Wrapped in <ProtectedRoute> which checks localStorage
+ * Onboarding Route (Consumer-only, pre-dashboard gate):
+ *   /onboarding → First-time health profile form
+ *                 Wrapped in OnboardingRoute which redirects away if:
+ *                   a) User is not a Consumer → /login
+ *                   b) Profile already complete → /consumer
  *
- * Admin Routes (require JWT + role === "Admin"):
- *   /admin   → Admin dashboard
- *              Wrapped in <AdminRoute> which checks localStorage AND role field
+ * Protected Consumer Route:
+ *   /consumer  → Consumer dashboard
+ *               Wrapped in ConsumerRoute which requires:
+ *                   a) JWT cookie + localStorage user
+ *                   b) role === "Consumer"
+ *                   c) Onboarding complete (age + weight set)
+ *
+ * Admin / Dietician / Instructor Routes:
+ *   /admin      → AdminDashboard
+ *   /dietician  → DieticianDashboard
+ *   /instructor → InstructorDashboard
  *
  * Layout Notes:
  * ─────────────
@@ -34,6 +45,7 @@ import AdminDashboard      from "./pages/AdminDashboard";
 import DieticianDashboard  from "./pages/DieticianDashboard";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import ConsumerDashboard   from "./pages/ConsumerDashboard";
+import ConsumerOnboarding  from "./pages/ConsumerOnboarding";
 import HomePage            from "./pages/HomePage";
 
 // Route Guards
@@ -54,7 +66,7 @@ const LayoutManager = () => {
   useEffect(() => {
     const root = document.getElementById("root");
     // Dashboard-style pages need full-screen layout; all others stay centered
-    const isFullscreen = ["/dashboard", "/admin", "/dietician", "/instructor"].some((path) =>
+    const isFullscreen = ["/dashboard", "/admin", "/dietician", "/instructor", "/consumer"].some((path) =>
       location.pathname.startsWith(path)
     );
     root.classList.toggle("page-fullscreen", isFullscreen);
@@ -77,7 +89,35 @@ function App() {
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* ── Protected Consumer Dashboard (/dashboard) ── */}
+        {/* ── Onboarding (Consumer only — pre-dashboard gate) ── */}
+        {/*
+          OnboardingRoute is defined inline here because it is a micro-guard
+          used only for this single route. It mirrors ConsumerRoute but with
+          the logic inverted: redirect AWAY if the profile is already complete.
+        */}
+        <Route
+          path="/onboarding"
+          element={(() => {
+            const user = JSON.parse(localStorage.getItem("user"));
+            // Not logged in or wrong role → back to login
+            if (!user || user.role !== "Consumer") return <Navigate to="/login" replace />;
+            // Already onboarded → skip to dashboard
+            if (user.age != null && user.weight != null) return <Navigate to="/consumer" replace />;
+            return <ConsumerOnboarding />;
+          })()}
+        />
+
+        {/* ── Protected Consumer Dashboard (/consumer) ── */}
+        <Route
+          path="/consumer"
+          element={
+            <ConsumerRoute>
+              <ConsumerDashboard />
+            </ConsumerRoute>
+          }
+        />
+
+        {/* ── Legacy /dashboard alias — kept for backward-compat ── */}
         <Route
           path="/dashboard"
           element={

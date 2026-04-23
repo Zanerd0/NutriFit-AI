@@ -157,9 +157,9 @@ const ConsumerDashboard = () => {
   // ── Profile edit state ─────────────────────────────────────────────────────
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm,    setProfileForm]    = useState({
-    weight: consumer.weight ?? "",
-    height: consumer.height ?? "",
-    goal:   consumer.goal   ?? "",
+    weight:       consumer.weight       ?? "",
+    height:       consumer.height       ?? "",
+    primary_goal: consumer.primary_goal ?? consumer.goal ?? "",
   });
   const [saving,        setSaving]        = useState(false);
   const [profileMsg,    setProfileMsg]    = useState({ type: "", text: "" });
@@ -219,9 +219,9 @@ const ConsumerDashboard = () => {
     try {
       // Only send fields that have actual values
       const payload = {};
-      if (profileForm.weight !== "") payload.weight = Number(profileForm.weight);
-      if (profileForm.height !== "") payload.height = Number(profileForm.height);
-      if (profileForm.goal   !== "") payload.goal   = profileForm.goal;
+      if (profileForm.weight       !== "") payload.weight       = Number(profileForm.weight);
+      if (profileForm.height       !== "") payload.height       = Number(profileForm.height);
+      if (profileForm.primary_goal !== "") payload.primary_goal = profileForm.primary_goal;
 
       const res = await axios.patch("/consumer/profile", payload);
 
@@ -288,7 +288,7 @@ const ConsumerDashboard = () => {
         <div className="con-health-stat">
           <span className="con-health-stat__label">Goal</span>
           <span className="con-health-stat__value" style={{ fontSize: "0.9rem" }}>
-            {consumer.goal ?? "Not set"}
+            {consumer.primary_goal ?? consumer.goal ?? "Not set"}
           </span>
         </div>
         <div className="con-health-stat">
@@ -339,9 +339,9 @@ const ConsumerDashboard = () => {
             <select
               id="profile-goal"
               className="con-form-select"
-              value={profileForm.goal}
+              value={profileForm.primary_goal}
               onChange={(e) =>
-                setProfileForm((p) => ({ ...p, goal: e.target.value }))
+                setProfileForm((p) => ({ ...p, primary_goal: e.target.value }))
               }
             >
               <option value="">— Select goal —</option>
@@ -561,9 +561,9 @@ const ConsumerDashboard = () => {
             </>
           )}
 
-          {/* Individual tabs for focused views */}
-          {activeTab === "diet"    && <>{renderWelcomeCard()}{renderDietPlans()}</>}
-          {activeTab === "workout" && <>{renderWelcomeCard()}{renderWorkoutPlans()}</>}
+          {/* Individual tabs for focused views — NO welcome card here */}
+          {activeTab === "diet"    && renderDietPlans()}
+          {activeTab === "workout" && renderWorkoutPlans()}
           {activeTab === "ai"      && renderAIAdvisor()}
         </div>
       </main>

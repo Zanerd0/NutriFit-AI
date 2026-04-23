@@ -28,10 +28,17 @@ exports.signup = async (req, res) => {
     generateTokenAndSetCookie(user._id, res);
 
     res.status(201).json({
-      _id: user._id,
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role,
+      _id:                  user._id,
+      full_name:            user.full_name,
+      email:                user.email,
+      role:                 user.role,
+      // Health metrics — needed by ConsumerRoute onboarding gate
+      age:                  user.age,
+      weight:               user.weight,
+      height:               user.height,
+      goal:                 user.goal,
+      primary_goal:         user.primary_goal,
+      dietary_preferences:  user.dietary_preferences,
     });
   } catch (error) {
     console.error("❌ Signup error:", error.message); // Log the real error
@@ -53,10 +60,17 @@ exports.login = async (req, res) => {
     generateTokenAndSetCookie(user._id, res);
 
     res.status(200).json({
-      _id: user._id,
-      full_name: user.full_name,
-      email: user.email,
-      role: user.role,
+      _id:                  user._id,
+      full_name:            user.full_name,
+      email:                user.email,
+      role:                 user.role,
+      // Health metrics — needed by ConsumerRoute onboarding gate
+      age:                  user.age,
+      weight:               user.weight,
+      height:               user.height,
+      goal:                 user.goal,
+      primary_goal:         user.primary_goal,
+      dietary_preferences:  user.dietary_preferences,
     });
   } catch (error) {
     console.error("❌ Login error:", error.message); // Log the real error
