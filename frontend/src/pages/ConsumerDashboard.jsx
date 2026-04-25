@@ -19,6 +19,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate }                       from "react-router-dom";
 import axios                                 from "../api/axios";
+import FindProfessionals                     from "./FindProfessionals";
 import "./ConsumerDashboard.css";
 
 // =============================================================================
@@ -480,10 +481,11 @@ const ConsumerDashboard = () => {
 
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
-    { id: "home",    label: "Home",          icon: "🏠" },
-    { id: "diet",    label: "Diet Plans",    icon: "🥗" },
-    { id: "workout", label: "Workout Plans", icon: "🏋️" },
-    { id: "ai",      label: "AI Advisor",    icon: "🤖" },
+    { id: "home",      label: "Home",              icon: "🏠" },
+    { id: "diet",      label: "Diet Plans",        icon: "🥗" },
+    { id: "workout",   label: "Workout Plans",     icon: "🏋️" },
+    { id: "find",      label: "Find Professionals", icon: "🔗" },
+    { id: "ai",        label: "AI Advisor",        icon: "🤖" },
   ];
 
   // ── Main Render ───────────────────────────────────────────────────────────
@@ -565,6 +567,20 @@ const ConsumerDashboard = () => {
           {activeTab === "diet"    && renderDietPlans()}
           {activeTab === "workout" && renderWorkoutPlans()}
           {activeTab === "ai"      && renderAIAdvisor()}
+
+          {/* Find Professionals tab — browse and connect with Dieticians/Instructors */}
+          {activeTab === "find" && (
+            <FindProfessionals
+              consumer={consumer}
+              onConsumerUpdate={(updatedUser) => {
+                // Sync the parent's consumer state and localStorage so that
+                // the dashboard reflects the new dieticianId/instructorId
+                // immediately without a page reload.
+                setConsumer(updatedUser);
+                localStorage.setItem("user", JSON.stringify(updatedUser));
+              }}
+            />
+          )}
         </div>
       </main>
     </div>

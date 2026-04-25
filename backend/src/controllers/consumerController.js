@@ -7,10 +7,13 @@
  *   2. isConsumer   — req.user  is a User with role "Consumer"
  *
  * Controller Functions:
- *   getMyDietPlans      — GET   /api/consumer/diet-plans     → Consumer's assigned diet plans
- *   getMyWorkoutPlans   — GET   /api/consumer/workout-plans  → Consumer's assigned workout plans
- *   updateProfile       — PATCH /api/consumer/profile        → Update health metrics
- *   completeOnboarding  — PUT   /api/consumer/onboarding     → Save first-time health profile
+ *   getMyDietPlans         — GET   /api/consumer/diet-plans           → Consumer's assigned diet plans
+ *   getMyWorkoutPlans      — GET   /api/consumer/workout-plans        → Consumer's assigned workout plans
+ *   updateProfile          — PATCH /api/consumer/profile              → Update health metrics
+ *   completeOnboarding     — PUT   /api/consumer/onboarding           → Save first-time health profile
+ *   linkProfessional       — PUT   /api/consumer/link-professional    → Link a Dietician or Instructor
+ *   disconnectProfessional — PUT   /api/consumer/disconnect-professional → Nullify a professional link
+ *   getMyProfile           — GET   /api/consumer/me                   → Fetch fresh consumer document
  */
 
 const User        = require("../models/User");
@@ -106,12 +109,12 @@ const updateProfile = async (req, res) => {
       return res.status(400).json({ error: "No valid fields provided for update." });
     }
 
-    // findByIdAndUpdate with { new: true } returns the updated document
+    // returnDocument: 'after' returns the updated document (replaces deprecated { new: true })
     // runValidators ensures the goal enum is validated on update operations
     const updatedUser = await User.findByIdAndUpdate(
       req.userId,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password -__v");
 
     res.status(200).json({
@@ -179,7 +182,7 @@ const completeOnboarding = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       req.userId,
       { $set: updates },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).select("-password -__v");
 
     if (!updatedUser) {
@@ -200,7 +203,187 @@ const completeOnboarding = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/consumer/link-professional
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * linkProfessional
+ * @description Links the logged-in consumer to a Dietician or Instructor by
+ * saving that professional's MongoDB ObjectId into the consumer's document.
+ *
+ * Expected request body:
+ * {
+ *   professionalId:   string  — The MongoDB _id of the professional to link
+ *   professionalRole: string  — Either "Dietician" or "Instructor"
+ * }
+ *
+ * Business Rules:
+ *   - Only "Dietician" and "Instructor" are valid roles to link against.
+ *   - The professional must exist in the database and hold the correct role.
+ *   - Linking overwrites any previously linked professional of the same type.
+ *
+ * Returns the updated consumer document (password excluded) so the frontend
+ * can refresh localStorage in a single round-trip.
+ */
+const linkProfessional = async (req, res) => {
+  try {
+    const { professionalId, professionalRole } = req.body;
+
+    // ── 1. Validate the incoming role ────────────────────────────────────────
+    const VALID_ROLES = ["Dietician", "Instructor"];
+    if (!professionalId || !professionalRole) {
+      return res.status(400).json({
+        error: "Both professionalId and professionalRole are required.",
+      });
+    }
+    if (!VALID_ROLES.includes(professionalRole)) {
+      return res.status(400).json({
+        error: `Invalid professionalRole. Must be one of: ${VALID_ROLES.join(", ")}.`,
+      });
+    }
+
+    // ── 2. Verify the referenced professional actually exists ─────────────────
+    // This prevents linking to a deleted or non-existent user.
+    const professional = await User.findById(professionalId).select("role full_name");
+    if (!professional) {
+      return res.status(404).json({ error: "Professional not found." });
+    }
+    if (professional.role !== professionalRole) {
+      return res.status(400).json({
+        error: `The specified user is not a ${professionalRole}.`,
+      });
+    }
+
+    // ── 3. Map professionalRole to the correct schema field ───────────────────
+    // "Dietician"  → dieticianId
+    // "Instructor" → instructorId
+    const fieldMap = {
+      Dietician:  "dieticianId",
+      Instructor: "instructorId",
+    };
+    const fieldToUpdate = fieldMap[professionalRole];
+
+    // ── 4. Persist the link on the consumer document ──────────────────────────
+    // req.userId is injected by verifyToken; isConsumer has already confirmed
+    // the account exists and holds the Consumer role.
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: { [fieldToUpdate]: professionalId } },
+      { returnDocument: "after", runValidators: true }
+    ).select("-password -__v");
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "Consumer account not found." });
+    }
+
+    res.status(200).json({
+      message: `Successfully linked to ${professional.full_name} as your ${professionalRole}.`,
+      user: updatedUser,
+    });
+  } catch (error) {
+    // Handle invalid ObjectId format gracefully
+    if (error.name === "CastError") {
+      return res.status(400).json({ error: "Invalid professionalId format." });
+    }
+    console.error("linkProfessional error:", error.message);
+    res.status(500).json({ error: "Failed to link professional." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/consumer/disconnect-professional
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * disconnectProfessional
+ * @description Removes a professional link by nullifying the consumer's
+ * `dieticianId` or `instructorId` field (sets it to null).
+ *
+ * Expected request body:
+ * {
+ *   professionalRole: string  — Either "Dietician" or "Instructor"
+ * }
+ *
+ * Returns the updated consumer document (password excluded).
+ */
+const disconnectProfessional = async (req, res) => {
+  try {
+    const { professionalRole } = req.body;
+
+    // ── 1. Validate the role ──────────────────────────────────────────────────
+    const VALID_ROLES = ["Dietician", "Instructor"];
+    if (!professionalRole || !VALID_ROLES.includes(professionalRole)) {
+      return res.status(400).json({
+        error: `Invalid professionalRole. Must be one of: ${VALID_ROLES.join(", ")}.`,
+      });
+    }
+
+    // ── 2. Map role to the schema field and set it to null ────────────────────
+    const fieldMap = {
+      Dietician:  "dieticianId",
+      Instructor: "instructorId",
+    };
+    const fieldToNullify = fieldMap[professionalRole];
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.userId,
+      { $set: { [fieldToNullify]: null } },
+      { returnDocument: "after" }
+    ).select("-password -__v");
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "Consumer account not found." });
+    }
+
+    res.status(200).json({
+      message: `Your ${professionalRole} has been disconnected successfully.`,
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("disconnectProfessional error:", error.message);
+    res.status(500).json({ error: "Failed to disconnect professional." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/consumer/me
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * getMyProfile
+ * @description Returns the full, fresh consumer document from MongoDB.
+ * Called by the frontend after any connect/disconnect action to ensure the
+ * local state always reflects the true database state — solving the refresh
+ * persistence problem.
+ *
+ * Response shape: { user: Consumer } (password excluded)
+ */
+const getMyProfile = async (req, res) => {
+  try {
+    // req.userId is set by verifyToken; isConsumer has validated the role.
+    const user = await User.findById(req.userId).select("-password -__v");
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    res.status(200).json({ user });
+  } catch (error) {
+    console.error("getMyProfile error:", error.message);
+    res.status(500).json({ error: "Failed to fetch profile." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
-module.exports = { getMyDietPlans, getMyWorkoutPlans, updateProfile, completeOnboarding };
+module.exports = {
+  getMyDietPlans,
+  getMyWorkoutPlans,
+  updateProfile,
+  completeOnboarding,
+  linkProfessional,
+  disconnectProfessional,
+  getMyProfile,
+};

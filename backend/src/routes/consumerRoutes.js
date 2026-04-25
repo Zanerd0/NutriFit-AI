@@ -16,10 +16,13 @@
  * Mounted at: /api/consumer  (registered in backend/index.js)
  *
  * Full Route Map:
- *   GET   /api/consumer/diet-plans     → getMyDietPlans
- *   GET   /api/consumer/workout-plans  → getMyWorkoutPlans
- *   PATCH /api/consumer/profile        → updateProfile
- *   PUT   /api/consumer/onboarding     → completeOnboarding
+ *   GET   /api/consumer/diet-plans               → getMyDietPlans
+ *   GET   /api/consumer/workout-plans            → getMyWorkoutPlans
+ *   GET   /api/consumer/me                       → getMyProfile
+ *   PATCH /api/consumer/profile                  → updateProfile
+ *   PUT   /api/consumer/onboarding               → completeOnboarding
+ *   PUT   /api/consumer/link-professional        → linkProfessional
+ *   PUT   /api/consumer/disconnect-professional  → disconnectProfessional
  */
 
 const express = require("express");
@@ -35,6 +38,9 @@ const {
   getMyWorkoutPlans,
   updateProfile,
   completeOnboarding,
+  linkProfessional,
+  disconnectProfessional,
+  getMyProfile,
 } = require("../controllers/consumerController");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -68,5 +74,29 @@ router.patch("/profile", verifyToken, isConsumer, updateProfile);
 // onboarding fields, not a partial update.
 // ─────────────────────────────────────────────────────────────────────────────
 router.put("/onboarding", verifyToken, isConsumer, completeOnboarding);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LINK PROFESSIONAL
+// PUT /api/consumer/link-professional
+// Saves a Dietician's or Instructor's ObjectId into the consumer's document.
+// Body: { professionalId: string, professionalRole: "Dietician"|"Instructor" }
+// ─────────────────────────────────────────────────────────────────────────────
+router.put("/link-professional", verifyToken, isConsumer, linkProfessional);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISCONNECT PROFESSIONAL
+// PUT /api/consumer/disconnect-professional
+// Nullifies the consumer's dieticianId or instructorId (sets field to null).
+// Body: { professionalRole: "Dietician"|"Instructor" }
+// ─────────────────────────────────────────────────────────────────────────────
+router.put("/disconnect-professional", verifyToken, isConsumer, disconnectProfessional);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MY PROFILE (fresh consumer document — used for state persistence)
+// GET /api/consumer/me
+// Returns the logged-in consumer's up-to-date document from MongoDB.
+// The frontend calls this after every link/disconnect to re-sync state.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/me", verifyToken, isConsumer, getMyProfile);
 
 module.exports = router;

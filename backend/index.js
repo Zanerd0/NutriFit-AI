@@ -9,6 +9,7 @@ const adminRoutes     = require("./src/routes/adminRoutes");     // Load Admin r
 const dieticianRoutes  = require("./src/routes/dieticianRoutes");  // Load Dietician routes
 const instructorRoutes = require("./src/routes/instructorRoutes"); // Load Instructor routes
 const consumerRoutes   = require("./src/routes/consumerRoutes");   // Load Consumer routes
+const professionalRoutes = require("./src/routes/professionalRoutes"); // Load Professionals directory routes
 
 const app = express();
 
@@ -39,6 +40,8 @@ app.use("/api/dietician",  dieticianRoutes);
 app.use("/api/instructor", instructorRoutes);
 // Mount consumer routes — all endpoints require verifyToken + isConsumer middleware
 app.use("/api/consumer",   consumerRoutes);
+// Mount professionals directory — any authenticated user can browse professionals
+app.use("/api/professionals", professionalRoutes);
 
 // A simple test route to verify the server is up
 app.get("/", (req, res) => {
