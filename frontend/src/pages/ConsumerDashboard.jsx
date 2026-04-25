@@ -20,6 +20,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate }                       from "react-router-dom";
 import axios                                 from "../api/axios";
 import FindProfessionals                     from "./FindProfessionals";
+import MyWorkout                             from "../components/MyWorkout";
 import "./ConsumerDashboard.css";
 
 // =============================================================================
@@ -481,11 +482,12 @@ const ConsumerDashboard = () => {
 
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
-    { id: "home",      label: "Home",              icon: "🏠" },
-    { id: "diet",      label: "Diet Plans",        icon: "🥗" },
-    { id: "workout",   label: "Workout Plans",     icon: "🏋️" },
-    { id: "find",      label: "Find Professionals", icon: "🔗" },
-    { id: "ai",        label: "AI Advisor",        icon: "🤖" },
+    { id: "home",       label: "Home",              icon: "🏠" },
+    { id: "diet",       label: "Diet Plans",        icon: "🥗" },
+    { id: "workout",    label: "Workout Plans",     icon: "🏋️" },
+    { id: "my-workout", label: "My Workout",        icon: "💪" },
+    { id: "find",       label: "Find Professionals", icon: "🔗" },
+    { id: "ai",         label: "AI Advisor",        icon: "🤖" },
   ];
 
   // ── Main Render ───────────────────────────────────────────────────────────
@@ -567,6 +569,9 @@ const ConsumerDashboard = () => {
           {activeTab === "diet"    && renderDietPlans()}
           {activeTab === "workout" && renderWorkoutPlans()}
           {activeTab === "ai"      && renderAIAdvisor()}
+
+          {/* My Workout — dedicated view of the instructor-assigned routine */}
+          {activeTab === "my-workout" && <MyWorkout />}
 
           {/* Find Professionals tab — browse and connect with Dieticians/Instructors */}
           {activeTab === "find" && (

@@ -33,6 +33,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import "./DieticianDashboard.css";
+import ClientList from "../components/ClientList";
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -376,7 +377,9 @@ const DieticianDashboard = () => {
   );
 
   /**
-   * renderClients — Grid of all Consumer users. Clicking opens the plan modal.
+   * renderClients — Renders the shared <ClientList /> data table.
+   * The "Manage Plan" button in each row calls openModalForClient to
+   * pre-select the client and open the Create Plan modal.
    */
   const renderClients = () => (
     <section className="diet-section" id="section-clients">
@@ -384,44 +387,24 @@ const DieticianDashboard = () => {
         <div>
           <h2 className="diet-section__title">Client List</h2>
           <p className="diet-section__sub">
-            {clients.length} consumer{clients.length !== 1 ? "s" : ""} registered in the system.
-            Click a client to create a diet plan for them.
+            Clients who have linked to you. Click "Manage Plan" to create a
+            personalised diet plan for any client.
           </p>
         </div>
         <button
           id="create-plan-btn"
           className="diet-btn diet-btn--primary"
           onClick={() => setShowModal(true)}
-          disabled={clients.length === 0}
         >
           ＋ New Plan
         </button>
       </div>
 
-      {loading ? (
-        <div className="diet-loading">
-          <div className="diet-spinner" />
-          <p>Loading clients…</p>
-        </div>
-      ) : error ? (
-        <div className="diet-error-banner" role="alert">{error}</div>
-      ) : clients.length === 0 ? (
-        <div className="diet-empty">
-          <div className="diet-empty__icon">👥</div>
-          <p className="diet-empty__text">No consumers have registered yet.</p>
-        </div>
-      ) : (
-        <div className="diet-client-grid">
-          {clients.map((client) => (
-            <ClientCard
-              key={client._id}
-              client={client}
-              isSelected={selectedClient?._id === client._id}
-              onSelect={openModalForClient}
-            />
-          ))}
-        </div>
-      )}
+      {/* ClientList fetches /api/professional/clients independently */}
+      <ClientList
+        variant="dietician"
+        onSelectClient={openModalForClient}
+      />
     </section>
   );
 

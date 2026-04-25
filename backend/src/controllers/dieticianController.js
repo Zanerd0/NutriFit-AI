@@ -21,23 +21,25 @@ const DietPlan = require("../models/DietPlan");
 
 /**
  * getClients
- * @description Fetch all users who hold the role "Consumer".
+ * @description Fetch only the Consumer users who have linked to the
+ * currently authenticated Dietician (i.e. whose `dieticianId` field
+ * matches the logged-in user's ID).
  *
- * In the current Phase-1 implementation every registered Consumer is visible
- * to every Dietician. A future update will introduce an explicit
- * dietician↔consumer assignment so each dietician only sees their own clients.
+ * This replaces the old Phase-1 approach of returning ALL consumers;
+ * now each dietician sees only their own assigned clients.
  *
  * Response shape:  Array<{ _id, full_name, email, createdAt }>
  */
 const getClients = async (req, res) => {
   try {
-    // Query: find all users whose role is "Consumer"
+    // Filter: Consumer users whose dieticianId matches the logged-in dietician
     // Projection: exclude the hashed password — never send it to the client
-    const clients = await User.find({ role: "Consumer" }).select(
-      "-password -__v"
-    );
+    const clients = await User.find({
+      role:        "Consumer",
+      dieticianId: req.userId,   // Only this dietician's linked clients
+    }).select("-password -__v");
 
-    // Return the array (may be empty if no Consumers have registered yet)
+    // Return the array (empty when no consumers have linked to this dietician yet)
     res.status(200).json(clients);
   } catch (error) {
     console.error("getClients error:", error.message);

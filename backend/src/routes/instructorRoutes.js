@@ -19,9 +19,11 @@
  * Mounted at: /api/instructor  (registered in backend/index.js)
  *
  * Full Route Map:
- *   GET  /api/instructor/clients  → getClients      (list all Consumers)
- *   GET  /api/instructor/plans    → getWorkoutPlans (plans by this instructor)
- *   POST /api/instructor/plans    → createWorkoutPlan (create a new plan)
+ *   GET  /api/instructor/clients          → getClients      (list linked Consumers)
+ *   GET  /api/instructor/plans            → getWorkoutPlans (plans by this instructor)
+ *   POST /api/instructor/plans            → createWorkoutPlan (create a new plan)
+ *   GET  /api/instructor/templates        → getTemplates    (all WorkoutTemplate docs)
+ *   POST /api/instructor/assign-workout   → assignWorkout   (assign template plan to client)
  */
 
 const express = require("express");
@@ -36,6 +38,12 @@ const {
   getClients,
   createWorkoutPlan,
   getWorkoutPlans,
+  deleteWorkoutPlan,
+  getTemplates,
+  assignWorkout,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
 } = require("../controllers/instructorController");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +58,21 @@ router.get("/clients", verifyToken, isInstructor, getClients);
 // GET  /api/instructor/plans → All plans created by the logged-in instructor
 // POST /api/instructor/plans → Create a new workout plan for a specific consumer
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/plans",  verifyToken, isInstructor, getWorkoutPlans);
-router.post("/plans", verifyToken, isInstructor, createWorkoutPlan);
+router.get("/plans",           verifyToken, isInstructor, getWorkoutPlans);
+router.post("/plans",          verifyToken, isInstructor, createWorkoutPlan);
+router.delete("/plans/:planId",verifyToken, isInstructor, deleteWorkoutPlan);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WORKOUT TEMPLATE ROUTES
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/templates",         verifyToken, isInstructor, getTemplates);
+router.post("/templates",        verifyToken, isInstructor, createTemplate);
+router.put("/templates/:id",     verifyToken, isInstructor, updateTemplate);
+router.delete("/templates/:id",  verifyToken, isInstructor, deleteTemplate);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ASSIGN WORKOUT
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/assign-workout",   verifyToken, isInstructor, assignWorkout);
 
 module.exports = router;

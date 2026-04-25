@@ -9,6 +9,7 @@
  * Controller Functions:
  *   getMyDietPlans         — GET   /api/consumer/diet-plans           → Consumer's assigned diet plans
  *   getMyWorkoutPlans      — GET   /api/consumer/workout-plans        → Consumer's assigned workout plans
+ *   getMyWorkout           — GET   /api/consumer/my-workout           → Most recent template-assigned plan
  *   updateProfile          — PATCH /api/consumer/profile              → Update health metrics
  *   completeOnboarding     — PUT   /api/consumer/onboarding           → Save first-time health profile
  *   linkProfessional       — PUT   /api/consumer/link-professional    → Link a Dietician or Instructor
@@ -69,6 +70,38 @@ const getMyWorkoutPlans = async (req, res) => {
   } catch (error) {
     console.error("getMyWorkoutPlans error:", error.message);
     res.status(500).json({ error: "Failed to fetch your workout plans." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/consumer/my-workout
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * getMyWorkout
+ * @description Returns the single most recently assigned WorkoutPlan for the
+ * logged-in consumer. This endpoint is designed for the "My Workout" tab which
+ * shows the consumer their current active routine.
+ *
+ * Queries by `clientId` (Phase 1 field) for full compatibility with both the
+ * legacy `createWorkoutPlan` flow and the new template-based `assignWorkout`.
+ *
+ * Response shape:
+ *   { plan: WorkoutPlan } — or — { plan: null } when none exists
+ */
+const getMyWorkout = async (req, res) => {
+  try {
+    // Find the most recently created plan for this consumer.
+    // Using findOne + sort is more efficient than find() when only one doc is needed.
+    const plan = await WorkoutPlan.findOne({ clientId: req.userId })
+      .populate("instructorId", "full_name email") // Resolve instructor's name for display
+      .sort({ createdAt: -1 });                    // Newest plan first
+
+    // Return null plan explicitly so the frontend can show an empty state cleanly
+    res.status(200).json({ plan: plan ?? null });
+  } catch (error) {
+    console.error("getMyWorkout error:", error.message);
+    res.status(500).json({ error: "Failed to fetch your workout." });
   }
 };
 
@@ -381,6 +414,7 @@ const getMyProfile = async (req, res) => {
 module.exports = {
   getMyDietPlans,
   getMyWorkoutPlans,
+  getMyWorkout,
   updateProfile,
   completeOnboarding,
   linkProfessional,

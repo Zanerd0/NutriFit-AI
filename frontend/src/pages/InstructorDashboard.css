@@ -888,9 +888,6 @@
   font-size: 0.875rem;
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════════
-   RESPONSIVE
-   ═══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
   .inst-sidebar {
     display: none;
@@ -911,4 +908,127 @@
   .inst-exercise-row {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* ── Template-based modal additions ──────────────────────────────────────── */
+
+/* Context chip shown at top of template/customize phases */
+.inst-context-chip {
+  display:       inline-flex;
+  align-items:   center;
+  flex-wrap:     wrap;
+  gap:           0.3rem;
+  padding:       0.4rem 0.85rem;
+  border-radius: 999px;
+  background:    rgba(99,102,241,0.1);
+  border:        1px solid rgba(99,102,241,0.25);
+  font-size:     0.82rem;
+  color:         var(--inst-text);
+}
+
+/* Template picker grid inside the modal */
+.inst-tpl-picker-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap:                   0.85rem;
+  margin-top:            0.5rem;
+}
+
+/* Clickable template card inside the modal picker */
+.inst-tpl-picker-card {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.45rem;
+  padding:        1rem 0.9rem;
+  border-radius:  var(--inst-radius);
+  background:     var(--inst-surface);
+  border:         1px solid var(--inst-border);
+  cursor:         pointer;
+  transition:     border-color 0.18s, transform 0.15s;
+}
+
+.inst-tpl-picker-card:hover {
+  border-color: var(--inst-accent);
+  transform:    translateY(-2px);
+}
+
+.inst-tpl-picker-card__badge {
+  display:       inline-block;
+  padding:       0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size:     0.65rem;
+  font-weight:   700;
+  background:    rgba(99,102,241,0.2);
+  color:         #a5b4fc;
+  letter-spacing: 0.04em;
+  align-self:    flex-start;
+}
+
+.inst-tpl-picker-card__name {
+  font-size: 0.88rem;
+  color:     var(--inst-text);
+}
+
+.inst-tpl-picker-card__count {
+  font-size: 0.75rem;
+  color:     var(--inst-text-muted);
+}
+
+/* Compact exercise row for the customize phase (name label + sets/reps) */
+.inst-exercise-row--compact {
+  grid-template-columns: 1fr 80px 80px;
+  padding:              0.65rem 0.75rem;
+  border-radius:        var(--inst-radius-sm);
+  background:           var(--inst-surface);
+  border:               1px solid var(--inst-border);
+}
+
+.inst-exercise-row__name-label {
+  font-size:   0.88rem;
+  font-weight: 600;
+  color:       var(--inst-text);
+  overflow:    hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inst-exercise-row__field {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.2rem;
+}
+
+.inst-exercise-row__mini-label {
+  font-size:      0.65rem;
+  font-weight:    600;
+  color:          var(--inst-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inst-form__input--sm {
+  padding:    0.35rem 0.5rem;
+  font-size:  0.85rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ── Plan card delete button ─────────────────────────────────────────────── */
+.inst-plan-card__delete-btn {
+  margin-top:    auto;   /* always pins to the bottom of the flex-column card */
+  align-self:    flex-start;
+  padding:       0.3rem 0.75rem;
+  border-radius: var(--inst-radius-sm);
+  border:        1px solid rgba(248,81,73,0.3);
+  background:    rgba(248,81,73,0.06);
+  color:         var(--inst-danger);
+  font-size:     0.75rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    background 0.15s, border-color 0.15s;
+}
+
+.inst-plan-card__delete-btn:hover {
+  background:   rgba(248,81,73,0.14);
+  border-color: var(--inst-danger);
 }

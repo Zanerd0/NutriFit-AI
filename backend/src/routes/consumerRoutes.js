@@ -18,6 +18,7 @@
  * Full Route Map:
  *   GET   /api/consumer/diet-plans               → getMyDietPlans
  *   GET   /api/consumer/workout-plans            → getMyWorkoutPlans
+ *   GET   /api/consumer/my-workout               → getMyWorkout
  *   GET   /api/consumer/me                       → getMyProfile
  *   PATCH /api/consumer/profile                  → updateProfile
  *   PUT   /api/consumer/onboarding               → completeOnboarding
@@ -36,6 +37,7 @@ const isConsumer  = require("../middleware/isConsumer");
 const {
   getMyDietPlans,
   getMyWorkoutPlans,
+  getMyWorkout,
   updateProfile,
   completeOnboarding,
   linkProfessional,
@@ -56,6 +58,13 @@ router.get("/diet-plans", verifyToken, isConsumer, getMyDietPlans);
 // Returns all WorkoutPlan documents assigned to the logged-in consumer.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/workout-plans", verifyToken, isConsumer, getMyWorkoutPlans);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MY WORKOUT (single most recent assigned plan — for MyWorkout.jsx tab)
+// GET /api/consumer/my-workout
+// Returns the most recently assigned WorkoutPlan for this consumer.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/my-workout", verifyToken, isConsumer, getMyWorkout);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE UPDATE

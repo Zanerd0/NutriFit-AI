@@ -1,16 +1,16 @@
 /**
  * @file professionalController.js
- * @description Controller for the public-facing professionals directory endpoint.
- *
- * This controller is intentionally kept separate from the consumer and admin
- * controllers to keep the concern of "browsing professionals" decoupled from
- * any role-specific logic.
+ * @description Controller for the public-facing professionals directory endpoint
+ * and the shared professional client-list endpoint.
  *
  * Controller Functions:
- *   getProfessionals — GET /api/professionals → Returns all Dieticians and Instructors
+ *   getProfessionals — GET /api/professionals          → Returns all Dieticians + Instructors
+ *   getMyClients     — GET /api/professional/clients   → Returns linked clients for the logged-in
+ *                                                         professional with compliance flags
  */
 
-const User = require("../models/User");
+const User     = require("../models/User");
+const DailyLog = require("../models/DailyLog");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/professionals
@@ -45,7 +45,75 @@ const getProfessionals = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/professional/clients
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * getMyClients
+ * @description Returns all Consumer users currently linked to the authenticated
+ * professional. The linkage field depends on role:
+ *   • Dietician  → consumers whose `dieticianId` === req.user._id
+ *   • Instructor → consumers whose `instructorId` === req.user._id
+ *
+ * For each client a `hasRecentLogs` boolean is computed: true when at least
+ * one DailyLog exists for that consumer created within the last 72 hours.
+ *
+ * Response shape: Array<{
+ *   _id, full_name, email, primary_goal, hasRecentLogs
+ * }>
+ */
+const getMyClients = async (req, res) => {
+  try {
+    // ── 1. Build the role-aware query filter ─────────────────────────────────
+    // req.user is guaranteed to be set by the isProfessional middleware.
+    const role = req.user.role;
+    const professionalId = req.user._id;
+
+    let filter = { role: "Consumer" };
+    if (role === "Dietician") {
+      filter.dieticianId = professionalId;
+    } else {
+      // role === "Instructor"
+      filter.instructorId = professionalId;
+    }
+
+    // ── 2. Fetch only the consumers linked to this professional ──────────────
+    const clients = await User.find(filter).select(
+      "_id full_name email primary_goal"
+    );
+
+    // ── 3. Compute compliance flag for each client ───────────────────────────
+    // Threshold: 72 hours (3 days) ago in UTC
+    const threshold = new Date(Date.now() - 72 * 60 * 60 * 1000);
+
+    // Run all compliance checks in parallel to avoid a sequential waterfall
+    const clientsWithCompliance = await Promise.all(
+      clients.map(async (client) => {
+        // Look for any DailyLog by this user created after the 72-hour threshold
+        const recentLog = await DailyLog.findOne({
+          userId:    client._id,
+          createdAt: { $gte: threshold },
+        }).select("_id"); // Lean projection — we only need existence, not content
+
+        return {
+          _id:           client._id,
+          full_name:     client.full_name,
+          email:         client.email,
+          primary_goal:  client.primary_goal,
+          hasRecentLogs: recentLog !== null, // true = active, false = missed logs
+        };
+      })
+    );
+
+    res.status(200).json(clientsWithCompliance);
+  } catch (error) {
+    console.error("getMyClients error:", error.message);
+    res.status(500).json({ error: "Failed to fetch client list." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
-module.exports = { getProfessionals };
+module.exports = { getProfessionals, getMyClients };

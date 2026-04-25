@@ -1,0 +1,293 @@
+/**
+ * @file MyWorkout.css
+ * @description BEM styles for the MyWorkout consumer view.
+ * Class prefix: mw- (MyWorkout)
+ *
+ * Follows the same design language as ConsumerDashboard.css:
+ *   - Dark-mode palette consistent with con-* variables
+ *   - Exercise cards with a radial indigo glow
+ *   - Responsive grid (auto-fill at 220px min)
+ */
+
+/* ── Design tokens ───────────────────────────────────────────────────────── */
+.mw-container,
+.mw-empty-state,
+.mw-loading,
+.mw-error-banner {
+  --mw-bg:        #0f172a;
+  --mw-surface:   #1e293b;
+  --mw-surface-2: #263042;
+  --mw-border:    rgba(255,255,255,0.07);
+  --mw-primary:   #6366f1;
+  --mw-text:      #f1f5f9;
+  --mw-muted:     #94a3b8;
+  --mw-green:     #22c55e;
+  --mw-radius:    14px;
+  --mw-radius-sm: 8px;
+}
+
+/* ── Wrapper ─────────────────────────────────────────────────────────────── */
+.mw-container {
+  display:        flex;
+  flex-direction: column;
+  gap:            2rem;
+  padding-bottom: 2rem;
+}
+
+/* ── Plan header card ────────────────────────────────────────────────────── */
+.mw-plan-header {
+  padding:       1.75rem 2rem;
+  border-radius: var(--mw-radius);
+  background:    var(--mw-surface);
+  border:        1px solid var(--mw-border);
+  background-image: radial-gradient(
+    ellipse at top right,
+    rgba(99,102,241,0.12),
+    transparent 65%
+  );
+}
+
+.mw-plan-header__title {
+  font-size:   1.5rem;
+  font-weight: 700;
+  color:       var(--mw-text);
+  margin:      0 0 0.4rem;
+}
+
+.mw-plan-header__desc {
+  font-size: 0.88rem;
+  color:     var(--mw-muted);
+  margin:    0 0 1rem;
+}
+
+.mw-plan-header__meta {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       0.5rem;
+}
+
+/* ── Meta chips ──────────────────────────────────────────────────────────── */
+.mw-meta-chip {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.3rem;
+  padding:       0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size:     0.78rem;
+  font-weight:   500;
+  background:    var(--mw-surface-2);
+  color:         var(--mw-muted);
+  border:        1px solid var(--mw-border);
+}
+
+.mw-meta-chip--instructor {
+  background:  rgba(99,102,241,0.1);
+  color:       #a5b4fc;
+  border-color: rgba(99,102,241,0.25);
+}
+
+.mw-meta-chip--count {
+  background:  rgba(34,197,94,0.08);
+  color:       #4ade80;
+  border-color: rgba(34,197,94,0.2);
+}
+
+/* ── Exercise grid ───────────────────────────────────────────────────────── */
+.mw-exercises-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap:                   1rem;
+}
+
+/* ── Exercise card ───────────────────────────────────────────────────────── */
+.mw-exercise-card {
+  position:      relative;
+  display:       flex;
+  flex-direction: column;
+  align-items:   center;
+  gap:           0.65rem;
+  padding:       1.6rem 1.2rem 1.3rem;
+  border-radius: var(--mw-radius);
+  background:    var(--mw-surface);
+  border:        1px solid var(--mw-border);
+  text-align:    center;
+  transition:    transform 0.18s, box-shadow 0.18s;
+  background-image: radial-gradient(
+    ellipse at top center,
+    rgba(99,102,241,0.1),
+    transparent 65%
+  );
+}
+
+.mw-exercise-card:hover {
+  transform:  translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+/* Exercise number badge */
+.mw-exercise-card__num {
+  position:    absolute;
+  top:         0.7rem;
+  left:        0.8rem;
+  font-size:   0.7rem;
+  font-weight: 700;
+  color:       var(--mw-primary);
+  background:  rgba(99,102,241,0.15);
+  padding:     0.15rem 0.5rem;
+  border-radius: 999px;
+}
+
+/* Exercise name */
+.mw-exercise-card__name {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       var(--mw-text);
+  margin:      0.3rem 0 0;
+}
+
+/* Stats row (sets × reps) */
+.mw-exercise-card__stats {
+  display:     flex;
+  align-items: center;
+  gap:         0.6rem;
+  margin-top:  0.15rem;
+}
+
+.mw-exercise-card__sep {
+  font-size:   1.1rem;
+  color:       var(--mw-muted);
+  font-weight: 300;
+}
+
+/* Individual stat pill */
+.mw-exercise-stat {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            0.1rem;
+}
+
+.mw-exercise-stat__value {
+  font-size:   1.4rem;
+  font-weight: 800;
+  color:       var(--mw-text);
+  line-height: 1;
+}
+
+.mw-exercise-stat__label {
+  font-size:      0.65rem;
+  font-weight:    600;
+  color:          var(--mw-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Duration badge */
+.mw-exercise-card__duration {
+  display:       inline-block;
+  padding:       0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size:     0.72rem;
+  font-weight:   600;
+  background:    rgba(6,182,212,0.12);
+  color:         #22d3ee;
+  border:        1px solid rgba(6,182,212,0.2);
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.mw-empty-state {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  text-align:      center;
+  gap:             1rem;
+  padding:         3.5rem 2rem;
+  border-radius:   var(--mw-radius);
+  background:      var(--mw-surface);
+  border:          1px solid var(--mw-border);
+  background-image: radial-gradient(
+    ellipse at center,
+    rgba(99,102,241,0.07),
+    transparent 70%
+  );
+}
+
+.mw-empty-state__icon {
+  font-size:    3.5rem;
+  line-height:  1;
+}
+
+.mw-empty-state__title {
+  font-size:   1.3rem;
+  font-weight: 700;
+  color:       var(--mw-text);
+  margin:      0;
+}
+
+.mw-empty-state__text {
+  font-size: 0.9rem;
+  color:     var(--mw-muted);
+  max-width: 420px;
+  margin:    0;
+  line-height: 1.6;
+}
+
+.mw-empty-state__hint {
+  font-size:     0.83rem;
+  color:         var(--mw-muted);
+  padding:       0.65rem 1rem;
+  background:    rgba(255,255,255,0.04);
+  border-radius: var(--mw-radius-sm);
+  border:        1px dashed var(--mw-border);
+}
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+.mw-loading {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  color:       var(--mw-muted);
+  font-size:   0.9rem;
+  padding:     2rem 0;
+}
+
+.mw-spinner {
+  width:        22px;
+  height:       22px;
+  border:       2px solid var(--mw-border);
+  border-top:   2px solid var(--mw-primary);
+  border-radius: 50%;
+  animation:    mw-spin 0.7s linear infinite;
+}
+
+@keyframes mw-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────── */
+.mw-error-banner {
+  padding:       0.9rem 1.1rem;
+  border-radius: var(--mw-radius-sm);
+  background:    rgba(239,68,68,0.1);
+  border:        1px solid rgba(239,68,68,0.25);
+  color:         #f87171;
+  font-size:     0.88rem;
+}
+
+/* ── No exercises fallback ───────────────────────────────────────────────── */
+.mw-no-exercises {
+  color:     var(--mw-muted);
+  font-size: 0.88rem;
+  padding:   1rem 0;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .mw-plan-header {
+    padding: 1.25rem;
+  }
+
+  .mw-exercises-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}

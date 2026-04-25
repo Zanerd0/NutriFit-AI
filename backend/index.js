@@ -10,6 +10,7 @@ const dieticianRoutes  = require("./src/routes/dieticianRoutes");  // Load Dieti
 const instructorRoutes = require("./src/routes/instructorRoutes"); // Load Instructor routes
 const consumerRoutes   = require("./src/routes/consumerRoutes");   // Load Consumer routes
 const professionalRoutes = require("./src/routes/professionalRoutes"); // Load Professionals directory routes
+const seedWorkoutTemplates = require("./src/utils/seedTemplates"); // Auto-seed default workout templates
 
 const app = express();
 
@@ -42,6 +43,9 @@ app.use("/api/instructor", instructorRoutes);
 app.use("/api/consumer",   consumerRoutes);
 // Mount professionals directory — any authenticated user can browse professionals
 app.use("/api/professionals", professionalRoutes);
+// Mount professional-specific endpoints (role-protected: Dietician or Instructor only)
+// Note: same router, different mount path — /api/professional (singular) vs /api/professionals (plural)
+app.use("/api/professional", professionalRoutes);
 
 // A simple test route to verify the server is up
 app.get("/", (req, res) => {
@@ -54,7 +58,10 @@ const startServer = async () => {
     // 1. Connect to MongoDB
     await connectDB();
 
-    // 2. Start the Express server
+    // 2. Seed default WorkoutTemplates (no-op if already seeded)
+    await seedWorkoutTemplates();
+
+    // 3. Start the Express server
     app.listen(env.PORT, () => {
       console.log(`🚀 Server running in ${env.NODE_ENV} mode on port ${env.PORT}`);
     });

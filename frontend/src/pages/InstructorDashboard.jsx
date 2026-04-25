@@ -33,6 +33,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import "./InstructorDashboard.css";
+import ClientList       from "../components/ClientList";
+import TemplateManager  from "../components/TemplateManager";
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -79,7 +81,7 @@ const ClientCard = ({ client, isSelected, onSelect }) => (
 /**
  * PlanCard — Displays a single workout plan in the Active Plans grid.
  */
-const PlanCard = ({ plan }) => (
+const PlanCard = ({ plan, onDelete }) => (
   <div className="inst-plan-card" id={`plan-card-${plan._id}`}>
     <h3 className="inst-plan-card__title">{plan.title}</h3>
 
@@ -126,6 +128,17 @@ const PlanCard = ({ plan }) => (
         {plan.exercises?.length ?? 0} exercise{plan.exercises?.length !== 1 ? "s" : ""}
       </span>
     </div>
+
+    {/* Delete button */}
+    <button
+      className="inst-plan-card__delete-btn"
+      id={`delete-plan-${plan._id}`}
+      onClick={() => onDelete(plan._id)}
+      aria-label={`Delete plan: ${plan.title}`}
+      title="Delete this plan"
+    >
+      🗑 Delete
+    </button>
   </div>
 );
 
@@ -147,13 +160,17 @@ const InstructorDashboard = () => {
   const [error,   setError]   = useState("");
 
   // ── Modal state ───────────────────────────────────────────────────────────
-  const [showModal,      setShowModal]      = useState(false);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [formData,       setFormData]       = useState({ title: "", description: "" });
-  const [exercises,      setExercises]      = useState([]);
-  const [submitting,     setSubmitting]     = useState(false);
-  const [formError,      setFormError]      = useState("");
-  const [formSuccess,    setFormSuccess]    = useState("");
+  const [showModal,           setShowModal]           = useState(false);
+  const [selectedClient,      setSelectedClient]      = useState(null);
+  // Template-based assignment flow
+  const [modalPhase,          setModalPhase]          = useState("template"); // "client" | "template" | "customize"
+  const [modalTemplates,      setModalTemplates]      = useState([]);
+  const [modalSelectedTpl,    setModalSelectedTpl]    = useState(null);
+  const [modalExercises,      setModalExercises]      = useState([]);
+  const [modalLoadingTpl,     setModalLoadingTpl]     = useState(false);
+  const [submitting,          setSubmitting]          = useState(false);
+  const [formError,           setFormError]           = useState("");
+  const [formSuccess,         setFormSuccess]         = useState("");
 
   // ── Data Fetching ─────────────────────────────────────────────────────────
 
@@ -199,89 +216,106 @@ const InstructorDashboard = () => {
     }
   };
 
-  /** openModalForClient — Pre-selects a client and opens the modal. */
-  const openModalForClient = (client) => {
+  /**
+   * openModalForClient — Opens the assign-workout modal pre-loaded with
+   * the selected client and fetches available templates.
+   * When called without a client (e.g. from "New Plan" button) shows a
+   * client-picker phase first.
+   */
+  const openModalForClient = async (client = null) => {
     setSelectedClient(client);
-    setFormData({ title: "", description: "" });
-    setExercises([]);
+    setModalSelectedTpl(null);
+    setModalExercises([]);
     setFormError("");
     setFormSuccess("");
+    setModalPhase(client ? "template" : "client");
     setShowModal(true);
+
+    // Pre-fetch templates so the picker is ready immediately
+    setModalLoadingTpl(true);
+    try {
+      const res = await axios.get("/instructor/templates");
+      setModalTemplates(res.data);
+    } catch (err) {
+      setFormError("Failed to load templates.");
+    } finally {
+      setModalLoadingTpl(false);
+    }
   };
 
   const closeModal = () => {
     setShowModal(false);
     setSelectedClient(null);
-    setFormData({ title: "", description: "" });
-    setExercises([]);
+    setModalSelectedTpl(null);
+    setModalExercises([]);
+    setModalPhase("template");
     setFormError("");
     setFormSuccess("");
   };
 
-  /** addExerciseRow — Appends an empty exercise entry. */
-  const addExerciseRow = () => {
-    setExercises((prev) => [
-      ...prev,
-      { exerciseName: "", sets: "", reps: "", duration: "" },
-    ]);
+  /** handleModalTemplateSelect — Load template exercises into editable state. */
+  const handleModalTemplateSelect = (template) => {
+    setModalSelectedTpl(template);
+    setModalExercises(
+      template.exercises.map((ex) => ({
+        exerciseName: ex.exerciseName,
+        sets:         ex.baseSets,
+        reps:         ex.baseReps,
+      }))
+    );
+    setModalPhase("customize");
+    setFormError("");
   };
 
-  /** updateExercise — Updates a field on one exercise row by index. */
-  const updateExercise = (index, field, value) => {
-    setExercises((prev) =>
+  /** handleModalExerciseChange — Inline edit of sets/reps in the customise phase. */
+  const handleModalExerciseChange = (index, field, value) => {
+    setModalExercises((prev) =>
       prev.map((ex, i) => (i === index ? { ...ex, [field]: value } : ex))
     );
   };
 
-  /** removeExercise — Removes an exercise row by index. */
-  const removeExercise = (index) => {
-    setExercises((prev) => prev.filter((_, i) => i !== index));
-  };
-
   /**
-   * handleSubmitPlan — Validates and POSTs the new workout plan.
-   * On success, refreshes the plans list and shows a brief success message.
+   * handleSubmitPlan — POSTs the template-based assignment to the backend.
+   * Refreshes the plans list and auto-closes the modal after success.
    */
-  const handleSubmitPlan = async (e) => {
-    e.preventDefault();
+  const handleSubmitPlan = async () => {
     setFormError("");
     setFormSuccess("");
-
-    if (!selectedClient) {
-      return setFormError("Please select a client for this plan.");
-    }
-    if (!formData.title.trim()) {
-      return setFormError("Plan title is required.");
-    }
-
-    // Map form strings to proper number types; drop empty duration fields
-    const processedExercises = exercises.map((ex) => ({
-      exerciseName: ex.exerciseName,
-      sets:         parseInt(ex.sets,     10) || 1,
-      reps:         parseInt(ex.reps,     10) || 1,
-      ...(ex.duration ? { duration: parseInt(ex.duration, 10) } : {}),
-    }));
+    if (!selectedClient || !modalSelectedTpl) return;
 
     setSubmitting(true);
     try {
-      await axios.post("/instructor/plans", {
-        clientId:    selectedClient._id,
-        title:       formData.title.trim(),
-        description: formData.description.trim(),
-        exercises:   processedExercises,
+      const res = await axios.post("/instructor/assign-workout", {
+        clientId:   selectedClient._id,
+        templateId: modalSelectedTpl._id,
+        exercises:  modalExercises,
       });
 
-      setFormSuccess("Workout plan created successfully! 🎉");
+      setFormSuccess(res.data.message || "Workout assigned successfully! 🎉");
 
-      // Refresh plans list to include the newly created entry
+      // Refresh plans list
       const plansRes = await axios.get("/instructor/plans");
       setPlans(plansRes.data);
 
-      setTimeout(closeModal, 1200);
+      setTimeout(closeModal, 1500);
     } catch (err) {
-      setFormError(err.response?.data?.error || "Failed to create plan. Try again.");
+      setFormError(err.response?.data?.error || "Failed to assign plan. Try again.");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  /**
+   * handleDeletePlan — Sends DELETE request then removes the plan from local state.
+   * Uses window.confirm as a lightweight guard.
+   */
+  const handleDeletePlan = async (planId) => {
+    if (!window.confirm("Delete this workout plan? This cannot be undone.")) return;
+    try {
+      await axios.delete(`/instructor/plans/${planId}`);
+      setPlans((prev) => prev.filter((p) => p._id !== planId));
+    } catch (err) {
+      console.error("Delete plan failed:", err.response?.data?.error || err.message);
     }
   };
 
@@ -319,12 +353,6 @@ const InstructorDashboard = () => {
             icon="📋"
             accent="#8b5cf6"
           />
-          <StatCard
-            label="Total Exercises"
-            value={plans.reduce((acc, p) => acc + (p.exercises?.length ?? 0), 0)}
-            icon="💪"
-            accent="#06b6d4"
-          />
         </div>
       )}
 
@@ -348,50 +376,35 @@ const InstructorDashboard = () => {
     </section>
   );
 
+  /**
+   * renderClients — Renders the shared <ClientList /> data table.
+   * The "Manage Plan" button in each row calls openModalForClient so the
+   * existing Create Workout Plan modal is pre-populated with the client.
+   */
   const renderClients = () => (
     <section className="inst-section" id="section-clients">
       <div className="inst-section__header">
         <div>
           <h2 className="inst-section__title">Client List</h2>
           <p className="inst-section__sub">
-            {clients.length} consumer{clients.length !== 1 ? "s" : ""} registered.
-            Click a client to create a workout plan for them.
+            Clients who have linked to you. Click "Manage Plan" to create a
+            personalised workout plan for any client.
           </p>
         </div>
         <button
           id="create-plan-btn"
           className="inst-btn inst-btn--primary"
           onClick={() => setShowModal(true)}
-          disabled={clients.length === 0}
         >
           ＋ New Plan
         </button>
       </div>
 
-      {loading ? (
-        <div className="inst-loading">
-          <div className="inst-spinner" />
-          <p>Loading clients…</p>
-        </div>
-      ) : error ? (
-        <div className="inst-error-banner" role="alert">{error}</div>
-      ) : clients.length === 0 ? (
-        <div className="inst-empty">
-          <div className="inst-empty__icon">👥</div>
-          <p className="inst-empty__text">No consumers have registered yet.</p>
-        </div>
-      ) : (
-        <div className="inst-client-grid">
-          {clients.map((client) => (
-            <ClientCard
-              key={client._id}
-              client={client}
-              isSelected={selectedClient?._id === client._id}
-              onSelect={openModalForClient}
-            />
-          ))}
-        </div>
-      )}
+      {/* ClientList fetches /api/professional/clients independently */}
+      <ClientList
+        variant="instructor"
+        onSelectClient={openModalForClient}
+      />
     </section>
   );
 
@@ -431,7 +444,7 @@ const InstructorDashboard = () => {
       ) : (
         <div className="inst-plans-grid">
           {plans.map((plan) => (
-            <PlanCard key={plan._id} plan={plan} />
+            <PlanCard key={plan._id} plan={plan} onDelete={handleDeletePlan} />
           ))}
         </div>
       )}
@@ -440,9 +453,10 @@ const InstructorDashboard = () => {
 
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
-    { id: "overview", label: "Overview",       icon: "📊" },
-    { id: "clients",  label: "Clients",        icon: "👥" },
-    { id: "plans",    label: "Workout Plans",  icon: "📋" },
+    { id: "overview",   label: "Overview",       icon: "📊" },
+    { id: "clients",    label: "Clients",        icon: "👥" },
+    { id: "plans",      label: "Workout Plans",  icon: "📋" },
+    { id: "templates",  label: "Templates",      icon: "📐" },
   ];
 
   // ── Main Render ───────────────────────────────────────────────────────────
@@ -510,13 +524,17 @@ const InstructorDashboard = () => {
         </header>
 
         <div className="inst-content">
-          {activeTab === "overview" && renderOverview()}
-          {activeTab === "clients"  && renderClients()}
-          {activeTab === "plans"    && renderPlans()}
+          {activeTab === "overview"  && renderOverview()}
+          {activeTab === "clients"   && renderClients()}
+          {activeTab === "plans"     && renderPlans()}
+          {/* Templates tab — full CRUD for templates + assign to client */}
+          {activeTab === "templates" && (
+            <TemplateManager clients={clients} onPlanCreated={fetchAll} />
+          )}
         </div>
       </main>
 
-      {/* ── Create Plan Modal ── */}
+      {/* ── Assign Plan Modal ── */}
       {showModal && (
         <div
           className="inst-modal-overlay"
@@ -528,209 +546,116 @@ const InstructorDashboard = () => {
           <div className="inst-modal">
             <div className="inst-modal__header">
               <h2 className="inst-modal__title" id="inst-modal-title">
-                ＋ Create New Workout Plan
+                {modalPhase === "client"    && "Select a Client"}
+                {modalPhase === "template"  && "Choose a Template"}
+                {modalPhase === "customize" && "Customise & Assign"}
               </h2>
-              <button
-                className="inst-modal__close"
-                onClick={closeModal}
-                aria-label="Close modal"
-              >
-                ✕
-              </button>
+              <button className="inst-modal__close" onClick={closeModal} aria-label="Close modal">✕</button>
             </div>
 
-            <form className="inst-form" onSubmit={handleSubmitPlan}>
+            {formError   && <div className="inst-error-banner"   role="alert"  style={{ margin: "0 0 0.75rem" }}>{formError}</div>}
+            {formSuccess  && <div className="inst-success-banner" role="status" style={{ margin: "0 0 0.75rem" }}>{formSuccess}</div>}
 
-              {/* Client selector */}
-              <div className="inst-form__group">
-                <label className="inst-form__label" htmlFor="plan-client-select">
-                  Assign to Client *
+            {/* ── Phase 1: client picker ── */}
+            {modalPhase === "client" && (
+              <div className="inst-form__group" style={{ paddingTop: "1rem" }}>
+                <label className="inst-form__label" htmlFor="modal-client-select">
+                  Which client are you assigning a workout to?
                 </label>
-                {selectedClient ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div className="inst-selected-client">
-                      <div className="inst-avatar inst-avatar--sm">
-                        {selectedClient.full_name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="inst-selected-client__name">
-                          {selectedClient.full_name}
-                        </div>
-                        <div className="inst-selected-client__email">
-                          {selectedClient.email}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="inst-btn inst-btn--ghost"
-                      style={{ fontSize: "0.78rem", padding: "0.4rem 0.75rem", width: "max-content" }}
-                      onClick={() => setSelectedClient(null)}
-                    >
-                      ↩ Change client
-                    </button>
-                  </div>
+                {clients.length === 0 ? (
+                  <p style={{ color: "var(--inst-text-muted)", fontSize: "0.88rem" }}>
+                    No linked clients yet. Clients appear once they connect with you.
+                  </p>
                 ) : (
-                  <select
-                    id="plan-client-select"
-                    className="inst-form__select"
-                    value=""
+                  <select id="modal-client-select" className="inst-form__select" value=""
                     onChange={(e) => {
                       const found = clients.find((c) => c._id === e.target.value);
-                      if (found) setSelectedClient(found);
+                      if (found) { setSelectedClient(found); setModalPhase("template"); }
                     }}
                   >
-                    <option value="" disabled>— Select a consumer —</option>
+                    <option value="" disabled>— Select a client —</option>
                     {clients.map((c) => (
                       <option key={c._id} value={c._id}>
-                        {c.full_name} ({c.email})
+                        {c.full_name} — {c.primary_goal || c.goal || "No goal set"}
                       </option>
                     ))}
                   </select>
                 )}
               </div>
+            )}
 
-              {/* Title */}
-              <div className="inst-form__group">
-                <label className="inst-form__label" htmlFor="plan-title">
-                  Plan Title *
-                </label>
-                <input
-                  id="plan-title"
-                  type="text"
-                  className="inst-form__input"
-                  placeholder="e.g., Beginner Full-Body Week 1"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  maxLength={120}
-                  required
-                />
-              </div>
-
-              {/* Description */}
-              <div className="inst-form__group">
-                <label className="inst-form__label" htmlFor="plan-desc">
-                  Description (optional)
-                </label>
-                <textarea
-                  id="plan-desc"
-                  className="inst-form__textarea"
-                  placeholder="Coaching notes, goals, or instructions for the client…"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                  maxLength={1000}
-                />
-              </div>
-
-              {/* Exercises */}
-              <div className="inst-form__group">
-                <label className="inst-form__label">Exercises (optional)</label>
-
-                {exercises.length > 0 && (
-                  <>
-                    {/* Column headers */}
-                    <div className="inst-exercise-col-headers">
-                      <span className="inst-exercise-col-header">Exercise Name</span>
-                      <span className="inst-exercise-col-header">Sets</span>
-                      <span className="inst-exercise-col-header">Reps</span>
-                      <span className="inst-exercise-col-header">Duration (s)</span>
-                      <span />
-                    </div>
-
-                    <div className="inst-exercises-list">
-                      {exercises.map((ex, index) => (
-                        <div key={index} className="inst-exercise-row">
-                          <input
-                            type="text"
-                            className="inst-form__input"
-                            placeholder="e.g., Push-Up"
-                            value={ex.exerciseName}
-                            onChange={(e) => updateExercise(index, "exerciseName", e.target.value)}
-                            aria-label={`Exercise ${index + 1} name`}
-                          />
-                          <input
-                            type="number"
-                            className="inst-form__input"
-                            placeholder="3"
-                            min="1"
-                            value={ex.sets}
-                            onChange={(e) => updateExercise(index, "sets", e.target.value)}
-                            aria-label={`Exercise ${index + 1} sets`}
-                          />
-                          <input
-                            type="number"
-                            className="inst-form__input"
-                            placeholder="10"
-                            min="1"
-                            value={ex.reps}
-                            onChange={(e) => updateExercise(index, "reps", e.target.value)}
-                            aria-label={`Exercise ${index + 1} reps`}
-                          />
-                          <input
-                            type="number"
-                            className="inst-form__input"
-                            placeholder="—"
-                            min="0"
-                            value={ex.duration}
-                            onChange={(e) => updateExercise(index, "duration", e.target.value)}
-                            aria-label={`Exercise ${index + 1} duration`}
-                          />
-                          <button
-                            type="button"
-                            className="inst-exercise-row__remove"
-                            onClick={() => removeExercise(index)}
-                            aria-label={`Remove exercise ${index + 1}`}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </>
+            {/* ── Phase 2: template picker ── */}
+            {modalPhase === "template" && (
+              <div style={{ paddingTop: "0.75rem" }}>
+                {selectedClient && (
+                  <div className="inst-context-chip">
+                    Assigning to: <strong>{selectedClient.full_name}</strong>
+                    {selectedClient.primary_goal && <span style={{ color: "var(--inst-text-muted)" }}>&nbsp;· {selectedClient.primary_goal}</span>}
+                    <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
+                      onClick={() => setModalPhase("client")}>↩ Change</button>
+                  </div>
                 )}
-
-                <button
-                  type="button"
-                  className="inst-btn-add-exercise"
-                  onClick={addExerciseRow}
-                  id="add-exercise-btn"
-                >
-                  ＋ Add Exercise
-                </button>
+                <p className="inst-form__label" style={{ marginTop: "1rem" }}>Select a template:</p>
+                {modalLoadingTpl ? (
+                  <div className="inst-loading"><div className="inst-spinner" /><p>Loading templates…</p></div>
+                ) : modalTemplates.length === 0 ? (
+                  <p style={{ color: "var(--inst-text-muted)", fontSize: "0.88rem" }}>No templates found. Create one in the Templates tab.</p>
+                ) : (
+                  <div className="inst-tpl-picker-grid">
+                    {modalTemplates.map((t) => (
+                      <div key={t._id} id={`modal-tpl-${t._id}`} className="inst-tpl-picker-card"
+                        role="button" tabIndex={0}
+                        onClick={() => handleModalTemplateSelect(t)}
+                        onKeyDown={(e) => e.key === "Enter" && handleModalTemplateSelect(t)}>
+                        <span className="inst-tpl-picker-card__badge">{t.goal_tag}</span>
+                        <strong className="inst-tpl-picker-card__name">{t.name}</strong>
+                        <span className="inst-tpl-picker-card__count">{t.exercises.length} exercises</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+            )}
 
-              {/* Inline messages */}
-              {formError   && <div className="inst-error-banner"   role="alert">{formError}</div>}
-              {formSuccess  && <div className="inst-success-banner" role="status">{formSuccess}</div>}
-
-              {/* Actions */}
-              <div className="inst-form__actions">
-                <button
-                  type="button"
-                  className="inst-btn inst-btn--ghost"
-                  onClick={closeModal}
-                  id="cancel-plan-btn"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="inst-btn inst-btn--primary"
-                  disabled={submitting}
-                  id="submit-plan-btn"
-                >
-                  {submitting ? (
-                    <><span className="inst-spinner-sm" /> Saving…</>
-                  ) : (
-                    "Create Plan"
-                  )}
-                </button>
+            {/* ── Phase 3: customise + assign ── */}
+            {modalPhase === "customize" && (
+              <div style={{ paddingTop: "0.75rem" }}>
+                <div className="inst-context-chip" style={{ marginBottom: "1rem" }}>
+                  <strong>{modalSelectedTpl?.name}</strong>
+                  <span style={{ color: "var(--inst-text-muted)" }}> → {selectedClient?.full_name}</span>
+                  <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
+                    onClick={() => { setModalPhase("template"); setModalSelectedTpl(null); }}>↩ Back</button>
+                </div>
+                <p className="inst-form__label">Customise sets & reps:</p>
+                <div className="inst-exercises-list" style={{ marginBottom: "1.25rem" }}>
+                  {modalExercises.map((ex, i) => (
+                    <div key={i} id={`modal-ex-${i}`} className="inst-exercise-row inst-exercise-row--compact">
+                      <span className="inst-exercise-row__name-label">{ex.exerciseName}</span>
+                      <div className="inst-exercise-row__field">
+                        <label className="inst-exercise-row__mini-label" htmlFor={`mex-sets-${i}`}>Sets</label>
+                        <input id={`mex-sets-${i}`} type="number" min="1"
+                          className="inst-form__input inst-form__input--sm"
+                          value={ex.sets} onChange={(e) => handleModalExerciseChange(i, "sets", e.target.value)} />
+                      </div>
+                      <div className="inst-exercise-row__field">
+                        <label className="inst-exercise-row__mini-label" htmlFor={`mex-reps-${i}`}>Reps</label>
+                        <input id={`mex-reps-${i}`} type="number" min="1"
+                          className="inst-form__input inst-form__input--sm"
+                          value={ex.reps} onChange={(e) => handleModalExerciseChange(i, "reps", e.target.value)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="inst-form__actions">
+                  <button className="inst-btn inst-btn--ghost" onClick={closeModal} id="cancel-assign-btn">Cancel</button>
+                  <button className="inst-btn inst-btn--primary" onClick={handleSubmitPlan}
+                    disabled={submitting} id="submit-assign-btn">
+                    {submitting ? <><span className="inst-spinner-sm" /> Assigning…</> : "✔ Assign Routine"}
+                  </button>
+                </div>
               </div>
-            </form>
+            )}
+
           </div>
         </div>
       )}

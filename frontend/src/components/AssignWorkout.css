@@ -1,0 +1,435 @@
+/**
+ * @file AssignWorkout.css
+ * @description BEM styles for the AssignWorkout instructor panel.
+ * Class prefix: aw- (AssignWorkout)
+ *
+ * Follows the same design language as InstructorDashboard.css:
+ *   - CSS custom properties for colour, spacing, and radius
+ *   - Dark-mode palette (--inst-* variables re-used for consistency)
+ *   - Smooth transitions on interactive elements
+ */
+
+/* ── Design tokens (mirrors InstructorDashboard.css) ─────────────────────── */
+.aw-panel {
+  --aw-bg:         #0f172a;
+  --aw-surface:    #1e293b;
+  --aw-surface-2:  #263042;
+  --aw-border:     rgba(255,255,255,0.07);
+  --aw-primary:    #6366f1;
+  --aw-primary-dk: #4f46e5;
+  --aw-text:       #f1f5f9;
+  --aw-text-muted: #94a3b8;
+  --aw-radius:     14px;
+  --aw-radius-sm:  8px;
+  --aw-accent:     #6366f1; /* overridden per-card */
+}
+
+/* ── Panel container ─────────────────────────────────────────────────────── */
+.aw-panel {
+  display:        flex;
+  flex-direction: column;
+  gap:            2rem;
+  padding:        2rem;
+  max-width:      860px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.aw-panel__header {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             1.5rem;
+  flex-wrap:       wrap;
+}
+
+.aw-panel__title {
+  font-size:   1.5rem;
+  font-weight: 700;
+  color:       var(--aw-text);
+  margin:      0 0 0.25rem;
+}
+
+.aw-panel__sub {
+  font-size: 0.85rem;
+  color:     var(--aw-text-muted);
+  margin:    0;
+}
+
+/* ── Step indicator ──────────────────────────────────────────────────────── */
+.aw-steps {
+  display:   flex;
+  gap:       0.5rem;
+  flex-wrap: wrap;
+}
+
+.aw-step {
+  display:       flex;
+  align-items:   center;
+  gap:           0.45rem;
+  padding:       0.4rem 0.9rem;
+  border-radius: 999px;
+  font-size:     0.78rem;
+  font-weight:   600;
+  background:    var(--aw-surface);
+  color:         var(--aw-text-muted);
+  border:        1px solid var(--aw-border);
+  transition:    background 0.2s, color 0.2s;
+}
+
+.aw-step--active {
+  background: var(--aw-primary);
+  color:      #fff;
+  border-color: var(--aw-primary);
+}
+
+.aw-step--done {
+  background:  rgba(99,102,241,0.15);
+  color:       var(--aw-primary);
+  border-color: rgba(99,102,241,0.3);
+}
+
+.aw-step__num {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           20px;
+  height:          20px;
+  border-radius:   50%;
+  font-size:       0.72rem;
+  background:      rgba(255,255,255,0.12);
+}
+
+/* ── Step body ───────────────────────────────────────────────────────────── */
+.aw-step-body {
+  display:        flex;
+  flex-direction: column;
+  gap:            1.25rem;
+}
+
+/* ── Labels ──────────────────────────────────────────────────────────────── */
+.aw-label {
+  font-size:   0.85rem;
+  font-weight: 600;
+  color:       var(--aw-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Client select ───────────────────────────────────────────────────────── */
+.aw-select {
+  width:            100%;
+  max-width:        420px;
+  padding:          0.7rem 1rem;
+  border-radius:    var(--aw-radius-sm);
+  border:           1px solid var(--aw-border);
+  background:       var(--aw-surface);
+  color:            var(--aw-text);
+  font-size:        0.9rem;
+  cursor:           pointer;
+  transition:       border-color 0.2s;
+  -webkit-appearance: none;
+  appearance:       none;
+}
+
+.aw-select:focus {
+  outline:      none;
+  border-color: var(--aw-primary);
+}
+
+/* ── Context pill ────────────────────────────────────────────────────────── */
+.aw-context-pill {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.35rem;
+  padding:       0.45rem 1rem;
+  border-radius: 999px;
+  background:    rgba(99,102,241,0.12);
+  border:        1px solid rgba(99,102,241,0.25);
+  font-size:     0.83rem;
+  color:         var(--aw-text);
+}
+
+.aw-context-pill__goal {
+  color: var(--aw-text-muted);
+}
+
+/* ── Templates grid ──────────────────────────────────────────────────────── */
+.aw-templates-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap:                   1rem;
+}
+
+/* ── Template card ───────────────────────────────────────────────────────── */
+.aw-template-card {
+  position:      relative;
+  padding:       1.4rem 1.2rem;
+  border-radius: var(--aw-radius);
+  background:    var(--aw-surface);
+  border:        1px solid var(--aw-border);
+  cursor:        pointer;
+  transition:    transform 0.18s, box-shadow 0.18s, border-color 0.18s;
+  display:       flex;
+  flex-direction: column;
+  gap:           0.5rem;
+
+  /* Radial glow from template accent colour */
+  background-image: radial-gradient(
+    ellipse at top left,
+    color-mix(in srgb, var(--aw-accent) 10%, transparent),
+    transparent 70%
+  );
+}
+
+.aw-template-card:hover {
+  transform:    translateY(-3px);
+  box-shadow:   0 8px 24px rgba(0,0,0,0.3);
+  border-color: var(--aw-accent);
+}
+
+.aw-template-card--selected {
+  border-color: var(--aw-accent);
+  box-shadow:   0 0 0 3px color-mix(in srgb, var(--aw-accent) 30%, transparent);
+}
+
+.aw-template-card__check {
+  position:    absolute;
+  top:         0.65rem;
+  right:       0.75rem;
+  font-size:   0.9rem;
+  color:       var(--aw-accent);
+  font-weight: 700;
+}
+
+.aw-template-card__badge {
+  display:       inline-block;
+  padding:       0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size:     0.7rem;
+  font-weight:   700;
+  color:         #fff;
+  letter-spacing: 0.04em;
+  align-self:    flex-start;
+}
+
+.aw-template-card__name {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       var(--aw-text);
+  margin:      0;
+}
+
+.aw-template-card__count {
+  font-size: 0.8rem;
+  color:     var(--aw-text-muted);
+  margin:    0;
+}
+
+/* ── Exercise list ───────────────────────────────────────────────────────── */
+.aw-exercises-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.65rem;
+}
+
+/* ── Exercise row ────────────────────────────────────────────────────────── */
+.aw-exercise-row {
+  display:       grid;
+  grid-template-columns: 1fr 90px 90px;
+  align-items:   center;
+  gap:           0.75rem;
+  padding:       0.85rem 1.1rem;
+  border-radius: var(--aw-radius-sm);
+  background:    var(--aw-surface);
+  border:        1px solid var(--aw-border);
+  transition:    border-color 0.15s;
+}
+
+.aw-exercise-row:hover {
+  border-color: rgba(255,255,255,0.13);
+}
+
+.aw-exercise-row__name {
+  font-size:   0.9rem;
+  font-weight: 600;
+  color:       var(--aw-text);
+}
+
+.aw-exercise-row__field {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.2rem;
+}
+
+.aw-exercise-row__label {
+  font-size:   0.68rem;
+  font-weight: 600;
+  color:       var(--aw-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.aw-exercise-row__input {
+  width:         100%;
+  padding:       0.4rem 0.6rem;
+  border-radius: var(--aw-radius-sm);
+  border:        1px solid var(--aw-border);
+  background:    var(--aw-surface-2);
+  color:         var(--aw-text);
+  font-size:     0.9rem;
+  font-weight:   700;
+  text-align:    center;
+  transition:    border-color 0.15s;
+}
+
+.aw-exercise-row__input:focus {
+  outline:      none;
+  border-color: var(--aw-primary);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.aw-actions {
+  display:     flex;
+  gap:         0.75rem;
+  flex-wrap:   wrap;
+  margin-top:  0.5rem;
+}
+
+.aw-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.65rem 1.4rem;
+  border-radius: var(--aw-radius-sm);
+  font-size:     0.88rem;
+  font-weight:   600;
+  cursor:        pointer;
+  border:        none;
+  transition:    background 0.18s, transform 0.15s, opacity 0.15s;
+}
+
+.aw-btn:disabled {
+  opacity: 0.55;
+  cursor:  not-allowed;
+}
+
+.aw-btn--primary {
+  background: var(--aw-primary);
+  color:      #fff;
+}
+
+.aw-btn--primary:hover:not(:disabled) {
+  background: var(--aw-primary-dk);
+  transform:  translateY(-1px);
+}
+
+.aw-btn--ghost {
+  background: var(--aw-surface);
+  color:      var(--aw-text-muted);
+  border:     1px solid var(--aw-border);
+}
+
+.aw-btn--ghost:hover {
+  color:        var(--aw-text);
+  border-color: rgba(255,255,255,0.18);
+}
+
+/* ── Loading spinner ─────────────────────────────────────────────────────── */
+.aw-loading {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  color:       var(--aw-text-muted);
+  font-size:   0.9rem;
+}
+
+.aw-spinner {
+  width:        20px;
+  height:       20px;
+  border:       2px solid var(--aw-border);
+  border-top:   2px solid var(--aw-primary);
+  border-radius: 50%;
+  animation:    aw-spin 0.7s linear infinite;
+}
+
+.aw-spinner-sm {
+  display:      inline-block;
+  width:        13px;
+  height:       13px;
+  border:       2px solid rgba(255,255,255,0.3);
+  border-top:   2px solid #fff;
+  border-radius: 50%;
+  animation:    aw-spin 0.7s linear infinite;
+}
+
+@keyframes aw-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.aw-empty {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             0.75rem;
+  padding:         2.5rem;
+  border-radius:   var(--aw-radius);
+  background:      var(--aw-surface);
+  border:          1px solid var(--aw-border);
+  text-align:      center;
+}
+
+.aw-empty__icon {
+  font-size: 2.2rem;
+}
+
+.aw-empty__text {
+  font-size: 0.88rem;
+  color:     var(--aw-text-muted);
+  max-width: 340px;
+  margin:    0;
+}
+
+/* ── Feedback banners ────────────────────────────────────────────────────── */
+.aw-success-banner {
+  padding:       0.85rem 1.1rem;
+  border-radius: var(--aw-radius-sm);
+  background:    rgba(34,197,94,0.12);
+  border:        1px solid rgba(34,197,94,0.3);
+  color:         #4ade80;
+  font-size:     0.88rem;
+  font-weight:   500;
+}
+
+.aw-error-banner {
+  padding:       0.85rem 1.1rem;
+  border-radius: var(--aw-radius-sm);
+  background:    rgba(239,68,68,0.12);
+  border:        1px solid rgba(239,68,68,0.3);
+  color:         #f87171;
+  font-size:     0.88rem;
+  font-weight:   500;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .aw-panel {
+    padding: 1.25rem;
+  }
+
+  .aw-panel__header {
+    flex-direction: column;
+  }
+
+  .aw-steps {
+    gap: 0.35rem;
+  }
+
+  .aw-step__label {
+    display: none; /* Only show numbers on small screens */
+  }
+
+  .aw-exercise-row {
+    grid-template-columns: 1fr 70px 70px;
+  }
+}

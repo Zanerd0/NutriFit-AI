@@ -1,0 +1,525 @@
+/**
+ * @file TemplateManager.css
+ * @description BEM styles for the TemplateManager instructor component.
+ * Class prefix: tm- (TemplateManager)
+ *
+ * Inherits --inst-* CSS custom properties from InstructorDashboard.css so
+ * the colour palette is automatically consistent.
+ */
+
+/* ── Tokens (fallbacks so the component works standalone) ────────────────── */
+.tm-panel {
+  --tm-bg:        var(--inst-bg,        #0f172a);
+  --tm-surface:   var(--inst-surface,   #1e293b);
+  --tm-surface-2: var(--inst-surface-2, #263042);
+  --tm-border:    var(--inst-border,    rgba(255,255,255,0.07));
+  --tm-primary:   var(--inst-primary,   #6366f1);
+  --tm-primary-dk:var(--inst-primary-dk,#4f46e5);
+  --tm-text:      var(--inst-text,      #f1f5f9);
+  --tm-muted:     var(--inst-text-muted,#94a3b8);
+  --tm-radius:    14px;
+  --tm-radius-sm: 8px;
+  --tm-accent:    #6366f1; /* overridden per card */
+}
+
+/* ── Panel ───────────────────────────────────────────────────────────────── */
+.tm-panel {
+  display:        flex;
+  flex-direction: column;
+  gap:            2rem;
+  padding:        2rem;
+  max-width:      980px;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.tm-panel__header {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             1rem;
+  flex-wrap:       wrap;
+}
+
+.tm-panel__title {
+  font-size:   1.5rem;
+  font-weight: 700;
+  color:       var(--tm-text);
+  margin:      0 0 0.25rem;
+}
+
+.tm-panel__sub {
+  font-size: 0.85rem;
+  color:     var(--tm-muted);
+  margin:    0;
+}
+
+/* ── Template grid ───────────────────────────────────────────────────────── */
+.tm-grid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap:                   1.25rem;
+  align-items:           start; /* cards grow to their own height; edit forms won't be clipped */
+}
+
+/* ── Template card ───────────────────────────────────────────────────────── */
+.tm-card {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.65rem;
+  padding:        1.4rem 1.25rem;
+  border-radius:  var(--tm-radius);
+  background:     var(--tm-surface);
+  border:         1px solid var(--tm-border);
+  transition:     box-shadow 0.2s, transform 0.18s;
+  overflow:       hidden visible; /* clip horizontal overflow; allow vertical growth */
+  position:       relative;
+  background-image: radial-gradient(
+    ellipse at top left,
+    color-mix(in srgb, var(--tm-accent) 10%, transparent),
+    transparent 65%
+  );
+}
+
+/*
+ * When TemplateForm is rendered INSIDE a card (edit mode) the card already
+ * provides padding. The card is now full-width, so the form just resets its
+ * own visual chrome (background, border) to avoid double-boxing.
+ */
+.tm-card .tm-form {
+  padding:       0;
+  background:    transparent;
+  border:        none;
+  border-radius: 0;
+}
+
+/*
+ * Editing card: span the entire grid row so the form has maximum width.
+ * overflow:visible lets the form grow downward without clipping.
+ */
+.tm-card--editing {
+  grid-column: 1 / -1;     /* span all columns */
+  overflow:    visible;    /* don't clip the form vertically */
+  transform:   none !important; /* disable hover lift while editing */
+}
+
+.tm-card:hover {
+  transform:  translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+.tm-card__top {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+}
+
+.tm-card__badge {
+  display:       inline-block;
+  padding:       0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size:     0.7rem;
+  font-weight:   700;
+  color:         #fff;
+  letter-spacing: 0.05em;
+}
+
+.tm-card__actions {
+  display: flex;
+  gap:     0.4rem;
+}
+
+.tm-card__icon-btn {
+  background: transparent;
+  border:     none;
+  cursor:     pointer;
+  font-size:  1rem;
+  padding:    0.2rem;
+  border-radius: var(--tm-radius-sm);
+  transition: background 0.15s;
+}
+
+.tm-card__icon-btn:hover { background: rgba(255,255,255,0.08); }
+.tm-card__icon-btn--danger:hover { background: rgba(239,68,68,0.15); }
+
+.tm-card__name {
+  font-size:   1.05rem;
+  font-weight: 700;
+  color:       var(--tm-text);
+  margin:      0;
+}
+
+.tm-card__count {
+  font-size: 0.8rem;
+  color:     var(--tm-muted);
+  margin:    0;
+}
+
+/* ── Exercise preview list ───────────────────────────────────────────────── */
+.tm-card__ex-list {
+  list-style: none;
+  margin:     0.25rem 0 0.5rem;
+  padding:    0;
+  display:    flex;
+  flex-direction: column;
+  gap:        0.3rem;
+}
+
+.tm-card__ex-item {
+  display:     flex;
+  align-items: center;
+  gap:         0.5rem;
+  font-size:   0.82rem;
+  color:       var(--tm-muted);
+}
+
+.tm-card__ex-item--more {
+  font-size:   0.78rem;
+  color:       var(--tm-primary);
+  padding-left: 1.5rem;
+}
+
+.tm-card__ex-dot  { font-size: 0.75rem; }
+.tm-card__ex-name { flex: 1; color: var(--tm-text); }
+.tm-card__ex-stat {
+  font-size:   0.75rem;
+  font-weight: 700;
+  color:       var(--tm-primary);
+  white-space: nowrap;
+}
+
+/* ── Assign button ───────────────────────────────────────────────────────── */
+.tm-card__assign-btn {
+  margin-top:   auto;
+  padding:      0.55rem 1rem;
+  border-radius: var(--tm-radius-sm);
+  border:       1px solid var(--tm-accent);
+  background:   color-mix(in srgb, var(--tm-accent) 12%, transparent);
+  color:        var(--tm-accent);
+  font-size:    0.83rem;
+  font-weight:  600;
+  cursor:       pointer;
+  transition:   background 0.18s, transform 0.15s;
+}
+
+.tm-card__assign-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--tm-accent) 22%, transparent);
+  transform:  translateY(-1px);
+}
+
+.tm-card__assign-btn:disabled {
+  opacity: 0.45;
+  cursor:  not-allowed;
+}
+
+/* ── Create / Edit form ──────────────────────────────────────────────────── */
+.tm-form {
+  display:        flex;
+  flex-direction: column;
+  gap:            1.1rem;
+  padding:        1.5rem;
+  border-radius:  var(--tm-radius);
+  background:     var(--tm-surface);
+  border:         1px solid var(--tm-border);
+}
+
+.tm-form__title {
+  font-size:   1.1rem;
+  font-weight: 700;
+  color:       var(--tm-text);
+  margin:      0;
+}
+
+.tm-form__group {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.4rem;
+}
+
+.tm-form__label {
+  font-size:   0.8rem;
+  font-weight: 600;
+  color:       var(--tm-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tm-form__input,
+.tm-form__select {
+  padding:       0.65rem 0.85rem;
+  border-radius: var(--tm-radius-sm);
+  border:        1px solid var(--tm-border);
+  background:    var(--tm-surface-2);
+  color:         var(--tm-text);
+  font-size:     0.9rem;
+  transition:    border-color 0.15s;
+  appearance:    none;
+}
+
+.tm-form__input:focus,
+.tm-form__select:focus {
+  outline:      none;
+  border-color: var(--tm-primary);
+}
+
+.tm-form__hint {
+  font-size: 0.83rem;
+  color:     var(--tm-muted);
+  margin:    0;
+}
+
+.tm-form__actions {
+  display:  flex;
+  gap:      0.65rem;
+  flex-wrap: wrap;
+}
+
+/* ── Exercise editor row ─────────────────────────────────────────────────── */
+.tm-ex-list {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.55rem;
+}
+
+.tm-ex-row {
+  display:       grid;
+  /* Tighter fixed columns so the row always fits inside the card content area */
+  grid-template-columns: 1fr 58px 58px 26px;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.6rem 0.7rem;
+  border-radius: var(--tm-radius-sm);
+  background:    var(--tm-surface-2);
+  border:        1px solid var(--tm-border);
+}
+
+.tm-ex-row--compact {
+  grid-template-columns: 1fr 80px 80px;
+}
+
+.tm-ex-row__name {
+  background:    transparent;
+  border:        none;
+  border-bottom: 1px solid var(--tm-border);
+  color:         var(--tm-text);
+  font-size:     0.88rem;
+  padding:       0.2rem 0.3rem;
+}
+
+.tm-ex-row__name:focus { outline: none; border-bottom-color: var(--tm-primary); }
+
+.tm-ex-row__name-ro {
+  font-size:   0.88rem;
+  font-weight: 600;
+  color:       var(--tm-text);
+  overflow:    hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-ex-row__num-group {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.15rem;
+}
+
+.tm-ex-row__mini-label {
+  font-size:   0.65rem;
+  color:       var(--tm-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tm-ex-row__num {
+  width:         100%;
+  padding:       0.3rem 0.4rem;
+  border-radius: 5px;
+  border:        1px solid var(--tm-border);
+  background:    var(--tm-surface);
+  color:         var(--tm-text);
+  font-size:     0.88rem;
+  font-weight:   700;
+  text-align:    center;
+}
+
+.tm-ex-row__num:focus { outline: none; border-color: var(--tm-primary); }
+
+.tm-ex-row__remove {
+  background: transparent;
+  border:     none;
+  cursor:     pointer;
+  color:      var(--tm-muted);
+  font-size:  0.85rem;
+  padding:    0.2rem;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.tm-ex-row__remove:hover { color: #f87171; background: rgba(239,68,68,0.1); }
+
+/* ── Add row button ──────────────────────────────────────────────────────── */
+.tm-add-row-btn {
+  margin-top:   0.4rem;
+  padding:      0.45rem 0.85rem;
+  border-radius: var(--tm-radius-sm);
+  border:       1px dashed var(--tm-border);
+  background:   transparent;
+  color:        var(--tm-muted);
+  font-size:    0.82rem;
+  cursor:       pointer;
+  transition:   color 0.15s, border-color 0.15s;
+}
+
+.tm-add-row-btn:hover { color: var(--tm-text); border-color: var(--tm-primary); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.tm-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.35rem;
+  padding:       0.6rem 1.3rem;
+  border-radius: var(--tm-radius-sm);
+  font-size:     0.85rem;
+  font-weight:   600;
+  cursor:        pointer;
+  border:        none;
+  transition:    background 0.18s, transform 0.15s, opacity 0.15s;
+}
+
+.tm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.tm-btn--primary {
+  background: var(--tm-primary);
+  color:      #fff;
+}
+
+.tm-btn--primary:hover:not(:disabled) {
+  background: var(--tm-primary-dk);
+  transform:  translateY(-1px);
+}
+
+.tm-btn--ghost {
+  background: var(--tm-surface);
+  color:      var(--tm-muted);
+  border:     1px solid var(--tm-border);
+}
+
+.tm-btn--ghost:hover { color: var(--tm-text); }
+
+/* ── Assign Modal ────────────────────────────────────────────────────────── */
+.tm-modal-overlay {
+  position:        fixed;
+  inset:           0;
+  background:      rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  z-index:         1000;
+  padding:         1rem;
+}
+
+.tm-modal {
+  background:    var(--tm-surface);
+  border:        1px solid var(--tm-border);
+  border-radius: var(--tm-radius);
+  padding:       1.75rem;
+  width:         100%;
+  max-width:     500px;
+  max-height:    90vh;
+  overflow-y:    auto;
+}
+
+.tm-modal__header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   1.25rem;
+}
+
+.tm-modal__title {
+  font-size:   1.1rem;
+  font-weight: 700;
+  color:       var(--tm-text);
+  margin:      0;
+}
+
+.tm-modal__close {
+  background:    transparent;
+  border:        none;
+  color:         var(--tm-muted);
+  font-size:     1.1rem;
+  cursor:        pointer;
+  border-radius: 4px;
+  padding:       0.2rem 0.4rem;
+  transition:    background 0.15s;
+}
+
+.tm-modal__close:hover { background: rgba(255,255,255,0.08); color: var(--tm-text); }
+
+/* ── Feedback ────────────────────────────────────────────────────────────── */
+.tm-error {
+  padding:       0.75rem 1rem;
+  border-radius: var(--tm-radius-sm);
+  background:    rgba(239,68,68,0.1);
+  border:        1px solid rgba(239,68,68,0.25);
+  color:         #f87171;
+  font-size:     0.85rem;
+}
+
+.tm-success {
+  padding:       0.75rem 1rem;
+  border-radius: var(--tm-radius-sm);
+  background:    rgba(34,197,94,0.1);
+  border:        1px solid rgba(34,197,94,0.25);
+  color:         #4ade80;
+  font-size:     0.85rem;
+}
+
+/* ── Loading / Empty ─────────────────────────────────────────────────────── */
+.tm-loading {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  color:       var(--tm-muted);
+  font-size:   0.9rem;
+}
+
+.tm-spinner {
+  width:        20px;
+  height:       20px;
+  border:       2px solid var(--tm-border);
+  border-top:   2px solid var(--tm-primary);
+  border-radius: 50%;
+  animation:    tm-spin 0.7s linear infinite;
+}
+
+@keyframes tm-spin { to { transform: rotate(360deg); } }
+
+.tm-empty {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             0.75rem;
+  padding:         3rem;
+  border-radius:   var(--tm-radius);
+  background:      var(--tm-surface);
+  border:          1px dashed var(--tm-border);
+  text-align:      center;
+}
+
+.tm-empty__icon { font-size: 2.5rem; }
+
+.tm-empty__text {
+  font-size: 0.88rem;
+  color:     var(--tm-muted);
+  margin:    0;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .tm-panel { padding: 1.25rem; }
+  .tm-panel__header { flex-direction: column; }
+  .tm-grid { grid-template-columns: 1fr; }
+  .tm-ex-row { grid-template-columns: 1fr 60px 60px 28px; }
+}
