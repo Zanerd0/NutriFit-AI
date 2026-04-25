@@ -196,6 +196,27 @@ const ConsumerDashboard = () => {
     fetchPlans();
   }, [fetchPlans]);
 
+  /**
+   * refreshConsumer — Fetches the full consumer document from the server on
+   * mount so that fields like dieticianId / instructorId that were set in a
+   * previous session are always reflected in the UI, not just the stale
+   * localStorage snapshot that was written at login time.
+   */
+  useEffect(() => {
+    const refresh = async () => {
+      try {
+        const res = await axios.get("/consumer/me");
+        const fresh = res.data.user;
+        setConsumer(fresh);
+        localStorage.setItem("user", JSON.stringify(fresh));
+      } catch (err) {
+        // Non-critical: fall back gracefully to whatever is in localStorage
+        console.warn("Could not refresh consumer from server:", err.message);
+      }
+    };
+    refresh();
+  }, []); // run once on mount
+
   // ── Event Handlers ─────────────────────────────────────────────────────────
 
   const handleLogout = async () => {
