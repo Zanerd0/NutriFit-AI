@@ -20,6 +20,8 @@
  *   GET   /api/consumer/workout-plans            → getMyWorkoutPlans
  *   GET   /api/consumer/my-workout               → getMyWorkout
  *   GET   /api/consumer/me                       → getMyProfile
+ *   GET   /api/consumer/progress-history         → getProgressHistory
+ *   POST  /api/consumer/log-progress             → logProgress
  *   PATCH /api/consumer/profile                  → updateProfile
  *   PUT   /api/consumer/onboarding               → completeOnboarding
  *   PUT   /api/consumer/link-professional        → linkProfessional
@@ -43,6 +45,8 @@ const {
   linkProfessional,
   disconnectProfessional,
   getMyProfile,
+  logProgress,
+  getProgressHistory,
 } = require("../controllers/consumerController");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -107,5 +111,22 @@ router.put("/disconnect-professional", verifyToken, isConsumer, disconnectProfes
 // The frontend calls this after every link/disconnect to re-sync state.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/me", verifyToken, isConsumer, getMyProfile);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROGRESS HISTORY
+// GET /api/consumer/progress-history
+// Returns all DailyLog entries (weight field only) for this consumer,
+// sorted oldest → newest — ready for chronological chart rendering.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/progress-history", verifyToken, isConsumer, getProgressHistory);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOG PROGRESS
+// POST /api/consumer/log-progress
+// Upserts a weight entry for today's DailyLog document.
+// Body: { weight: number }
+// If a log already exists for today, it is updated; otherwise, a new one is created.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/log-progress", verifyToken, isConsumer, logProgress);
 
 module.exports = router;

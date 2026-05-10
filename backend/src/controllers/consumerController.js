@@ -7,19 +7,22 @@
  *   2. isConsumer   — req.user  is a User with role "Consumer"
  *
  * Controller Functions:
- *   getMyDietPlans         — GET   /api/consumer/diet-plans           → Consumer's assigned diet plans
- *   getMyWorkoutPlans      — GET   /api/consumer/workout-plans        → Consumer's assigned workout plans
- *   getMyWorkout           — GET   /api/consumer/my-workout           → Most recent template-assigned plan
- *   updateProfile          — PATCH /api/consumer/profile              → Update health metrics
- *   completeOnboarding     — PUT   /api/consumer/onboarding           → Save first-time health profile
- *   linkProfessional       — PUT   /api/consumer/link-professional    → Link a Dietician or Instructor
+ *   getMyDietPlans         — GET   /api/consumer/diet-plans              → Consumer's assigned diet plans
+ *   getMyWorkoutPlans      — GET   /api/consumer/workout-plans           → Consumer's assigned workout plans
+ *   getMyWorkout           — GET   /api/consumer/my-workout              → Most recent template-assigned plan
+ *   updateProfile          — PATCH /api/consumer/profile                 → Update health metrics
+ *   completeOnboarding     — PUT   /api/consumer/onboarding              → Save first-time health profile
+ *   linkProfessional       — PUT   /api/consumer/link-professional       → Link a Dietician or Instructor
  *   disconnectProfessional — PUT   /api/consumer/disconnect-professional → Nullify a professional link
- *   getMyProfile           — GET   /api/consumer/me                   → Fetch fresh consumer document
+ *   getMyProfile           — GET   /api/consumer/me                      → Fetch fresh consumer document
+ *   logProgress            — POST  /api/consumer/log-progress            → Upsert daily weight log
+ *   getProgressHistory     — GET   /api/consumer/progress-history        → All weight logs (oldest→newest)
  */
 
 const User        = require("../models/User");
 const DietPlan    = require("../models/DietPlan");
 const WorkoutPlan = require("../models/WorkoutPlan");
+const DailyLog    = require("../models/DailyLog");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/consumer/diet-plans
@@ -408,6 +411,118 @@ const getMyProfile = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/consumer/log-progress
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * logProgress
+ * @description Upserts a DailyLog entry for the current calendar day.
+ *
+ * Business rules:
+ *   - Computes the start (00:00:00.000) and end (23:59:59.999) of today in
+ *     UTC so the date boundary is deterministic regardless of server timezone.
+ *   - If a DailyLog already exists for this userId within today's window,
+ *     the `weight` field is updated in-place (findOneAndUpdate + upsert: false).
+ *   - If no log exists yet, a brand-new document is created.
+ *   - This approach avoids duplicate logs per day while being idempotent;
+ *     the consumer can re-submit to correct an earlier entry.
+ *
+ * Expected request body:
+ * {
+ *   weight: number  — Body weight in kg (or lbs, depending on frontend unit)
+ * }
+ *
+ * Response: { message, log } — the created or updated DailyLog document.
+ */
+const logProgress = async (req, res) => {
+  try {
+    const { weight } = req.body;
+
+    // ── 1. Validate input ─────────────────────────────────────────────────────
+    if (weight === undefined || weight === null || weight === "") {
+      return res.status(400).json({ error: "Weight is required." });
+    }
+    const numericWeight = Number(weight);
+    if (isNaN(numericWeight) || numericWeight <= 0) {
+      return res.status(400).json({ error: "Weight must be a positive number." });
+    }
+
+    // ── 2. Build today's date window (UTC midnight → UTC end-of-day) ──────────
+    // Using UTC boundaries ensures each consumer gets exactly one log per
+    // calendar day, regardless of the server's local timezone offset.
+    const now       = new Date();
+    const startOfDay = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    const endOfDay = new Date(Date.UTC(
+      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+      23, 59, 59, 999
+    ));
+
+    // ── 3. Check for an existing log for today ────────────────────────────────
+    const existingLog = await DailyLog.findOne({
+      userId: req.userId,
+      date:   { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    let log;
+    let message;
+
+    if (existingLog) {
+      // ── 4a. Update the existing log ─────────────────────────────────────────
+      existingLog.weight = numericWeight;
+      log     = await existingLog.save();
+      message = "Today's weight log updated successfully.";
+    } else {
+      // ── 4b. Create a brand-new log for today ────────────────────────────────
+      log = await DailyLog.create({
+        userId: req.userId,
+        date:   startOfDay,   // anchor to midnight for consistent querying
+        weight: numericWeight,
+      });
+      message = "Weight logged successfully for today.";
+    }
+
+    res.status(200).json({ message, log });
+  } catch (error) {
+    console.error("logProgress error:", error.message);
+    res.status(500).json({ error: "Failed to log progress." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/consumer/progress-history
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * getProgressHistory
+ * @description Returns all DailyLog documents for the logged-in consumer,
+ * sorted in ascending date order (oldest entry first) so the data arrives
+ * in the correct left-to-right chronological order for chart rendering.
+ *
+ * Only documents where `weight` is a non-null number are included, because
+ * a DailyLog can exist with only meal data and no weight entry.
+ *
+ * Response: Array<{ _id, date, weight }> — lightweight projection.
+ */
+const getProgressHistory = async (req, res) => {
+  try {
+    const logs = await DailyLog.find(
+      // Filter: only this consumer's logs that actually have a weight reading
+      { userId: req.userId, weight: { $ne: null } },
+      // Projection: only the fields the chart needs (omit meals for efficiency)
+      { date: 1, weight: 1, _id: 1 }
+    ).sort({ date: 1 }); // ascending — oldest first, matching chart X-axis
+
+    res.status(200).json(logs);
+  } catch (error) {
+    console.error("getProgressHistory error:", error.message);
+    res.status(500).json({ error: "Failed to fetch progress history." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -420,4 +535,6 @@ module.exports = {
   linkProfessional,
   disconnectProfessional,
   getMyProfile,
+  logProgress,
+  getProgressHistory,
 };

@@ -1,0 +1,242 @@
+/* =============================================================================
+   ProgressCharts.css
+   Styles for the ProgressCharts component.
+   Follows the ConsumerDashboard design system (same CSS custom properties).
+   ============================================================================= */
+
+/* ── Card Shell ──────────────────────────────────────────────────────────────── */
+.pc-card {
+  background: var(--con-surface);
+  border: 1px solid var(--con-border);
+  border-radius: var(--con-radius);
+  padding: 1.5rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative radial gradient — mirrors the welcome card glow style */
+.pc-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at bottom right,
+    rgba(249, 115, 22, 0.07) 0%,
+    transparent 60%
+  );
+  pointer-events: none;
+}
+
+/* ── Card Header ─────────────────────────────────────────────────────────────── */
+.pc-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.pc-card__icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pc-card__icon {
+  width: 22px;
+  height: 22px;
+  color: var(--con-accent);
+}
+
+.pc-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--con-text);
+  margin: 0;
+}
+
+.pc-card__subtitle {
+  font-size: 0.75rem;
+  color: var(--con-text-muted);
+  margin: 2px 0 0;
+}
+
+/* Average badge — pill shown in header when data exists */
+.pc-avg-badge {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 0.4rem 0.85rem;
+  background: rgba(249, 115, 22, 0.08);
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  border-radius: 99px;
+}
+
+.pc-avg-badge__label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--con-text-muted);
+}
+
+.pc-avg-badge__value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--con-accent);
+}
+
+/* ── Chart Wrapper ───────────────────────────────────────────────────────────── */
+.pc-chart-wrap {
+  /* Fixed height so ResponsiveContainer renders correctly.               */
+  /* This is intentional: Recharts requires a measured parent height.    */
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Custom Tooltip ──────────────────────────────────────────────────────────── */
+.pc-tooltip {
+  background: var(--con-surface-2, #1c2330);
+  border: 1px solid rgba(249, 115, 22, 0.3);
+  border-radius: var(--con-radius-sm);
+  padding: 0.65rem 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.pc-tooltip__date {
+  font-size: 0.72rem;
+  color: var(--con-text-muted);
+  margin: 0 0 4px;
+  font-weight: 500;
+}
+
+.pc-tooltip__weight {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+
+.pc-tooltip__value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--con-accent);
+}
+
+.pc-tooltip__unit {
+  font-size: 0.72rem;
+  color: var(--con-text-muted);
+}
+
+/* ── State Views (loading / error / empty) ───────────────────────────────────── */
+.pc-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+  width: 100%;
+}
+
+.pc-state--loading {
+  color: var(--con-text-muted);
+  font-size: 0.875rem;
+}
+
+.pc-state--error {
+  background: rgba(248, 81, 73, 0.08);
+  border: 1px solid rgba(248, 81, 73, 0.25);
+  border-radius: var(--con-radius-sm);
+  color: var(--con-danger);
+  font-size: 0.875rem;
+  padding: 1rem 1.25rem;
+}
+
+/* Empty state */
+.pc-state--empty {
+  color: var(--con-text-muted);
+}
+
+.pc-empty__graphic {
+  margin-bottom: 0.5rem;
+}
+
+.pc-empty__svg {
+  width: 64px;
+  height: 48px;
+  opacity: 0.7;
+}
+
+.pc-empty__title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--con-text);
+  margin: 0;
+}
+
+.pc-empty__sub {
+  font-size: 0.8rem;
+  color: var(--con-text-muted);
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* Loading spinner */
+.pc-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--con-border);
+  border-top-color: var(--con-accent);
+  border-radius: 50%;
+  animation: pcSpin 0.75s linear infinite;
+}
+
+@keyframes pcSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Legend row ──────────────────────────────────────────────────────────────── */
+.pc-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--con-border);
+  font-size: 0.72rem;
+  color: var(--con-text-muted);
+}
+
+.pc-legend__swatch {
+  display: inline-block;
+  width: 20px;
+  height: 2.5px;
+  background: var(--con-accent);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.pc-legend__label {
+  font-weight: 600;
+  color: var(--con-text);
+}
+
+.pc-legend__sep {
+  opacity: 0.4;
+}
+
+.pc-legend__sub {
+  font-size: 0.68rem;
+}

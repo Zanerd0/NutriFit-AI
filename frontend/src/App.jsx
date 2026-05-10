@@ -45,7 +45,6 @@ import AdminDashboard      from "./pages/AdminDashboard";
 import DieticianDashboard  from "./pages/DieticianDashboard";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import ConsumerDashboard   from "./pages/ConsumerDashboard";
-import ConsumerOnboarding  from "./pages/ConsumerOnboarding";
 import HomePage            from "./pages/HomePage";
 
 // Route Guards
@@ -54,6 +53,7 @@ import AdminRoute      from "./components/AdminRoute";
 import DieticianRoute  from "./components/DieticianRoute";
 import InstructorRoute from "./components/InstructorRoute";
 import ConsumerRoute   from "./components/ConsumerRoute";
+import OnboardingRoute from "./components/OnboardingRoute";
 
 /**
  * LayoutManager - Listens to the current route and toggles the #root
@@ -89,23 +89,14 @@ function App() {
         <Route path="/login"  element={<Login />} />
         <Route path="/signup" element={<Signup />} />
 
-        {/* ── Onboarding (Consumer only — pre-dashboard gate) ── */}
         {/*
-          OnboardingRoute is defined inline here because it is a micro-guard
-          used only for this single route. It mirrors ConsumerRoute but with
-          the logic inverted: redirect AWAY if the profile is already complete.
-        */}
-        <Route
-          path="/onboarding"
-          element={(() => {
-            const user = JSON.parse(localStorage.getItem("user"));
-            // Not logged in or wrong role → back to login
-            if (!user || user.role !== "Consumer") return <Navigate to="/login" replace />;
-            // Already onboarded → skip to dashboard
-            if (user.age != null && user.weight != null) return <Navigate to="/consumer" replace />;
-            return <ConsumerOnboarding />;
-          })()}
-        />
+         * Onboarding gate (Consumer only — pre-dashboard)
+         * OnboardingRoute is a proper component (not an IIFE) so React
+         * re-evaluates the guard on every navigation, not just on initial load.
+         * This fixes the bug where newly created consumers were silently
+         * bounced back to /login instead of landing on /onboarding.
+         */}
+        <Route path="/onboarding" element={<OnboardingRoute />} />
 
         {/* ── Protected Consumer Dashboard (/consumer) ── */}
         <Route

@@ -21,6 +21,8 @@ import { useNavigate }                       from "react-router-dom";
 import axios                                 from "../api/axios";
 import FindProfessionals                     from "./FindProfessionals";
 import MyWorkout                             from "../components/MyWorkout";
+import DailyLogForm                          from "../components/DailyLogForm";
+import ProgressCharts                        from "../components/ProgressCharts";
 import "./ConsumerDashboard.css";
 
 // =============================================================================
@@ -165,6 +167,19 @@ const ConsumerDashboard = () => {
   });
   const [saving,        setSaving]        = useState(false);
   const [profileMsg,    setProfileMsg]    = useState({ type: "", text: "" });
+
+  /**
+   * refreshTrigger — an incrementing counter passed to ProgressCharts.
+   * Incrementing this value causes ProgressCharts to re-fetch progress
+   * history from the server after DailyLogForm saves a new entry.
+   */
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  /**
+   * handleProgressSaved — callback passed to DailyLogForm.onSuccess.
+   * Bumps refreshTrigger by 1, which triggers the ProgressCharts useEffect.
+   */
+  const handleProgressSaved = () => setRefreshTrigger((n) => n + 1);
 
   // ── Data Fetching ──────────────────────────────────────────────────────────
 
@@ -507,6 +522,7 @@ const ConsumerDashboard = () => {
     { id: "diet",       label: "Diet Plans",        icon: "🥗" },
     { id: "workout",    label: "Workout Plans",     icon: "🏋️" },
     { id: "my-workout", label: "My Workout",        icon: "💪" },
+    { id: "progress",   label: "My Progress",       icon: "📈" },
     { id: "find",       label: "Find Professionals", icon: "🔗" },
     { id: "ai",         label: "AI Advisor",        icon: "🤖" },
   ];
@@ -593,6 +609,34 @@ const ConsumerDashboard = () => {
 
           {/* My Workout — dedicated view of the instructor-assigned routine */}
           {activeTab === "my-workout" && <MyWorkout />}
+
+          {/*
+           * Progress Tracking tab
+           * ────────────────────────────────────────────────────────────────────
+           * Layout: CSS Grid — on wide screens the form sits on the left
+           * (approx 1/3 width) and the chart occupies the remaining 2/3.
+           * On narrow screens both panels collapse to a single column.
+           */}
+          {activeTab === "progress" && (
+            <div className="con-progress-layout" id="section-progress">
+              {/* Section heading */}
+              <div className="con-section__header con-progress-layout__heading">
+                <span className="con-section__icon">📈</span>
+                <h2 className="con-section__title">My Progress</h2>
+                <span className="con-section__count">Weight Tracking</span>
+              </div>
+
+              {/* Form panel */}
+              <div className="con-progress-layout__form">
+                <DailyLogForm onSuccess={handleProgressSaved} />
+              </div>
+
+              {/* Chart panel */}
+              <div className="con-progress-layout__chart">
+                <ProgressCharts refreshTrigger={refreshTrigger} />
+              </div>
+            </div>
+          )}
 
           {/* Find Professionals tab — browse and connect with Dieticians/Instructors */}
           {activeTab === "find" && (

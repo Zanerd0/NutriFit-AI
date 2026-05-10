@@ -799,6 +799,51 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   PROGRESS TRACKING LAYOUT
+   Two-panel grid: DailyLogForm (left/top) + ProgressCharts (right/bottom).
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * .con-progress-layout
+ * The outer wrapper for the My Progress tab.
+ * Uses CSS Grid with a named column template so the form has a fixed minimum
+ * width while the chart flexibly fills the remaining horizontal space.
+ *
+ *  ┌──────────────────┬──────────────────────────────────────┐
+ *  │  [heading row — spans all columns]                      │
+ *  ├──────────────────┼──────────────────────────────────────┤
+ *  │  DailyLogForm    │  ProgressCharts                      │
+ *  │  (≥ 320px)       │  (fills remaining space)             │
+ *  └──────────────────┴──────────────────────────────────────┘
+ */
+.con-progress-layout {
+  display: grid;
+  /* Form column: no smaller than 320px, no bigger than 400px.
+     Chart column: takes all remaining space. */
+  grid-template-columns: minmax(320px, 400px) 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Section heading spans both columns so it reads as a single page header */
+.con-progress-layout__heading {
+  grid-column: 1 / -1;
+}
+
+/* Form panel: fixed column, starts from row 2 */
+.con-progress-layout__form {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+/* Chart panel: fills remaining column, same row */
+.con-progress-layout__chart {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -806,4 +851,14 @@
   .con-content { padding: 1rem; }
   .con-plans-grid { grid-template-columns: 1fr; }
   .con-profile-form { grid-template-columns: 1fr; }
+
+  /* Collapse progress layout to a single column on mobile */
+  .con-progress-layout {
+    grid-template-columns: 1fr;
+  }
+  .con-progress-layout__form,
+  .con-progress-layout__chart {
+    grid-column: 1;
+    grid-row: auto;
+  }
 }
