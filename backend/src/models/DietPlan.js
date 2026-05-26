@@ -1,148 +1,103 @@
 /**
- * @file DietPlan.js
- * @description Mongoose model for a Diet Plan document.
+ * @file models/DietPlan.js
+ * @description Mongoose model for an AI-generated Diet Plan document.
  *
- * Phase 1 — Dietician-created plan assigned to a Consumer.
- * Phase 2 — Extended to support AI-generated weekly schedules:
- *   • userId        → the Consumer this plan belongs to
- *   • status        → lifecycle state of the plan
- *   • week_schedule → raw JSON blob returned by the AI (Schema.Types.Mixed)
+ * This schema is designed exclusively for the RAG generation pipeline.
+ * It stores the consumer's identity, the plan's lifecycle status, and the
+ * full 7-day JSON schedule produced by the generative AI model.
  *
  * Schema Relations:
- *   userId       →  User (role: "Consumer")   — plan owner  [Phase 2]
- *   dieticianId  →  User (role: "Dietician")  — plan creator
- *   clientId     →  User (role: "Consumer")   — plan recipient (Phase 1 alias)
+ *   consumerId  →  User (role: "Consumer")  — the owner of this plan
+ *
+ * Field Notes:
+ *   weekSchedule  — Schema.Types.Mixed so any AI-generated JSON shape can be
+ *                   persisted without a rigid sub-document definition.
+ *                   Expected shape from the AI:
+ *                   {
+ *                     monday:    { breakfast: "...", lunch: "...", dinner: "..." },
+ *                     tuesday:   { ... },
+ *                     ...
+ *                     sunday:    { ... }
+ *                   }
  */
 
 const mongoose = require("mongoose");
-
-// ─── Meal Sub-Schema ──────────────────────────────────────────────────────────
-// Each element in the `meals` array describes one meal slot for the day.
-// We define this as a nested sub-document so Mongoose validates it properly.
-
-const mealSchema = new mongoose.Schema(
-  {
-    /**
-     * mealTime - When this meal should be eaten.
-     * Examples: "Breakfast", "Morning Snack", "Lunch", "Dinner"
-     */
-    mealTime: {
-      type: String,
-      required: [true, "Meal time is required (e.g., Breakfast, Lunch)."],
-      trim: true,
-    },
-
-    /**
-     * foodItems - A free-text description of what to eat for this meal.
-     * Kept as a simple string for flexibility; could be an array in v2.
-     * Example: "2 eggs, 1 slice whole-grain toast, 1 glass orange juice"
-     */
-    foodItems: {
-      type: String,
-      required: [true, "Food items description is required."],
-      trim: true,
-    },
-  },
-  { _id: true } // Each meal gets its own sub-document _id for future CRUD ops
-);
 
 // ─── Diet Plan Schema ─────────────────────────────────────────────────────────
 
 const dietPlanSchema = new mongoose.Schema(
   {
-    // ── Phase 2: AI Plan Fields ──────────────────────────────────────────────
-
     /**
-     * userId - The Consumer this plan belongs to.
-     * Used by AI-generation routes to associate the plan with its owner
-     * directly, without going through the dieticianId → clientId chain.
+     * consumerId - The Consumer this AI-generated plan belongs to.
+     * Required so every plan can be associated back to a specific user
+     * for retrieval, display, and archiving operations.
      */
-    userId: {
+    consumerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      default: null,
+      required: [true, "A Consumer ID is required to generate a diet plan."],
     },
 
     /**
-     * status - Lifecycle state of the diet plan.
-     *   'No_Plan'   → no plan has been generated yet
-     *   'Active'    → currently in use by the consumer
-     *   'Completed' → the scheduled week has passed
-     *   'Archived'  → manually archived, no longer active
+     * status - Lifecycle state of the AI-generated diet plan.
+     *   'Active'   → the current plan in use by the consumer
+     *   'Archived' → a previous plan, kept for history/comparison
+     *
+     * When a new plan is generated for a consumer, the application should
+     * set any existing 'Active' plans for that consumer to 'Archived' first.
      */
     status: {
       type: String,
-      enum: ["No_Plan", "Active", "Completed", "Archived"],
+      enum: {
+        values: ["Active", "Archived"],
+        message: "Status must be either 'Active' or 'Archived'.",
+      },
       default: "Active",
     },
 
     /**
-     * week_schedule - Raw JSON structure returned by the AI planner.
-     * Stored as Schema.Types.Mixed so any object/array shape can be persisted
-     * without a rigid sub-document definition.
-     * Example shape: { monday: { breakfast: "...", lunch: "..." }, tuesday: … }
+     * weekSchedule - The full 7-day meal plan returned by the AI.
+     * Stored as Schema.Types.Mixed so the raw JSON object can be persisted
+     * without a rigid Mongoose sub-document definition. This gives maximum
+     * flexibility if the AI response shape evolves over time.
+     *
+     * Expected structure (set by the mega-prompt in dietPlanController.js):
+     * {
+     *   monday:    { breakfast: String, lunch: String, dinner: String },
+     *   tuesday:   { breakfast: String, lunch: String, dinner: String },
+     *   wednesday: { breakfast: String, lunch: String, dinner: String },
+     *   thursday:  { breakfast: String, lunch: String, dinner: String },
+     *   friday:    { breakfast: String, lunch: String, dinner: String },
+     *   saturday:  { breakfast: String, lunch: String, dinner: String },
+     *   sunday:    { breakfast: String, lunch: String, dinner: String }
+     * }
      */
-    week_schedule: {
+    weekSchedule: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
     },
 
-    // ── Phase 1: Dietician-Created Plan Fields ───────────────────────────────
-
     /**
-     * dieticianId - Reference to the User who created this plan.
-     * Automatically populated in queries via Model.populate("dieticianId").
+     * createdAt - When this plan was generated.
+     * Explicitly defined (rather than relying on Mongoose timestamps option)
+     * so the field is always present in the document from creation time.
      */
-    dieticianId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "A Dietician must be associated with this plan."],
-    },
-
-    /**
-     * clientId - Reference to the Consumer this plan is assigned to.
-     * In Phase 1, dieticians can pick any Consumer; future phases will
-     * introduce an explicit assignment/acceptance workflow.
-     */
-    clientId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "A client (Consumer) must be assigned to this plan."],
-    },
-
-    /** title - Short descriptive label for the plan (e.g., "Weight Loss Week 1") */
-    title: {
-      type: String,
-      required: [true, "Diet plan title is required."],
-      trim: true,
-      maxlength: [120, "Title cannot exceed 120 characters."],
-    },
-
-    /** description - Longer free-text explaining the general goals or notes. */
-    description: {
-      type: String,
-      trim: true,
-      maxlength: [1000, "Description cannot exceed 1000 characters."],
-      default: "",
-    },
-
-    /**
-     * meals - An ordered array of meal entries for this plan.
-     * Each entry uses the mealSchema sub-document defined above.
-     */
-    meals: {
-      type: [mealSchema],
-      default: [], // A plan can be saved with no meals initially
+    createdAt: {
+      type: Date,
+      default: Date.now,
     },
   },
   {
-    /**
-     * timestamps: true  →  Mongoose automatically adds:
-     *   createdAt: Date — when the document was first saved
-     *   updatedAt: Date — when the document was last modified
-     */
-    timestamps: true,
+    // versionKey: false keeps the __v field out of documents for a cleaner API response
+    versionKey: false,
   }
 );
+
+// ─── Indexes ──────────────────────────────────────────────────────────────────
+
+// Compound index: quickly find the active plan for a given consumer
+dietPlanSchema.index({ consumerId: 1, status: 1 });
+
+// ─── Export ───────────────────────────────────────────────────────────────────
 
 module.exports = mongoose.model("DietPlan", dietPlanSchema);

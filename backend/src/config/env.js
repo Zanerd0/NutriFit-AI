@@ -23,6 +23,8 @@ const envSchema = z.object({
   MONGO_URI: z.string().min(1, "Mongo URI is required"),
   JWT_SECRET: z.string().min(1, "JWT Secret is required"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  // GEMINI_API_KEY is optional at startup; ragController validates it at request time
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 // Validate
