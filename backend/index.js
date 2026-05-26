@@ -11,6 +11,7 @@ const instructorRoutes = require("./src/routes/instructorRoutes"); // Load Instr
 const consumerRoutes   = require("./src/routes/consumerRoutes");   // Load Consumer routes
 const professionalRoutes = require("./src/routes/professionalRoutes"); // Load Professionals directory routes
 const dietPlanRoutes     = require("./src/routes/dietPlanRoutes");     // Load AI Diet Plan (RAG) routes
+const chatRoutes         = require("./src/routes/chatRoutes");         // Load Free Tier AI Chat routes
 const seedWorkoutTemplates = require("./src/utils/seedTemplates"); // Auto-seed default workout templates
 
 const app = express();
@@ -49,6 +50,8 @@ app.use("/api/professionals", professionalRoutes);
 app.use("/api/professional", professionalRoutes);
 // Mount AI diet plan generation route (RAG pipeline — no auth middleware for now)
 app.use("/api/diet-plan",  dietPlanRoutes);
+// Mount Free Tier AI Chat route — POST /api/chat/send
+app.use("/api/chat",       chatRoutes);
 
 // A simple test route to verify the server is up
 app.get("/", (req, res) => {

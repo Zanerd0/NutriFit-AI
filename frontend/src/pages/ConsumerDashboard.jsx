@@ -23,6 +23,8 @@ import FindProfessionals                     from "./FindProfessionals";
 import MyWorkout                             from "../components/MyWorkout";
 import DailyLogForm                          from "../components/DailyLogForm";
 import ProgressCharts                        from "../components/ProgressCharts";
+import DietPlanDisplay                       from "../components/DietPlanDisplay";
+import AIChat                                from "../components/AIChat";
 import "./ConsumerDashboard.css";
 
 // =============================================================================
@@ -158,6 +160,16 @@ const ConsumerDashboard = () => {
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState("");
 
+  // ── AI Diet Plan (RAG-generated) ──────────────────────────────────────────
+  /** The active DietPlan document returned by the RAG endpoint */
+  const [aiPlan,        setAiPlan]        = useState(null);
+  /** true while fetching the existing plan from GET /api/diet-plan/active */
+  const [aiPlanLoading, setAiPlanLoading] = useState(false);
+  /** true while the POST /api/diet-plan/generate call is in-flight */
+  const [generating,    setGenerating]    = useState(false);
+  /** Human-readable error for the AI plan section */
+  const [aiPlanError,   setAiPlanError]   = useState("");
+
   // ── Profile edit state ─────────────────────────────────────────────────────
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm,    setProfileForm]    = useState({
@@ -210,6 +222,62 @@ const ConsumerDashboard = () => {
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
+
+  /**
+   * fetchAiPlan — Loads the consumer's active AI-generated diet plan.
+   * Hits GET /api/diet-plan/active (to be implemented on backend);
+   * falls back gracefully if the endpoint isn't wired yet.
+   */
+  const fetchAiPlan = useCallback(async () => {
+    setAiPlanLoading(true);
+    setAiPlanError("");
+    try {
+      const res = await axios.get("/diet-plan/active");
+      setAiPlan(res.data.data ?? res.data ?? null);
+    } catch (err) {
+      if (err.response?.status === 404) {
+        // No active plan yet — not an error, just show empty state
+        setAiPlan(null);
+      } else {
+        setAiPlanError(err.response?.data?.message || "Could not load your AI diet plan.");
+      }
+    } finally {
+      setAiPlanLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAiPlan();
+  }, [fetchAiPlan]);
+
+  /**
+   * handleGeneratePlan — Calls POST /api/diet-plan/generate with the
+   * consumer's current health profile to trigger the RAG pipeline.
+   */
+  const handleGeneratePlan = async () => {
+    if (generating) return;
+    setGenerating(true);
+    setAiPlanError("");
+    try {
+      const payload = {
+        consumerId:        consumer._id,
+        age:               consumer.age               ?? "",
+        weight:            consumer.weight             ?? "",
+        goal:              consumer.primary_goal       ?? consumer.goal ?? "General Health",
+        medicalConditions: consumer.medical_conditions ?? "",
+      };
+      const res = await axios.post("/diet-plan/generate", payload);
+      setAiPlan(res.data.data ?? res.data ?? null);
+    } catch (err) {
+      setAiPlanError(
+        err.response?.data?.message ||
+        err.response?.data?.error   ||
+        "Failed to generate AI diet plan. Please try again."
+      );
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   /**
    * refreshConsumer — Fetches the full consumer document from the server on
@@ -471,60 +539,86 @@ const ConsumerDashboard = () => {
   );
 
   /**
-   * renderAIAdvisor — Prominent placeholder for the core FYP AI chat feature.
-   * The input and send button are intentionally disabled with clear visual cues.
+   * renderAIAdvisor — Live AI Chat widget (free tier).
    */
   const renderAIAdvisor = () => (
-    <div className="con-ai-card" id="section-ai">
-      <div className="con-ai-card__header">
-        <div className="con-ai-card__icon-wrap">🤖</div>
-        <div>
-          <h2 className="con-ai-card__title">NutriFit AI Advisor</h2>
-          <p className="con-ai-card__subtitle">Powered by Generative AI · FYP Core Feature</p>
-        </div>
+    <div className="con-section" id="section-ai">
+      <div className="con-section__header">
+        <span className="con-section__icon">🤖</span>
+        <h2 className="con-section__title">NutriFit AI Advisor</h2>
+        <span className="con-section__count">Free Tier</span>
+      </div>
+      <AIChat />
+    </div>
+  );
+
+  /**
+   * renderAIPlan — 7-day AI-generated diet plan display.
+   */
+  const renderAIPlan = () => (
+    <div className="con-section" id="section-ai-plan">
+      <div className="con-section__header">
+        <span className="con-section__icon">🧠</span>
+        <h2 className="con-section__title">My AI Diet Plan</h2>
+        <span className="con-section__count">
+          {aiPlan ? "Active" : "Not generated"}
+        </span>
       </div>
 
-      <div className="con-ai-card__coming-soon">
-        <span style={{ fontSize: "1.5rem" }}>🚀</span>
-        <div className="con-ai-card__coming-soon-text">
-          <strong>AI Integration Coming Soon</strong>
-          Get personalised nutrition advice, meal suggestions, and workout
-          tips from your AI-powered health advisor. This feature is under
-          active development as part of the NutriFit AI Final Year Project.
-        </div>
-      </div>
-
-      {/* Disabled chat area — visual placeholder only */}
-      <div className="con-ai-chat-area">
-        <input
-          className="con-ai-chat-input"
-          type="text"
-          placeholder="Ask NutriFit AI anything… (coming soon)"
-          disabled
-          aria-disabled="true"
-          id="ai-chat-input"
-        />
+      {/* Generate / Regenerate button */}
+      <div className="con-ai-plan-actions">
         <button
-          className="con-ai-chat-btn"
-          disabled
-          aria-disabled="true"
-          id="ai-chat-send-btn"
+          id="generate-ai-plan-btn"
+          className="con-btn con-btn--primary"
+          onClick={handleGeneratePlan}
+          disabled={generating || aiPlanLoading}
         >
-          ✦ Ask
+          {generating
+            ? "⏳ Generating…"
+            : aiPlan
+            ? "🔄 Regenerate Plan"
+            : "✦ Generate My AI Plan"}
         </button>
+        {aiPlan && (
+          <span className="con-ai-plan-note">
+            Generates a new 7-day plan using your current health profile.
+          </span>
+        )}
       </div>
+
+      {/* Error banner */}
+      {aiPlanError && (
+        <div className="con-error-banner" role="alert">{aiPlanError}</div>
+      )}
+
+      {/* Loading skeleton */}
+      {(aiPlanLoading || generating) && (
+        <div className="con-loading">
+          <div className="con-spinner" />
+          <p>{generating ? "AI is building your personalised plan…" : "Loading your plan…"}</p>
+        </div>
+      )}
+
+      {/* 7-day grid */}
+      {!aiPlanLoading && !generating && (
+        <DietPlanDisplay
+          weekSchedule={aiPlan?.weekSchedule}
+          generatedAt={aiPlan?.createdAt}
+        />
+      )}
     </div>
   );
 
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
     { id: "home",       label: "Home",              icon: "🏠" },
+    { id: "ai-plan",    label: "AI Diet Plan",      icon: "🧠" },
+    { id: "ai",         label: "AI Advisor",        icon: "🤖" },
     { id: "diet",       label: "Diet Plans",        icon: "🥗" },
     { id: "workout",    label: "Workout Plans",     icon: "🏋️" },
     { id: "my-workout", label: "My Workout",        icon: "💪" },
     { id: "progress",   label: "My Progress",       icon: "📈" },
     { id: "find",       label: "Find Professionals", icon: "🔗" },
-    { id: "ai",         label: "AI Advisor",        icon: "🤖" },
   ];
 
   // ── Main Render ───────────────────────────────────────────────────────────
@@ -596,16 +690,18 @@ const ConsumerDashboard = () => {
           {activeTab === "home" && (
             <>
               {renderWelcomeCard()}
+              {renderAIPlan()}
+              {renderAIAdvisor()}
               {renderDietPlans()}
               {renderWorkoutPlans()}
-              {renderAIAdvisor()}
             </>
           )}
 
-          {/* Individual tabs for focused views — NO welcome card here */}
-          {activeTab === "diet"    && renderDietPlans()}
-          {activeTab === "workout" && renderWorkoutPlans()}
-          {activeTab === "ai"      && renderAIAdvisor()}
+          {/* Individual tabs for focused views */}
+          {activeTab === "ai-plan"  && renderAIPlan()}
+          {activeTab === "ai"       && renderAIAdvisor()}
+          {activeTab === "diet"     && renderDietPlans()}
+          {activeTab === "workout"  && renderWorkoutPlans()}
 
           {/* My Workout — dedicated view of the instructor-assigned routine */}
           {activeTab === "my-workout" && <MyWorkout />}

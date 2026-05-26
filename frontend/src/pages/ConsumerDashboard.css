@@ -844,6 +844,23 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════════
+   AI DIET PLAN ACTIONS BAR
+   Button + helper text that sits above the DietPlanDisplay grid.
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.con-ai-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.con-ai-plan-note {
+  font-size: 0.75rem;
+  color: var(--con-text-muted);
+  font-style: italic;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -861,4 +878,10 @@
     grid-column: 1;
     grid-row: auto;
   }
+
+  .con-ai-plan-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
+

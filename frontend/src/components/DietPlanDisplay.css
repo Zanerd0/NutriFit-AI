@@ -1,0 +1,303 @@
+/* =============================================================================
+   DietPlanDisplay.css
+   Styles for the 7-day AI diet plan calendar grid.
+   Uses CSS Grid and Flexbox only — no utility frameworks.
+   Design tokens inherited from index.css (:root variables).
+   ============================================================================= */
+
+/* ── Container ─────────────────────────────────────────────────────────────── */
+
+.dpd-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  animation: dpd-fade-in 0.4s ease both;
+}
+
+@keyframes dpd-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.dpd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, #1e1b4b 0%, var(--color-surface-2) 100%);
+  border: 1px solid rgba(108, 99, 255, 0.25);
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 1px rgba(108, 99, 255, 0.1), var(--shadow);
+}
+
+.dpd-header__left {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.dpd-header__icon {
+  font-size: 2rem;
+  filter: drop-shadow(0 0 8px rgba(108, 99, 255, 0.6));
+}
+
+.dpd-header__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.dpd-header__sub {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  margin-top: 0.15rem;
+}
+
+.dpd-header__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.8rem;
+  background: rgba(108, 99, 255, 0.18);
+  border: 1px solid rgba(108, 99, 255, 0.35);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  white-space: nowrap;
+}
+
+/* ── Legend ──────────────────────────────────────────────────────────────────── */
+
+.dpd-legend {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0 0.25rem;
+}
+
+.dpd-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.dpd-legend__item--breakfast {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.25);
+  color: #fbbf24;
+}
+
+.dpd-legend__item--lunch {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: #10b981;
+}
+
+.dpd-legend__item--dinner {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.25);
+  color: #8b5cf6;
+}
+
+/* ── 7-Day Grid ──────────────────────────────────────────────────────────────── */
+
+.dpd-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* Responsive: collapse to 2-col on small screens, 4-col on medium */
+@media (max-width: 1200px) {
+  .dpd-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .dpd-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .dpd-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Day Column ──────────────────────────────────────────────────────────────── */
+
+.dpd-day {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: var(--transition);
+  min-width: 0;
+}
+
+.dpd-day:hover {
+  border-color: rgba(108, 99, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* "Today" highlight */
+.dpd-day--today {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.2), var(--shadow);
+}
+
+.dpd-day--today .dpd-day__header {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #8b5cf6 100%);
+}
+
+.dpd-day__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--color-surface-2);
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.dpd-day__name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text);
+}
+
+.dpd-day__today-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  color: #fff;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dpd-day__meals {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+}
+
+/* ── Meal Slot ───────────────────────────────────────────────────────────────── */
+
+.dpd-meal {
+  padding: 0.625rem 0.75rem;
+  border-top: 1px solid var(--color-border);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  transition: background 0.15s ease;
+}
+
+.dpd-meal:first-child {
+  border-top: none;
+}
+
+.dpd-meal:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dpd-meal__header {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.2rem;
+}
+
+.dpd-meal__icon {
+  font-size: 0.75rem;
+}
+
+.dpd-meal__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Colour-code each meal type */
+.dpd-meal--breakfast .dpd-meal__label { color: #fbbf24; }
+.dpd-meal--lunch     .dpd-meal__label { color: #10b981; }
+.dpd-meal--dinner    .dpd-meal__label { color: #8b5cf6; }
+
+.dpd-meal--breakfast { border-left: 2px solid rgba(251, 191, 36, 0.3); }
+.dpd-meal--lunch     { border-left: 2px solid rgba(16, 185, 129, 0.3); }
+.dpd-meal--dinner    { border-left: 2px solid rgba(139, 92, 246, 0.3); }
+
+.dpd-meal__text {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+  /* Limit to 5 lines with ellipsis for compact grid view */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;             /* standard property for spec compliance */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Empty State ─────────────────────────────────────────────────────────────── */
+
+.dpd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  background: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.dpd-empty__icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.dpd-empty__text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.dpd-empty__sub {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  max-width: 320px;
+}
+
+/* ── Disclaimer ──────────────────────────────────────────────────────────────── */
+
+.dpd-disclaimer {
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--color-border);
+  margin-top: 0.25rem;
+  font-style: italic;
+}
