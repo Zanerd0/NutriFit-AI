@@ -1,0 +1,589 @@
+/* =============================================================================
+   ProfessionalHub.css
+   Styles for the Premium Professional Hub page.
+   Class prefix: ph- (ProfessionalHub)
+
+   Layout  : CSS Flexbox split panel (column on mobile, row on desktop)
+   Tokens  : Inherits from index.css :root variables
+   No utility frameworks — pure standard CSS.
+   ============================================================================= */
+
+/* ── Page Wrapper ────────────────────────────────────────────────────────────── */
+
+.ph-page {
+  display:        flex;
+  flex-direction: column;
+  gap:            1.75rem;
+  width:          100%;
+  animation:      ph-fade-in 0.4s ease both;
+}
+
+@keyframes ph-fade-in {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── Page Intro Banner ───────────────────────────────────────────────────────── */
+
+.ph-intro {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  flex-wrap:       wrap;
+  gap:             1rem;
+  padding:         1.5rem 2rem;
+  border-radius:   var(--radius);
+  background:      linear-gradient(135deg, #13103d 0%, var(--color-surface-2) 100%);
+  border:          1px solid rgba(108, 99, 255, 0.3);
+  box-shadow:      0 0 0 1px rgba(108, 99, 255, 0.08), var(--shadow);
+  position:        relative;
+  overflow:        hidden;
+}
+
+/* Subtle glow orb behind the intro */
+.ph-intro::before {
+  content:       "";
+  position:      absolute;
+  top:           -40px;
+  right:         -40px;
+  width:         200px;
+  height:        200px;
+  border-radius: 50%;
+  background:    radial-gradient(circle, rgba(108, 99, 255, 0.18), transparent 70%);
+  pointer-events: none;
+}
+
+.ph-intro__crown {
+  color:   var(--color-primary);
+  font-size: 1.2rem;
+}
+
+.ph-intro__title {
+  font-size:      1.6rem;
+  font-weight:    800;
+  color:          var(--color-text);
+  letter-spacing: -0.02em;
+  margin:         0 0 0.35rem;
+}
+
+.ph-intro__sub {
+  font-size:  0.88rem;
+  color:      var(--color-text-muted);
+  max-width:  520px;
+  line-height: 1.55;
+  margin:     0;
+}
+
+.ph-intro__badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.35rem;
+  padding:       0.45rem 1.1rem;
+  background:    linear-gradient(135deg, var(--color-primary), #8b5cf6);
+  border-radius: 999px;
+  font-size:     0.8rem;
+  font-weight:   700;
+  color:         #fff;
+  letter-spacing: 0.03em;
+  white-space:   nowrap;
+  box-shadow:    0 4px 14px rgba(108, 99, 255, 0.35);
+  flex-shrink:   0;
+}
+
+/* ── Split Layout — always single column, centred ───────────────────────────── */
+
+.ph-split {
+  display:        flex;
+  flex-direction: column; /* always vertical — no side-by-side */
+  align-items:    center; /* centre panels horizontally        */
+  gap:            1.5rem;
+  width:          100%;
+}
+
+/* Each panel is a centred column — max-width keeps it readable at any viewport */
+.ph-panel {
+  width:          100%;
+  max-width:      720px;  /* cap width so it looks like a focused dashboard card */
+  display:        flex;
+  flex-direction: column;
+  gap:            1.25rem;
+  padding:        2rem;
+  border-radius:  var(--radius);
+  background:     var(--color-surface);
+  border:         1px solid var(--color-border);
+  transition:     border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing:     border-box;
+}
+
+.ph-panel--diet:hover {
+  border-color: rgba(108, 99, 255, 0.35);
+  box-shadow:   0 8px 32px rgba(108, 99, 255, 0.12);
+}
+
+.ph-panel--workout:hover {
+  border-color: rgba(16, 185, 129, 0.35);
+  box-shadow:   0 8px 32px rgba(16, 185, 129, 0.12);
+}
+
+/* ── Panel Header ────────────────────────────────────────────────────────────── */
+
+.ph-panel__header {
+  display:     flex;
+  align-items: center;
+  gap:         1rem;
+  flex-wrap:   wrap;
+}
+
+/* Icon circle */
+.ph-panel__icon-wrap {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  width:           52px;
+  height:          52px;
+  border-radius:   14px;
+  flex-shrink:     0;
+}
+
+.ph-panel__icon-wrap--diet {
+  background: rgba(108, 99, 255, 0.15);
+  border:     1px solid rgba(108, 99, 255, 0.25);
+}
+
+.ph-panel__icon-wrap--workout {
+  background: rgba(16, 185, 129, 0.12);
+  border:     1px solid rgba(16, 185, 129, 0.25);
+}
+
+.ph-panel__icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.ph-panel__title {
+  font-size:   1.25rem;
+  font-weight: 800;
+  color:       var(--color-text);
+  margin:      0 0 0.15rem;
+  letter-spacing: -0.01em;
+}
+
+.ph-panel__subtitle {
+  font-size:  0.78rem;
+  color:      var(--color-text-muted);
+  margin:     0;
+  font-weight: 500;
+}
+
+/* Premium badge (pushed to right) */
+.ph-panel__badge {
+  display:       inline-flex;
+  align-items:   center;
+  padding:       0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size:     0.7rem;
+  font-weight:   700;
+  letter-spacing: 0.02em;
+  white-space:   nowrap;
+  margin-left:   auto;
+}
+
+.ph-panel__badge--diet {
+  background:  rgba(108, 99, 255, 0.15);
+  border:      1px solid rgba(108, 99, 255, 0.3);
+  color:       #a5b4fc;
+}
+
+.ph-panel__badge--workout {
+  background:  rgba(16, 185, 129, 0.12);
+  border:      1px solid rgba(16, 185, 129, 0.25);
+  color:       #34d399;
+}
+
+/* ── Description Text ────────────────────────────────────────────────────────── */
+
+.ph-panel__desc {
+  font-size:   0.875rem;
+  color:       var(--color-text-muted);
+  line-height: 1.65;
+  margin:      0;
+}
+
+/* ── Human-built callout box ─────────────────────────────────────────────────── */
+
+.ph-callout {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           0.875rem;
+  padding:       1rem 1.1rem;
+  border-radius: var(--radius-sm);
+  border:        1px solid;
+}
+
+.ph-callout--human {
+  background:   rgba(16, 185, 129, 0.07);
+  border-color: rgba(16, 185, 129, 0.2);
+}
+
+.ph-callout__icon {
+  font-size:   1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top:  0.1rem;
+}
+
+.ph-callout--human strong {
+  display:     block;
+  font-size:   0.85rem;
+  font-weight: 700;
+  color:       #34d399;
+  margin-bottom: 0.3rem;
+}
+
+.ph-callout--human p {
+  font-size:   0.82rem;
+  color:       var(--color-text-muted);
+  line-height: 1.55;
+  margin:      0;
+}
+
+/* ── Feature List ────────────────────────────────────────────────────────────── */
+
+.ph-feature-list {
+  list-style: none;
+  display:    flex;
+  flex-direction: column;
+  gap:        0.6rem;
+  padding:    0;
+  margin:     0;
+}
+
+.ph-feature-item {
+  display:     flex;
+  align-items: center;
+  gap:         0.65rem;
+  font-size:   0.83rem;
+  color:       var(--color-text-muted);
+}
+
+.ph-feature-item__icon {
+  font-size:  1rem;
+  flex-shrink: 0;
+}
+
+/* ── Form Elements ───────────────────────────────────────────────────────────── */
+
+.ph-form {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.75rem;
+  margin-top:     0.25rem;
+}
+
+.ph-label {
+  display:     block;
+  font-size:   0.82rem;
+  font-weight: 600;
+  color:       var(--color-text);
+  margin-bottom: 0.25rem;
+}
+
+.ph-label__hint {
+  font-weight: 400;
+  color:       var(--color-text-muted);
+  font-size:   0.76rem;
+}
+
+.ph-label__required {
+  color: var(--color-danger);
+}
+
+.ph-textarea,
+.ph-select {
+  width:         100%;
+  background:    var(--color-surface-2);
+  border:        1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color:         var(--color-text);
+  font-family:   inherit;
+  font-size:     0.875rem;
+  padding:       0.7rem 0.9rem;
+  resize:        vertical;
+  transition:    border-color 0.2s ease, box-shadow 0.2s ease;
+  outline:       none;
+}
+
+.ph-textarea::placeholder {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.ph-textarea:focus,
+.ph-select:focus {
+  border-color: var(--color-primary);
+  box-shadow:   0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+.ph-select {
+  cursor:     pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:   no-repeat;
+  background-position: right 0.85rem center;
+  padding-right:       2.5rem;
+}
+
+.ph-char-count {
+  font-size:  0.72rem;
+  color:      var(--color-text-muted);
+  text-align: right;
+  margin-top: -0.4rem;
+}
+
+/* ── Status Message ──────────────────────────────────────────────────────────── */
+
+.ph-status {
+  display:       flex;
+  align-items:   flex-start;
+  gap:           0.6rem;
+  padding:       0.75rem 1rem;
+  border-radius: var(--radius-sm);
+  font-size:     0.85rem;
+  line-height:   1.5;
+  animation:     ph-fade-in 0.25s ease both;
+}
+
+.ph-status--success {
+  background:   rgba(16, 185, 129, 0.1);
+  border:       1px solid rgba(16, 185, 129, 0.25);
+  color:        #34d399;
+}
+
+.ph-status--error {
+  background:   rgba(255, 77, 109, 0.1);
+  border:       1px solid rgba(255, 77, 109, 0.25);
+  color:        #fb7185;
+}
+
+.ph-status__icon {
+  font-size:   1rem;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top:  0.15rem;
+}
+
+/* ── CTA Buttons ─────────────────────────────────────────────────────────────── */
+
+.ph-btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.55rem;
+  padding:         0.875rem 1.5rem;
+  border-radius:   var(--radius-sm);
+  font-family:     inherit;
+  font-size:       0.9rem;
+  font-weight:     700;
+  cursor:          pointer;
+  border:          none;
+  transition:      all 0.2s ease;
+  letter-spacing:  0.01em;
+  position:        relative;
+  overflow:        hidden;
+  width:           100%;
+}
+
+.ph-btn:disabled {
+  opacity: 0.65;
+  cursor:  not-allowed;
+}
+
+/* Diet button — indigo gradient */
+.ph-btn--diet {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #8b5cf6 100%);
+  color:      #fff;
+  box-shadow: 0 4px 16px rgba(108, 99, 255, 0.3);
+}
+
+.ph-btn--diet:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c75ff 0%, #9b6dff 100%);
+  box-shadow: 0 6px 24px rgba(108, 99, 255, 0.45);
+  transform:  translateY(-1px);
+}
+
+/* Workout button — emerald gradient */
+.ph-btn--workout {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  color:      #fff;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.3);
+}
+
+.ph-btn--workout:hover:not(:disabled) {
+  background: linear-gradient(135deg, #047857 0%, #059669 100%);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+  transform:  translateY(-1px);
+}
+
+/* Spinner inside button */
+.ph-btn__spinner {
+  display:       inline-block;
+  width:         16px;
+  height:        16px;
+  border:        2px solid rgba(255, 255, 255, 0.35);
+  border-top:    2px solid #fff;
+  border-radius: 50%;
+  animation:     ph-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+@keyframes ph-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── "or" Divider ────────────────────────────────────────────────────────────── */
+
+.ph-divider {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  justify-content: center;
+  gap:            0.5rem;
+  padding:        0 0.25rem;
+  flex-shrink:    0;
+  /* On wide screens show as vertical; on mobile as horizontal */
+  align-self:     stretch;
+}
+
+.ph-divider__line {
+  flex:       1;
+  width:      1px;
+  min-height: 30px;
+  background: var(--color-border);
+}
+
+.ph-divider__label {
+  font-size:    0.72rem;
+  font-weight:  600;
+  color:        var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding:      0.3rem 0;
+  white-space:  nowrap;
+}
+
+/* ── Footnote ────────────────────────────────────────────────────────────────── */
+
+.ph-footnote {
+  font-size:  0.76rem;
+  color:      var(--color-text-muted);
+  text-align: center;
+  padding:    0.75rem 1rem;
+  border-top: 1px solid var(--color-border);
+  font-style: italic;
+  line-height: 1.55;
+}
+
+/* ── Connection Status UI ─────────────────────────────────────────────────────── */
+
+/* Status loading skeleton */
+.ph-status-loading {
+  display:        flex;
+  align-items:    center;
+  gap:            0.65rem;
+  padding:        0.75rem 1rem;
+  border-radius:  var(--radius-sm);
+  background:     var(--color-surface-2);
+  border:         1px solid var(--color-border);
+  font-size:      0.83rem;
+  color:          var(--color-text-muted);
+  font-style:     italic;
+}
+
+.ph-status-loading__dot {
+  display:       inline-block;
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    var(--color-text-muted);
+  animation:     ph-pulse 1.4s ease-in-out infinite;
+  flex-shrink:   0;
+}
+
+@keyframes ph-pulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.85); }
+  50%       { opacity: 1;   transform: scale(1);    }
+}
+
+/* "Connected" banner — replaces the button entirely */
+.ph-connected-banner {
+  display:       flex;
+  align-items:   center;
+  gap:           0.75rem;
+  padding:       1rem 1.25rem;
+  border-radius: var(--radius-sm);
+  background:    rgba(16, 185, 129, 0.08);
+  border:        1px solid rgba(16, 185, 129, 0.25);
+}
+
+.ph-connected-banner__dot {
+  width:         10px;
+  height:        10px;
+  border-radius: 50%;
+  background:    #22c55e;
+  box-shadow:    0 0 0 3px rgba(34, 197, 94, 0.25);
+  flex-shrink:   0;
+  animation:     ph-pulse 2s ease-in-out infinite;
+}
+
+.ph-connected-banner__text {
+  font-size:   0.88rem;
+  color:       var(--color-text);
+  line-height: 1.45;
+}
+
+.ph-connected-banner__name {
+  font-weight: 700;
+  color:       #34d399;
+}
+
+/* "Pending" badge overlaid on the button */
+.ph-pending-badge {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.35rem 0.85rem;
+  border-radius: 999px;
+  background:    rgba(251, 191, 36, 0.12);
+  border:        1px solid rgba(251, 191, 36, 0.28);
+  color:         #fbbf24;
+  font-size:     0.78rem;
+  font-weight:   600;
+}
+
+.ph-pending-badge__dot {
+  width:         7px;
+  height:        7px;
+  border-radius: 50%;
+  background:    #fbbf24;
+  animation:     ph-pulse 1.2s ease-in-out infinite;
+  flex-shrink:   0;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .ph-intro {
+    padding:        1.25rem;
+    flex-direction: column;
+    align-items:    flex-start;
+  }
+
+  .ph-panel {
+    padding: 1.25rem;
+  }
+
+  .ph-panel__badge {
+    margin-left: 0;
+  }
+}
+

@@ -1,20 +1,21 @@
 /**
  * @file components/DietPlanDisplay.jsx
- * @description Renders a full 7-day AI-generated diet plan as a responsive
- *              CSS Grid calendar layout.
+ * @description Renders a 7-day AI-generated diet plan as a responsive CSS
+ *              Grid calendar layout, with an inline "Generate Plan" form.
  *
  * Props:
  *   weekSchedule {object} — The weekSchedule JSON from the DietPlan document.
- *                           Expected shape:
- *                           {
- *                             monday:    { breakfast, lunch, dinner },
- *                             tuesday:   { ... },
- *                             ...
- *                             sunday:    { ... }
- *                           }
  *   generatedAt  {string} — ISO date string for the plan creation timestamp.
+ *   planData     {object} — (Optional) Full DietPlan document (enables PDF download).
+ *   consumer     {object} — Consumer user object (used to pre-fill the generate form).
+ *   onPlanGenerated {function} — Callback called with the new plan after a
+ *                                successful generate request. The parent can
+ *                                update its own state from this callback.
  */
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { generatePDF } from "../utils/generatePDF";
 import "./DietPlanDisplay.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -39,11 +40,17 @@ const MEAL_META = {
   dinner:    { icon: "🌙", label: "Dinner"    },
 };
 
+const GOAL_OPTIONS = [
+  "Lose Weight",
+  "Gain Muscle",
+  "Maintain Weight",
+  "Improve Endurance",
+  "General Fitness",
+];
+
 // ─── Sub-Components ───────────────────────────────────────────────────────────
 
-/**
- * MealSlot — A single meal card inside a day column.
- */
+/** MealSlot — A single meal card inside a day column. */
 const MealSlot = ({ type, text }) => {
   const meta = MEAL_META[type] || { icon: "🍽", label: type };
   return (
@@ -57,16 +64,13 @@ const MealSlot = ({ type, text }) => {
   );
 };
 
-/**
- * DayColumn — One day's column in the calendar grid.
- */
+/** DayColumn — One day's column in the calendar grid. */
 const DayColumn = ({ day, dayData, isToday }) => {
   const meals = dayData || {};
   return (
     <div className={`dpd-day ${isToday ? "dpd-day--today" : ""}`}>
       <div className="dpd-day__header">
         <span className="dpd-day__name">{DAY_LABELS[day]}</span>
-        {isToday && <span className="dpd-day__today-badge">Today</span>}
       </div>
       <div className="dpd-day__meals">
         <MealSlot type="breakfast" text={meals.breakfast} />
@@ -77,76 +81,389 @@ const DayColumn = ({ day, dayData, isToday }) => {
   );
 };
 
+// ─── Generate Form ────────────────────────────────────────────────────────────
+
+/**
+ * GenerateForm — Inline expandable form that collects the user's health
+ * profile inputs and POSTs to /api/diet-plan/generate.
+ *
+ * Props:
+ *   consumer         {object}   — Pre-fill values from the consumer profile.
+ *   onSuccess        {function} — Called with the new plan data on success.
+ *   onCancel         {function} — Called when the user dismisses the form.
+ *   hasExistingPlan  {boolean}  — Controls the button label (Generate vs Regenerate).
+ */
+const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
+  const [form, setForm] = useState({
+    age:               consumer?.age               ?? "",
+    weight:            consumer?.weight             ?? "",
+    goal:              consumer?.primary_goal       ?? consumer?.goal ?? "",
+    medicalConditions: consumer?.medical_conditions ?? "",
+  });
+  const [generating, setGenerating] = useState(false);
+  const [error,      setError]      = useState("");
+
+  const handleChange = (e) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setGenerating(true);
+
+    try {
+      const response = await fetch("http://localhost:5000/api/diet-plan/generate", {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          consumerId:        consumer?._id ?? "",
+          age:               form.age,
+          weight:            form.weight,
+          goal:              form.goal,
+          medicalConditions: form.medicalConditions,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || data.error || `Server error (${response.status})`
+        );
+      }
+
+      // Backend may return { data: plan } or the plan directly
+      const plan = data.data ?? data;
+      onSuccess(plan);
+    } catch (err) {
+      setError(err.message || "Failed to generate your plan. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  // Render the overlay via a portal directly into document.body so it
+  // escapes any parent CSS stacking context (transform, filter, etc.)
+  return createPortal(
+    <div className="dpd-gen-overlay" role="dialog" aria-modal="true" aria-label="Generate AI Diet Plan">
+      <div className="dpd-gen-modal">
+        {/* Sticky modal header — never scrolls away */}
+        <div className="dpd-gen-modal__header">
+          <div className="dpd-gen-modal__title-row">
+            <span className="dpd-gen-modal__icon" aria-hidden="true">🧠</span>
+            <h3 className="dpd-gen-modal__title">
+              {hasExistingPlan ? "Regenerate AI Diet Plan" : "Generate AI Diet Plan"}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="dpd-gen-modal__close"
+            onClick={onCancel}
+            aria-label="Close generate form"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Scrollable body below the sticky header */}
+        <div className="dpd-gen-modal__body">
+          <p className="dpd-gen-modal__sub">
+            Your plan will be built by the Gemini AI model using your health profile.
+            Fill in your details below to get a personalised 7-day schedule.
+          </p>
+
+        {/* Loading overlay */}
+          {generating && (
+            <div className="dpd-gen-loading" aria-live="polite">
+              <span className="dpd-gen-loading__spinner" aria-hidden="true" />
+              <p className="dpd-gen-loading__text">
+                Generating your custom AI plan, please wait…
+              </p>
+            </div>
+          )}
+
+          {/* Form */}
+          {!generating && (
+            <form className="dpd-gen-form" onSubmit={handleSubmit} id="dpd-generate-form">
+              {/* Age */}
+              <div className="dpd-gen-field">
+                <label className="dpd-gen-label" htmlFor="dpd-age">
+                  Age <span className="dpd-gen-label__hint">(years)</span>
+                </label>
+                <input
+                  id="dpd-age"
+                  name="age"
+                  type="number"
+                  min="10"
+                  max="110"
+                  className="dpd-gen-input"
+                  placeholder="e.g. 24"
+                  value={form.age}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              {/* Weight */}
+              <div className="dpd-gen-field">
+                <label className="dpd-gen-label" htmlFor="dpd-weight">
+                  Weight <span className="dpd-gen-label__hint">(kg)</span>
+                </label>
+                <input
+                  id="dpd-weight"
+                  name="weight"
+                  type="number"
+                  min="20"
+                  max="300"
+                  step="0.1"
+                  className="dpd-gen-input"
+                  placeholder="e.g. 75"
+                  value={form.weight}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              {/* Fitness Goal */}
+              <div className="dpd-gen-field">
+                <label className="dpd-gen-label" htmlFor="dpd-goal">
+                  Fitness Goal
+                  <span className="dpd-gen-label__required" aria-hidden="true"> *</span>
+                </label>
+                <select
+                  id="dpd-goal"
+                  name="goal"
+                  className="dpd-gen-select"
+                  value={form.goal}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="">— Select your goal —</option>
+                  {GOAL_OPTIONS.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Medical Conditions */}
+              <div className="dpd-gen-field">
+                <label className="dpd-gen-label" htmlFor="dpd-medical">
+                  Medical Conditions{" "}
+                  <span className="dpd-gen-label__hint">(optional — e.g. diabetes, lactose intolerance)</span>
+                </label>
+                <textarea
+                  id="dpd-medical"
+                  name="medicalConditions"
+                  className="dpd-gen-textarea"
+                  rows={2}
+                  placeholder="Leave blank if none"
+                  value={form.medicalConditions}
+                  onChange={handleChange}
+                  maxLength={400}
+                />
+              </div>
+
+              {/* Error */}
+              {error && (
+                <div className="dpd-gen-error" role="alert">{error}</div>
+              )}
+
+              {/* Actions */}
+              <div className="dpd-gen-actions">
+                <button
+                  type="button"
+                  className="dpd-gen-btn dpd-gen-btn--cancel"
+                  onClick={onCancel}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  id="dpd-gen-submit-btn"
+                  className="dpd-gen-btn dpd-gen-btn--submit"
+                >
+                  <span aria-hidden="true">✦</span>
+                  {hasExistingPlan ? "Regenerate My Plan" : "Generate My Plan"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>{/* end .dpd-gen-modal__body */}
+      </div>
+    </div>,
+    document.body   // ← renders outside the dashboard stacking context
+  );
+};
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-const DietPlanDisplay = ({ weekSchedule, generatedAt }) => {
-  if (!weekSchedule || Object.keys(weekSchedule).length === 0) {
-    return (
-      <div className="dpd-empty">
-        <div className="dpd-empty__icon">🥗</div>
-        <p className="dpd-empty__text">No AI diet plan generated yet.</p>
-        <p className="dpd-empty__sub">
-          Use the "Generate AI Plan" button to create your personalised 7-day schedule.
-        </p>
-      </div>
-    );
-  }
+const DietPlanDisplay = ({
+  weekSchedule,
+  generatedAt,
+  planData,
+  consumer,
+  onPlanGenerated,
+}) => {
+  // ── UI state ──────────────────────────────────────────────────────────────
+  const [showForm,   setShowForm]   = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError,   setPdfError]   = useState("");
 
-  // Determine today's day name (lowercase) so we can highlight it
+  const hasExistingPlan = !!(weekSchedule && Object.keys(weekSchedule).length > 0);
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
+
+  const handlePlanGenerated = (newPlan) => {
+    setShowForm(false);
+    if (typeof onPlanGenerated === "function") {
+      onPlanGenerated(newPlan);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    setPdfError("");
+    if (!planData && !weekSchedule) {
+      setPdfError("No plan data available to export.");
+      return;
+    }
+    setPdfLoading(true);
+    try {
+      const data = planData ?? { weekSchedule, generatedAt };
+      const { doc, filename } = generatePDF(data);
+      doc.save(`${filename}.pdf`);
+    } catch (err) {
+      console.error("[DietPlanDisplay] PDF generation failed:", err);
+      setPdfError("Could not generate PDF. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Determine today's key for the grid highlight
   const todayKey = new Date()
     .toLocaleDateString("en-US", { weekday: "long" })
     .toLowerCase();
 
   return (
     <div className="dpd-container">
-      {/* ── Header ── */}
-      <div className="dpd-header">
-        <div className="dpd-header__left">
-          <span className="dpd-header__icon" aria-hidden="true">🤖</span>
-          <div>
-            <h2 className="dpd-header__title">Your AI-Generated Diet Plan</h2>
-            {generatedAt && (
-              <p className="dpd-header__sub">
-                Generated on{" "}
-                {new Date(generatedAt).toLocaleDateString("en-US", {
-                  weekday: "long",
-                  year:    "numeric",
-                  month:   "long",
-                  day:     "numeric",
-                })}
-              </p>
+
+      {/* ── Generate form modal (rendered inline, above everything) ── */}
+      {showForm && (
+        <GenerateForm
+          consumer={consumer}
+          onSuccess={handlePlanGenerated}
+          onCancel={() => setShowForm(false)}
+          hasExistingPlan={hasExistingPlan}
+        />
+      )}
+
+      {/* ── Action bar (always visible) ── */}
+      <div className="dpd-action-bar">
+        {/* Generate / Regenerate trigger */}
+        <button
+          id="dpd-generate-btn"
+          className="dpd-gen-trigger-btn"
+          onClick={() => setShowForm(true)}
+          disabled={showForm}
+        >
+          <span aria-hidden="true">🧠</span>
+          {hasExistingPlan ? "Regenerate AI Plan" : "Generate New AI Diet Plan"}
+        </button>
+
+        {/* PDF download — only shown when there is an active plan */}
+        {hasExistingPlan && (
+          <button
+            id="dpd-download-btn"
+            className={`dpd-download-btn${pdfLoading ? " dpd-download-btn--loading" : ""}`}
+            onClick={handleDownloadPDF}
+            disabled={pdfLoading}
+            aria-label="Download diet plan as PDF (Premium)"
+            title="Download Diet Plan (Premium)"
+          >
+            {pdfLoading ? (
+              <>
+                <span className="dpd-download-btn__spinner" aria-hidden="true" />
+                Generating PDF…
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">⬇</span>
+                Download Plan (Premium)
+              </>
             )}
-          </div>
+          </button>
+        )}
+      </div>
+
+      {/* PDF error */}
+      {pdfError && (
+        <div className="dpd-pdf-error" role="alert">{pdfError}</div>
+      )}
+
+      {/* ── Empty state — no plan generated yet ── */}
+      {!hasExistingPlan && (
+        <div className="dpd-empty">
+          <div className="dpd-empty__icon">🥗</div>
+          <p className="dpd-empty__text">No AI diet plan generated yet.</p>
+          <p className="dpd-empty__sub">
+            Click "Generate New AI Diet Plan" above to create your personalised
+            7-day schedule using your health profile.
+          </p>
         </div>
-        <span className="dpd-header__badge">✦ Powered by Gemini AI</span>
-      </div>
+      )}
 
-      {/* ── Legend ── */}
-      <div className="dpd-legend">
-        {Object.entries(MEAL_META).map(([type, meta]) => (
-          <span key={type} className={`dpd-legend__item dpd-legend__item--${type}`}>
-            {meta.icon} {meta.label}
-          </span>
-        ))}
-      </div>
+      {/* ── Full plan display — shown when weekSchedule is populated ── */}
+      {hasExistingPlan && (
+        <>
+          {/* Plan header */}
+          <div className="dpd-header">
+            <div className="dpd-header__left">
+              <span className="dpd-header__icon" aria-hidden="true">🤖</span>
+              <div>
+                <h2 className="dpd-header__title">Your AI-Generated Diet Plan</h2>
+                {generatedAt && (
+                  <p className="dpd-header__sub">
+                    Generated on{" "}
+                    {new Date(generatedAt).toLocaleDateString("en-US", {
+                      weekday: "long", year: "numeric", month: "long", day: "numeric",
+                    })}
+                  </p>
+                )}
+              </div>
+            </div>
+            <span className="dpd-header__badge">✦ Powered by Gemini AI</span>
+          </div>
 
-      {/* ── 7-Day Grid ── */}
-      <div className="dpd-grid" role="grid" aria-label="7-day meal plan">
-        {DAYS_ORDER.map((day) => (
-          <DayColumn
-            key={day}
-            day={day}
-            dayData={weekSchedule[day]}
-            isToday={day === todayKey}
-          />
-        ))}
-      </div>
+          {/* Legend */}
+          <div className="dpd-legend">
+            {Object.entries(MEAL_META).map(([type, meta]) => (
+              <span key={type} className={`dpd-legend__item dpd-legend__item--${type}`}>
+                {meta.icon} {meta.label}
+              </span>
+            ))}
+          </div>
 
-      {/* ── Disclaimer ── */}
-      <p className="dpd-disclaimer">
-        ⚕ This plan is generated by AI and tailored to your health profile. Always consult a
-        licensed dietician before making significant dietary changes.
-      </p>
+          {/* 7-day grid */}
+          <div className="dpd-grid" role="grid" aria-label="7-day meal plan">
+            {DAYS_ORDER.map((day) => (
+              <DayColumn
+                key={day}
+                day={day}
+                dayData={weekSchedule[day]}
+                isToday={day === todayKey}
+              />
+            ))}
+          </div>
+
+          {/* Disclaimer */}
+          <p className="dpd-disclaimer">
+            ⚕ This plan is generated by AI and tailored to your health profile.
+            Always consult a licensed dietician before making significant dietary changes.
+          </p>
+        </>
+      )}
     </div>
   );
 };

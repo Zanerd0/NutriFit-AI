@@ -145,6 +145,21 @@
   margin:      0.3rem 0 0;
 }
 
+/* Muscle group chip */
+.mw-exercise-card__muscle {
+  display:       inline-block;
+  padding:       0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size:     0.68rem;
+  font-weight:   600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background:    rgba(6, 182, 212, 0.1);
+  color:         #22d3ee;
+  border:        1px solid rgba(6, 182, 212, 0.2);
+  margin-top:    0.2rem;
+}
+
 /* Stats row (sets × reps) */
 .mw-exercise-card__stats {
   display:     flex;
@@ -281,7 +296,7 @@
   padding:   1rem 0;
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .mw-plan-header {
     padding: 1.25rem;
@@ -290,4 +305,88 @@
   .mw-exercises-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   }
+}
+
+/* ── Plan header layout (info + actions) ─────────────────────────────────────── */
+
+.mw-plan-header {
+  /* Override base so the header can show the action button alongside the info */
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             1rem;
+  flex-wrap:       wrap;
+}
+
+.mw-plan-header__info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mw-plan-header__actions {
+  display:        flex;
+  flex-direction: column;
+  align-items:    flex-end;
+  gap:            0.5rem;
+  flex-shrink:    0;
+}
+
+/* ── Premium Download Button ─────────────────────────────────────────────────── */
+
+.mw-download-btn {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.45rem;
+  padding:         0.45rem 1rem;
+  border-radius:   999px;
+  border:          1px solid rgba(34, 197, 94, 0.4);
+  background:      rgba(34, 197, 94, 0.1);
+  color:           #4ade80;
+  font-family:     inherit;
+  font-size:       0.78rem;
+  font-weight:     600;
+  cursor:          pointer;
+  white-space:     nowrap;
+  transition:      all 0.2s ease;
+  letter-spacing:  0.01em;
+  flex-shrink:     0;
+}
+
+.mw-download-btn:hover:not(:disabled) {
+  background:   rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.65);
+  color:        #86efac;
+  box-shadow:   0 4px 14px rgba(34, 197, 94, 0.22);
+  transform:    translateY(-1px);
+}
+
+.mw-download-btn:disabled {
+  opacity: 0.6;
+  cursor:  not-allowed;
+}
+
+.mw-download-btn--loading {
+  pointer-events: none;
+}
+
+.mw-download-btn__spinner {
+  display:       inline-block;
+  width:         13px;
+  height:        13px;
+  border:        2px solid rgba(74, 222, 128, 0.25);
+  border-top:    2px solid #4ade80;
+  border-radius: 50%;
+  animation:     mw-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+/* ── PDF Error inline label ──────────────────────────────────────────────────── */
+
+.mw-pdf-error {
+  font-size:    0.75rem;
+  color:        #f87171;
+  padding:      0.3rem 0.65rem;
+  border-radius: var(--mw-radius-sm);
+  background:   rgba(239, 68, 68, 0.08);
+  border:       1px solid rgba(239, 68, 68, 0.2);
 }

@@ -290,6 +290,54 @@ const generateAIPlan = async (req, res) => {
   }
 };
 
+// ─── Controller: getActivePlan ───────────────────────────────────────────────
+
+/**
+ * GET /api/diet-plan/active/:consumerId
+ *
+ * Returns the most recently generated 'Active' diet plan for a consumer.
+ * Called on dashboard mount to restore the plan after logout/login.
+ *
+ * Success Response — 200:
+ *   { success: true, data: <DietPlan document> }   (plan found)
+ *   { success: true, data: null }                  (no active plan yet)
+ *
+ * Error Responses:
+ *   400 — Missing consumerId param
+ *   500 — Database error
+ */
+const getActivePlan = async (req, res) => {
+  try {
+    const { consumerId } = req.params;
+
+    if (!consumerId) {
+      return res.status(400).json({
+        success: false,
+        message: "consumerId URL parameter is required.",
+      });
+    }
+
+    // Sort by createdAt descending — if somehow more than one Active exists,
+    // we return the most recent one.
+    const plan = await DietPlan.findOne({ consumerId, status: "Active" })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: plan ?? null,   // null means "no plan yet" — not an error
+    });
+
+  } catch (error) {
+    console.error("[dietPlanController] getActivePlan error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to retrieve active diet plan.",
+      error: error.message,
+    });
+  }
+};
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-module.exports = { generateAIPlan };
+module.exports = { generateAIPlan, getActivePlan };

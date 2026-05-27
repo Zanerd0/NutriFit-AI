@@ -1,16 +1,25 @@
 /**
- * @file MyWorkout.jsx
- * @description Consumer-facing "My Workout" tab component.
+ * @file components/MyWorkout.jsx
+ * @description Consumer-facing "My Workout" component.
  *
- * Fetches GET /api/consumer/my-workout on mount and renders:
- *   - Empty state  → friendly card if no plan has been assigned yet
- *   - Loaded state → plan header + responsive grid of exercise cards
+ * Prop-driven — receives the active WorkoutPlan document from the
+ * parent (ConsumerDashboard) and renders:
+ *   - Loading state → spinner (while parent is fetching)
+ *   - Empty state   → friendly card with a call-to-action when no plan exists
+ *   - Loaded state  → plan header + responsive grid of exercise cards
  *
- * Styling: BEM class prefix `mw-` (MyWorkout).
+ * Props:
+ *   workoutPlan {object | null | undefined}
+ *     • undefined → still loading (parent fetch in progress)
+ *     • null      → fetch complete, no plan assigned
+ *     • object    → the active WorkoutPlan document from the API
+ *
+ * Styling: BEM class prefix `mw-` (MyWorkout). All layout via CSS
+ * Flexbox/Grid in MyWorkout.css — no inline styles, no utility classes.
  */
 
-import { useState, useEffect } from "react";
-import axios from "../api/axios";
+import { useState } from "react";
+import { generatePDF } from "../utils/generatePDF";
 import "./MyWorkout.css";
 
 // =============================================================================
@@ -19,7 +28,9 @@ import "./MyWorkout.css";
 
 /**
  * ExerciseCard — Displays one exercise from the workout plan.
- * Shows the exercise name, a sets×reps stat, and an optional duration badge.
+ *
+ * Renders the exercise name, a muscle-group chip (when present),
+ * a sets × reps stat block, and an optional duration badge.
  */
 const ExerciseCard = ({ exercise, index }) => (
   <div className="mw-exercise-card" id={`exercise-card-${index}`}>
@@ -29,15 +40,20 @@ const ExerciseCard = ({ exercise, index }) => (
     {/* Exercise name */}
     <h3 className="mw-exercise-card__name">{exercise.exerciseName}</h3>
 
-    {/* Stats row */}
+    {/* Muscle group chip (optional) */}
+    {exercise.muscleGroup && (
+      <span className="mw-exercise-card__muscle">{exercise.muscleGroup}</span>
+    )}
+
+    {/* Sets × Reps stat block */}
     <div className="mw-exercise-card__stats">
       <div className="mw-exercise-stat">
-        <span className="mw-exercise-stat__value">{exercise.sets}</span>
+        <span className="mw-exercise-stat__value">{exercise.sets ?? "—"}</span>
         <span className="mw-exercise-stat__label">Sets</span>
       </div>
       <span className="mw-exercise-card__sep">×</span>
       <div className="mw-exercise-stat">
-        <span className="mw-exercise-stat__value">{exercise.reps}</span>
+        <span className="mw-exercise-stat__value">{exercise.reps ?? "—"}</span>
         <span className="mw-exercise-stat__label">Reps</span>
       </div>
     </div>
@@ -55,33 +71,36 @@ const ExerciseCard = ({ exercise, index }) => (
 
 /**
  * MyWorkout — Consumer's current active workout plan view.
+ *
+ * @param {{ workoutPlan: object | null | undefined }} props
  */
-const MyWorkout = () => {
-  const [plan,    setPlan]    = useState(undefined); // undefined = loading, null = none found
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
+const MyWorkout = ({ workoutPlan }) => {
+  // ── PDF download state ────────────────────────────────────────────────────
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError,   setPdfError]   = useState("");
 
-  // ── Fetch on mount ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchMyWorkout = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await axios.get("/consumer/my-workout");
-        // Backend returns { plan: WorkoutPlan | null }
-        setPlan(res.data.plan);
-      } catch (err) {
-        setError(err.response?.data?.error || "Failed to load your workout plan.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  /**
+   * handleDownloadPDF — Generates a WorkoutPlan PDF and triggers a browser
+   * download. generatePDF auto-detects the plan type from the data shape.
+   * The download is called explicitly here — generatePDF never auto-saves.
+   */
+  const handleDownloadPDF = async () => {
+    if (!workoutPlan) return;
+    setPdfError("");
+    setPdfLoading(true);
+    try {
+      const { doc, filename } = generatePDF(workoutPlan);
+      doc.save(`${filename}.pdf`);
+    } catch (err) {
+      console.error("[MyWorkout] PDF generation failed:", err);
+      setPdfError("Could not generate PDF. Please try again.");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
-    fetchMyWorkout();
-  }, []);
-
-  // ── Loading state ──────────────────────────────────────────────────────────
-  if (loading) {
+  // ── Loading state (parent fetch still in-flight) ──────────────────────────
+  if (workoutPlan === undefined) {
     return (
       <div className="mw-loading" id="my-workout-loading">
         <div className="mw-spinner" />
@@ -90,35 +109,26 @@ const MyWorkout = () => {
     );
   }
 
-  // ── Error state ────────────────────────────────────────────────────────────
-  if (error) {
-    return (
-      <div className="mw-error-banner" role="alert" id="my-workout-error">
-        {error}
-      </div>
-    );
-  }
-
-  // ── Empty state ────────────────────────────────────────────────────────────
-  if (!plan) {
+  // ── Empty state (fetch done, no plan assigned) ────────────────────────────
+  if (!workoutPlan) {
     return (
       <div className="mw-empty-state" id="my-workout-empty">
         <div className="mw-empty-state__icon">🏋️</div>
-        <h2 className="mw-empty-state__title">No Workout Assigned Yet</h2>
+        <h2 className="mw-empty-state__title">No Active Workout Assigned</h2>
         <p className="mw-empty-state__text">
-          Your instructor hasn't assigned a routine yet!{" "}
-          Once they assign a personalised workout plan it will appear here, 
-          ready for you to follow.
+          No active workout plan has been assigned yet.
+          Request one from a Gym Instructor to get started!
         </p>
         <div className="mw-empty-state__hint">
-          💡 Make sure you're linked to an instructor in the{" "}
-          <strong>Find Professionals</strong> tab.
+          💡 Use the{" "}
+          <strong>Professional Hub</strong>{" "}
+          tab to request a custom workout plan from a certified instructor.
         </div>
       </div>
     );
   }
 
-  // ── Loaded state ───────────────────────────────────────────────────────────
+  // ── Loaded state ──────────────────────────────────────────────────────────
   return (
     <div className="mw-container" id="my-workout-container">
 
@@ -126,41 +136,68 @@ const MyWorkout = () => {
       <div className="mw-plan-header">
         {/* Left: Title + meta */}
         <div className="mw-plan-header__info">
-          <h2 className="mw-plan-header__title">{plan.title}</h2>
+          <h2 className="mw-plan-header__title">{workoutPlan.title}</h2>
 
-          {plan.description && (
-            <p className="mw-plan-header__desc">{plan.description}</p>
+          {workoutPlan.description && (
+            <p className="mw-plan-header__desc">{workoutPlan.description}</p>
           )}
 
           <div className="mw-plan-header__meta">
-            {/* Assigned by */}
-            {plan.instructorId?.full_name && (
+            {/* Assigned by (populated instructorId) */}
+            {workoutPlan.instructorId?.full_name && (
               <span className="mw-meta-chip mw-meta-chip--instructor">
-                👤 Assigned by {plan.instructorId.full_name}
+                👤 Assigned by {workoutPlan.instructorId.full_name}
               </span>
             )}
 
-            {/* Date */}
+            {/* Creation date */}
             <span className="mw-meta-chip">
               📅{" "}
-              {new Date(plan.createdAt).toLocaleDateString("en-US", {
+              {new Date(workoutPlan.createdAt).toLocaleDateString("en-US", {
                 year: "numeric", month: "long", day: "numeric",
               })}
             </span>
 
             {/* Exercise count */}
             <span className="mw-meta-chip mw-meta-chip--count">
-              💪 {plan.exercises?.length ?? 0} exercise
-              {plan.exercises?.length !== 1 ? "s" : ""}
+              💪 {workoutPlan.exercises?.length ?? 0} exercise
+              {workoutPlan.exercises?.length !== 1 ? "s" : ""}
             </span>
           </div>
+        </div>
+
+        {/* Right: Premium PDF download action */}
+        <div className="mw-plan-header__actions">
+          {pdfError && (
+            <span className="mw-pdf-error" role="alert">{pdfError}</span>
+          )}
+          <button
+            id="mw-download-btn"
+            className={`mw-download-btn${pdfLoading ? " mw-download-btn--loading" : ""}`}
+            onClick={handleDownloadPDF}
+            disabled={pdfLoading}
+            aria-label="Download workout plan as PDF (Premium)"
+            title="Download Workout Plan (Premium)"
+          >
+            {pdfLoading ? (
+              <>
+                <span className="mw-download-btn__spinner" aria-hidden="true" />
+                Generating PDF…
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">⬇</span>
+                Download Plan (Premium)
+              </>
+            )}
+          </button>
         </div>
       </div>
 
       {/* ── Exercise grid ── */}
-      {plan.exercises?.length > 0 ? (
+      {workoutPlan.exercises?.length > 0 ? (
         <div className="mw-exercises-grid">
-          {plan.exercises.map((ex, i) => (
+          {workoutPlan.exercises.map((ex, i) => (
             <ExerciseCard key={ex._id || i} exercise={ex} index={i} />
           ))}
         </div>

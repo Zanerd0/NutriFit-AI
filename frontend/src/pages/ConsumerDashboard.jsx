@@ -5,8 +5,8 @@
  * Sections:
  *   1. Welcome & Health Stats — greeting card with editable weight/height/goal
  *   2. My Diet Plans          — cards from GET /api/consumer/diet-plans
- *   3. My Workout Plans       — cards from GET /api/consumer/workout-plans
- *   4. NutriFit AI Advisor    — prominent placeholder for the core FYP AI feature
+ *   3. My Workout             — active plan from GET /api/consumer/my-workout
+ *   4. NutriFit AI Advisor    — live AI chat widget (free tier)
  *
  * Authentication & Authorization:
  *   Protected by <ConsumerRoute> in App.jsx (role === "Consumer").
@@ -19,7 +19,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate }                       from "react-router-dom";
 import axios                                 from "../api/axios";
-import FindProfessionals                     from "./FindProfessionals";
+import ProfessionalHub                       from "./ProfessionalHub";
 import MyWorkout                             from "../components/MyWorkout";
 import DailyLogForm                          from "../components/DailyLogForm";
 import ProgressCharts                        from "../components/ProgressCharts";
@@ -83,60 +83,6 @@ const DietPlanCard = ({ plan }) => (
   </div>
 );
 
-/**
- * WorkoutPlanCard — Displays one workout plan card with exercise breakdown.
- * @param {object} plan - A WorkoutPlan document (with instructorId populated)
- */
-const WorkoutPlanCard = ({ plan }) => (
-  <div className="con-plan-card con-plan-card--workout" id={`workout-plan-${plan._id}`}>
-    <h3 className="con-plan-card__title">{plan.title}</h3>
-
-    {plan.description && (
-      <p className="con-plan-card__desc">{plan.description}</p>
-    )}
-
-    {/* Assigned by (Instructor) */}
-    <div className="con-plan-card__author">
-      <div>
-        <span className="con-plan-card__author-label con-plan-card__author-label--workout">
-          Assigned by Instructor
-        </span>
-        <span className="con-plan-card__author-name">
-          {plan.instructorId?.full_name ?? "Unknown"}
-        </span>
-      </div>
-    </div>
-
-    {/* Exercises list */}
-    {plan.exercises?.length > 0 && (
-      <div className="con-plan-card__items">
-        {plan.exercises.map((ex, i) => (
-          <div key={i} className="con-plan-card__item">
-            <span className="con-plan-card__item-dot">💪</span>
-            <div className="con-plan-card__item-body">
-              <span className="con-plan-card__item-title">{ex.exerciseName}</span>
-              <span className="con-plan-card__item-sub">
-                {ex.sets} sets × {ex.reps} reps
-                {ex.duration ? ` · ${ex.duration}s` : ""}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
-
-    <div className="con-plan-card__footer">
-      <span className="con-plan-card__date">
-        {new Date(plan.createdAt).toLocaleDateString("en-US", {
-          year: "numeric", month: "short", day: "numeric",
-        })}
-      </span>
-      <span className="con-plan-card__badge con-plan-card__badge--workout">
-        {plan.exercises?.length ?? 0} exercises
-      </span>
-    </div>
-  </div>
-);
 
 // =============================================================================
 // MAIN COMPONENT
@@ -156,19 +102,23 @@ const ConsumerDashboard = () => {
 
   // ── Remote data ────────────────────────────────────────────────────────────
   const [dietPlans,    setDietPlans]    = useState([]);
-  const [workoutPlans, setWorkoutPlans] = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState("");
+  /**
+   * activeWorkout — the single instructor-assigned WorkoutPlan for this consumer.
+   *   undefined = fetch still in-flight (shows loading spinner in MyWorkout)
+   *   null      = fetch complete, no plan assigned
+   *   object    = the active WorkoutPlan document
+   */
+  const [activeWorkout, setActiveWorkout] = useState(undefined);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState("");
 
-  // ── AI Diet Plan (RAG-generated) ──────────────────────────────────────────
-  /** The active DietPlan document returned by the RAG endpoint */
-  const [aiPlan,        setAiPlan]        = useState(null);
-  /** true while fetching the existing plan from GET /api/diet-plan/active */
-  const [aiPlanLoading, setAiPlanLoading] = useState(false);
-  /** true while the POST /api/diet-plan/generate call is in-flight */
-  const [generating,    setGenerating]    = useState(false);
-  /** Human-readable error for the AI plan section */
-  const [aiPlanError,   setAiPlanError]   = useState("");
+  /**
+   * aiPlan — The latest AI-generated diet plan for this consumer.
+   * Starts as null (not generated). Updated either from the initial
+   * fetch of /consumer/diet-plans (if the API returns it) or from
+   * the DietPlanDisplay generate form callback.
+   */
+  const [aiPlan, setAiPlan] = useState(null);
 
   // ── Profile edit state ─────────────────────────────────────────────────────
   const [editingProfile, setEditingProfile] = useState(false);
@@ -196,94 +146,51 @@ const ConsumerDashboard = () => {
   // ── Data Fetching ──────────────────────────────────────────────────────────
 
   /**
-   * fetchPlans — Loads both plan types concurrently.
+   * fetchPlans — Loads diet plans, the active workout plan, and the
+   * AI-generated diet plan concurrently on mount.
    */
   const fetchPlans = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [dietRes, workoutRes] = await Promise.all([
+      const consumerId = consumer?._id;
+      const [dietRes, workoutRes, aiPlanRes] = await Promise.all([
         axios.get("/consumer/diet-plans"),
-        axios.get("/consumer/workout-plans"),
+        axios.get("/consumer/my-workout"),
+        // Restore the persisted AI plan — null response is fine (no plan yet)
+        consumerId
+          ? fetch(`http://localhost:5000/api/diet-plan/active/${consumerId}`, {
+              credentials: "include",
+            }).then((r) => r.json()).catch(() => ({ success: false, data: null }))
+          : Promise.resolve({ success: false, data: null }),
       ]);
       setDietPlans(dietRes.data);
-      setWorkoutPlans(workoutRes.data);
+      // Backend returns { plan: WorkoutPlan | null }
+      setActiveWorkout(workoutRes.data.plan ?? null);
+      // Restore AI plan if one was previously generated
+      if (aiPlanRes?.success && aiPlanRes?.data) {
+        setAiPlan(aiPlanRes.data);
+      }
     } catch (err) {
       if (err.response?.status === 403) {
         setError("Access denied. You do not have Consumer privileges.");
       } else {
         setError(err.response?.data?.error || "Failed to load your plans.");
       }
+      // Set to null so MyWorkout shows its empty state rather than staying in loading
+      setActiveWorkout(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [consumer?._id]);
 
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
 
   /**
-   * fetchAiPlan — Loads the consumer's active AI-generated diet plan.
-   * Hits GET /api/diet-plan/active (to be implemented on backend);
-   * falls back gracefully if the endpoint isn't wired yet.
-   */
-  const fetchAiPlan = useCallback(async () => {
-    setAiPlanLoading(true);
-    setAiPlanError("");
-    try {
-      const res = await axios.get("/diet-plan/active");
-      setAiPlan(res.data.data ?? res.data ?? null);
-    } catch (err) {
-      if (err.response?.status === 404) {
-        // No active plan yet — not an error, just show empty state
-        setAiPlan(null);
-      } else {
-        setAiPlanError(err.response?.data?.message || "Could not load your AI diet plan.");
-      }
-    } finally {
-      setAiPlanLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchAiPlan();
-  }, [fetchAiPlan]);
-
-  /**
-   * handleGeneratePlan — Calls POST /api/diet-plan/generate with the
-   * consumer's current health profile to trigger the RAG pipeline.
-   */
-  const handleGeneratePlan = async () => {
-    if (generating) return;
-    setGenerating(true);
-    setAiPlanError("");
-    try {
-      const payload = {
-        consumerId:        consumer._id,
-        age:               consumer.age               ?? "",
-        weight:            consumer.weight             ?? "",
-        goal:              consumer.primary_goal       ?? consumer.goal ?? "General Health",
-        medicalConditions: consumer.medical_conditions ?? "",
-      };
-      const res = await axios.post("/diet-plan/generate", payload);
-      setAiPlan(res.data.data ?? res.data ?? null);
-    } catch (err) {
-      setAiPlanError(
-        err.response?.data?.message ||
-        err.response?.data?.error   ||
-        "Failed to generate AI diet plan. Please try again."
-      );
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  /**
    * refreshConsumer — Fetches the full consumer document from the server on
-   * mount so that fields like dieticianId / instructorId that were set in a
-   * previous session are always reflected in the UI, not just the stale
-   * localStorage snapshot that was written at login time.
+   * mount so that fields like dieticianId / instructorId are always current.
    */
   useEffect(() => {
     const refresh = async () => {
@@ -351,6 +258,7 @@ const ConsumerDashboard = () => {
 
   /**
    * renderWelcomeCard — Greeting + health stats + optional edit form.
+   * Stat pills now show Diet Plans count only (workout count removed).
    */
   const renderWelcomeCard = () => (
     <div className="con-welcome-card">
@@ -402,8 +310,10 @@ const ConsumerDashboard = () => {
           <span className="con-health-stat__value">{dietPlans.length}</span>
         </div>
         <div className="con-health-stat">
-          <span className="con-health-stat__label">Workout Plans</span>
-          <span className="con-health-stat__value">{workoutPlans.length}</span>
+          <span className="con-health-stat__label">Workout</span>
+          <span className="con-health-stat__value">
+            {activeWorkout ? "Active" : "None"}
+          </span>
         </div>
       </div>
 
@@ -483,16 +393,37 @@ const ConsumerDashboard = () => {
   );
 
   /**
-   * renderDietPlans — Grid of diet plan cards for the consumer.
+   * handleAiPlanGenerated — Callback from DietPlanDisplay when the user
+   * successfully generates a new AI diet plan. Updates local state so the
+   * 7-day grid renders immediately without a full page reload.
+   */
+  const handleAiPlanGenerated = (newPlan) => {
+    setAiPlan(newPlan);
+  };
+
+  /**
+   * renderDietPlans — Two-section diet view:
+   *   1. AI-generated plan (DietPlanDisplay with inline generate form)
+   *   2. Dietician-assigned plan cards grid
    */
   const renderDietPlans = () => (
     <div className="con-section" id="section-diet">
       <div className="con-section__header">
         <span className="con-section__icon">🥗</span>
         <h2 className="con-section__title">My Diet Plans</h2>
-        <span className="con-section__count">{dietPlans.length} plan{dietPlans.length !== 1 ? "s" : ""}</span>
+        <span className="con-section__count">{dietPlans.length} assigned plan{dietPlans.length !== 1 ? "s" : ""}</span>
       </div>
 
+      {/* ── AI-Generated Plan ───────────────────────────────────────────── */}
+      <DietPlanDisplay
+        weekSchedule={aiPlan?.weekSchedule}
+        generatedAt={aiPlan?.createdAt}
+        planData={aiPlan ?? undefined}
+        consumer={consumer}
+        onPlanGenerated={handleAiPlanGenerated}
+      />
+
+      {/* ── Dietician-Assigned Plans ─────────────────────────────────── */}
       {loading ? (
         <div className="con-loading"><div className="con-spinner" /><p>Loading…</p></div>
       ) : error ? (
@@ -500,39 +431,11 @@ const ConsumerDashboard = () => {
       ) : dietPlans.length === 0 ? (
         <div className="con-empty">
           <div className="con-empty__icon">🥗</div>
-          <p className="con-empty__text">No diet plans assigned yet. Your dietician will create one for you soon.</p>
+          <p className="con-empty__text">No dietician-assigned plans yet. Your dietician will create one for you soon.</p>
         </div>
       ) : (
         <div className="con-plans-grid">
           {dietPlans.map((plan) => <DietPlanCard key={plan._id} plan={plan} />)}
-        </div>
-      )}
-    </div>
-  );
-
-  /**
-   * renderWorkoutPlans — Grid of workout plan cards for the consumer.
-   */
-  const renderWorkoutPlans = () => (
-    <div className="con-section" id="section-workout">
-      <div className="con-section__header">
-        <span className="con-section__icon">🏋️</span>
-        <h2 className="con-section__title">My Workout Plans</h2>
-        <span className="con-section__count">{workoutPlans.length} plan{workoutPlans.length !== 1 ? "s" : ""}</span>
-      </div>
-
-      {loading ? (
-        <div className="con-loading"><div className="con-spinner" /><p>Loading…</p></div>
-      ) : error ? (
-        <div className="con-error-banner" role="alert">{error}</div>
-      ) : workoutPlans.length === 0 ? (
-        <div className="con-empty">
-          <div className="con-empty__icon">🏋️</div>
-          <p className="con-empty__text">No workout plans assigned yet. Your instructor will create one for you soon.</p>
-        </div>
-      ) : (
-        <div className="con-plans-grid">
-          {workoutPlans.map((plan) => <WorkoutPlanCard key={plan._id} plan={plan} />)}
         </div>
       )}
     </div>
@@ -552,74 +455,17 @@ const ConsumerDashboard = () => {
     </div>
   );
 
-  /**
-   * renderAIPlan — 7-day AI-generated diet plan display.
-   */
-  const renderAIPlan = () => (
-    <div className="con-section" id="section-ai-plan">
-      <div className="con-section__header">
-        <span className="con-section__icon">🧠</span>
-        <h2 className="con-section__title">My AI Diet Plan</h2>
-        <span className="con-section__count">
-          {aiPlan ? "Active" : "Not generated"}
-        </span>
-      </div>
-
-      {/* Generate / Regenerate button */}
-      <div className="con-ai-plan-actions">
-        <button
-          id="generate-ai-plan-btn"
-          className="con-btn con-btn--primary"
-          onClick={handleGeneratePlan}
-          disabled={generating || aiPlanLoading}
-        >
-          {generating
-            ? "⏳ Generating…"
-            : aiPlan
-            ? "🔄 Regenerate Plan"
-            : "✦ Generate My AI Plan"}
-        </button>
-        {aiPlan && (
-          <span className="con-ai-plan-note">
-            Generates a new 7-day plan using your current health profile.
-          </span>
-        )}
-      </div>
-
-      {/* Error banner */}
-      {aiPlanError && (
-        <div className="con-error-banner" role="alert">{aiPlanError}</div>
-      )}
-
-      {/* Loading skeleton */}
-      {(aiPlanLoading || generating) && (
-        <div className="con-loading">
-          <div className="con-spinner" />
-          <p>{generating ? "AI is building your personalised plan…" : "Loading your plan…"}</p>
-        </div>
-      )}
-
-      {/* 7-day grid */}
-      {!aiPlanLoading && !generating && (
-        <DietPlanDisplay
-          weekSchedule={aiPlan?.weekSchedule}
-          generatedAt={aiPlan?.createdAt}
-        />
-      )}
-    </div>
-  );
-
   // ── Sidebar nav config ────────────────────────────────────────────────────
+
   const navItems = [
-    { id: "home",       label: "Home",              icon: "🏠" },
-    { id: "ai-plan",    label: "AI Diet Plan",      icon: "🧠" },
-    { id: "ai",         label: "AI Advisor",        icon: "🤖" },
-    { id: "diet",       label: "Diet Plans",        icon: "🥗" },
-    { id: "workout",    label: "Workout Plans",     icon: "🏋️" },
-    { id: "my-workout", label: "My Workout",        icon: "💪" },
-    { id: "progress",   label: "My Progress",       icon: "📈" },
-    { id: "find",       label: "Find Professionals", icon: "🔗" },
+    { id: "home",       label: "Home",               icon: "🏠" },
+    { id: "ai",         label: "AI Advisor",         icon: "🤖" },
+    { id: "diet",       label: "Diet Plans",         icon: "🥗" },
+    { id: "my-workout", label: "My Workout",         icon: "💪" },
+    { id: "progress",   label: "My Progress",        icon: "📈" },
+    { id: "hub",        label: "Professional Hub",   icon: "✦"  },
   ];
+
 
   // ── Main Render ───────────────────────────────────────────────────────────
   return (
@@ -686,25 +532,23 @@ const ConsumerDashboard = () => {
         </header>
 
         <div className="con-content">
-          {/* Home tab shows everything stacked */}
+          {/* Home tab — stacked overview */}
           {activeTab === "home" && (
             <>
               {renderWelcomeCard()}
-              {renderAIPlan()}
               {renderAIAdvisor()}
               {renderDietPlans()}
-              {renderWorkoutPlans()}
             </>
           )}
 
-          {/* Individual tabs for focused views */}
-          {activeTab === "ai-plan"  && renderAIPlan()}
+          {/* Individual focused tabs */}
           {activeTab === "ai"       && renderAIAdvisor()}
           {activeTab === "diet"     && renderDietPlans()}
-          {activeTab === "workout"  && renderWorkoutPlans()}
 
-          {/* My Workout — dedicated view of the instructor-assigned routine */}
-          {activeTab === "my-workout" && <MyWorkout />}
+          {/* My Workout — prop-driven; receives the active plan from fetchPlans */}
+          {activeTab === "my-workout" && (
+            <MyWorkout workoutPlan={activeWorkout} />
+          )}
 
           {/*
            * Progress Tracking tab
@@ -734,18 +578,9 @@ const ConsumerDashboard = () => {
             </div>
           )}
 
-          {/* Find Professionals tab — browse and connect with Dieticians/Instructors */}
-          {activeTab === "find" && (
-            <FindProfessionals
-              consumer={consumer}
-              onConsumerUpdate={(updatedUser) => {
-                // Sync the parent's consumer state and localStorage so that
-                // the dashboard reflects the new dieticianId/instructorId
-                // immediately without a page reload.
-                setConsumer(updatedUser);
-                localStorage.setItem("user", JSON.stringify(updatedUser));
-              }}
-            />
+          {/* Professional Hub — sole premium connection portal */}
+          {activeTab === "hub" && (
+            <ProfessionalHub consumer={consumer} />
           )}
         </div>
       </main>

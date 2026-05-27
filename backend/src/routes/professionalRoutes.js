@@ -1,54 +1,63 @@
 /**
  * @file professionalRoutes.js
- * @description Express Router for the publicly accessible professionals directory
- * AND for the shared, role-protected professional endpoints.
+ * @description Express Router for the professionals directory and the
+ * Premium Professional Hub assignment endpoints.
  *
- * Security Note:
- * ─────────────
- * GET /  (professionals directory) is protected by verifyToken ONLY — any
- * authenticated user can browse the list so Consumers can find professionals.
- *
- * GET /clients is protected by verifyToken + isProfessional, ensuring only
- * Dieticians and Instructors can access their own client lists.
+ * Security:
+ *   GET  /                          — verifyToken only (any authenticated user can browse)
+ *   GET  /clients                   — verifyToken + isProfessional (Dietician | Instructor)
+ *   POST /request-instructor        — verifyToken + isConsumer (Consumer triggering assignment)
+ *   POST /request-dietician         — verifyToken + isConsumer
  *
  * Mounted at:
- *   /api/professionals → this router (public directory)
- *   /api/professional  → this router (professional-only endpoints)
+ *   /api/professionals  → public directory + Hub requests
+ *   /api/professional   → professional-only endpoints (same router, singular path)
  *
  * Full Route Map:
- *   GET /api/professionals         → getProfessionals  (public directory)
- *   GET /api/professional/clients  → getMyClients      (linked clients + compliance)
+ *   GET  /api/professionals                        → getProfessionals
+ *   GET  /api/professional/clients                 → getMyClients
+ *   POST /api/professionals/request-instructor     → requestInstructor
+ *   POST /api/professionals/request-dietician      → requestDietician
  */
 
 const express = require("express");
 const router  = express.Router();
 
-// ── Middleware ──────────────────────────────────────────────────────────────
-// verifyToken ensures the caller is authenticated; no role restriction here.
+// ── Middleware ────────────────────────────────────────────────────────────────
 const verifyToken    = require("../middleware/verifyToken");
-// isProfessional restricts the /clients endpoint to Dietician or Instructor only.
 const isProfessional = require("../middleware/isProfessional");
+const isConsumer     = require("../middleware/isConsumer");
 
-// ── Controller ──────────────────────────────────────────────────────────────
+// ── Controller ────────────────────────────────────────────────────────────────
 const {
   getProfessionals,
   getMyClients,
+  requestInstructor,
+  requestDietician,
 } = require("../controllers/professionalController");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROFESSIONALS LIST
 // GET /api/professionals
-// Returns all users with the role "Dietician" or "Instructor".
-// Protected: valid JWT required, but no specific role restriction.
+// Public directory — any authenticated user may browse professionals.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/", verifyToken, getProfessionals);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROFESSIONAL CLIENT LIST
 // GET /api/professional/clients
-// Returns linked Consumer clients with a compliance status (hasRecentLogs).
-// Protected: valid JWT required AND role must be "Dietician" or "Instructor".
+// Protected: valid JWT + Dietician or Instructor role required.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/clients", verifyToken, isProfessional, getMyClients);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/professionals/request-instructor
+// Premium Hub — Consumer requests a randomly assigned Gym Instructor.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/request-instructor", verifyToken, isConsumer, requestInstructor);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/professionals/request-dietician
+// Premium Hub — Consumer submits their AI diet plan for dietician review.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/request-dietician", verifyToken, isConsumer, requestDietician);
 
 module.exports = router;

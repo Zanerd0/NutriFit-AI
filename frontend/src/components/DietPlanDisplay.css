@@ -301,3 +301,377 @@
   margin-top: 0.25rem;
   font-style: italic;
 }
+
+/* ── Premium Download Button ─────────────────────────────────────────────────── */
+
+.dpd-download-btn {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.45rem;
+  padding:         0.45rem 1rem;
+  border-radius:   999px;
+  border:          1px solid rgba(108, 99, 255, 0.45);
+  background:      rgba(108, 99, 255, 0.12);
+  color:           #a5b4fc;
+  font-family:     inherit;
+  font-size:       0.78rem;
+  font-weight:     600;
+  cursor:          pointer;
+  white-space:     nowrap;
+  transition:      all 0.2s ease;
+  letter-spacing:  0.01em;
+  flex-shrink:     0;
+}
+
+.dpd-download-btn:hover:not(:disabled) {
+  background:  rgba(108, 99, 255, 0.22);
+  border-color: rgba(108, 99, 255, 0.7);
+  color:       #c4b5fd;
+  box-shadow:  0 4px 14px rgba(108, 99, 255, 0.25);
+  transform:   translateY(-1px);
+}
+
+.dpd-download-btn:disabled {
+  opacity: 0.6;
+  cursor:  not-allowed;
+}
+
+.dpd-download-btn--loading {
+  pointer-events: none;
+}
+
+.dpd-download-btn__spinner {
+  display:       inline-block;
+  width:         13px;
+  height:        13px;
+  border:        2px solid rgba(165, 180, 252, 0.3);
+  border-top:    2px solid #a5b4fc;
+  border-radius: 50%;
+  animation:     dpd-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+@keyframes dpd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── PDF Error Banner ────────────────────────────────────────────────────────── */
+
+.dpd-pdf-error {
+  padding:       0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  background:    rgba(255, 77, 109, 0.1);
+  border:        1px solid rgba(255, 77, 109, 0.25);
+  color:         #fb7185;
+  font-size:     0.8rem;
+}
+
+/* ── Action Bar ──────────────────────────────────────────────────────────────── */
+
+.dpd-action-bar {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  flex-wrap:   wrap;
+}
+
+/* ── Generate Trigger Button ─────────────────────────────────────────────────── */
+
+.dpd-gen-trigger-btn {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.5rem;
+  padding:         0.55rem 1.2rem;
+  border-radius:   var(--radius-sm);
+  border:          none;
+  background:      linear-gradient(135deg, var(--color-primary) 0%, #8b5cf6 100%);
+  color:           #fff;
+  font-family:     inherit;
+  font-size:       0.85rem;
+  font-weight:     700;
+  cursor:          pointer;
+  transition:      all 0.2s ease;
+  box-shadow:      0 4px 14px rgba(108, 99, 255, 0.3);
+  letter-spacing:  0.01em;
+}
+
+.dpd-gen-trigger-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c75ff 0%, #9b6dff 100%);
+  box-shadow: 0 6px 20px rgba(108, 99, 255, 0.45);
+  transform:  translateY(-1px);
+}
+
+.dpd-gen-trigger-btn:disabled {
+  opacity: 0.6;
+  cursor:  not-allowed;
+}
+
+/* ── Generate Form Overlay & Modal ───────────────────────────────────────────── */
+
+.dpd-gen-overlay {
+  position:        fixed;
+  inset:           0;
+  z-index:         200;
+  background:      rgba(0, 0, 0, 0.6);
+  display:         flex;
+  align-items:     flex-start;    /* top-anchor — prevents header being pushed off screen */
+  justify-content: center;
+  padding:         3.5rem 1rem 1.5rem; /* 3.5rem top gap so title is always visible */
+  overflow-y:      auto;          /* overlay itself scrolls if viewport is tiny */
+  animation:       dpd-overlay-in 0.2s ease both;
+  backdrop-filter: blur(4px);
+}
+
+@keyframes dpd-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.dpd-gen-modal {
+  width:            100%;
+  max-width:        520px;
+  background:       var(--color-surface);
+  border:           1px solid rgba(108, 99, 255, 0.25);
+  border-radius:    var(--radius);
+  box-shadow:       0 24px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(108, 99, 255, 0.1);
+  display:          flex;
+  flex-direction:   column;     /* header stays fixed; body scrolls        */
+  animation:        dpd-modal-in 0.25s ease both;
+  max-height:       calc(100vh - 6rem); /* leaves gap at top (3.5rem) + bottom (2.5rem) */
+  overflow:         hidden;     /* clip corners while body scrolls          */
+  /* No align-self: center needed — overlay padding handles positioning */
+}
+
+@keyframes dpd-modal-in {
+  from { opacity: 0; transform: translateY(-16px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.dpd-gen-modal__header {
+  display:          flex;
+  align-items:      flex-start;
+  justify-content:  space-between;
+  gap:              1rem;
+  padding:          1.5rem 2rem 1rem;   /* comfortable top padding             */
+  flex-shrink:      0;                  /* never compressed; always full height */
+  border-bottom:    1px solid var(--color-border);
+  background:       var(--color-surface); /* same bg so it masks body content   */
+}
+
+.dpd-gen-modal__title-row {
+  display:     flex;
+  align-items: center;
+  gap:         0.65rem;
+}
+
+.dpd-gen-modal__icon {
+  font-size: 1.6rem;
+  filter:    drop-shadow(0 0 8px rgba(108, 99, 255, 0.6));
+}
+
+.dpd-gen-modal__title {
+  font-size:   1.1rem;
+  font-weight: 800;
+  color:       var(--color-text);
+  margin:      0;
+  letter-spacing: -0.01em;
+}
+
+.dpd-gen-modal__close {
+  background:    none;
+  border:        none;
+  color:         var(--color-text-muted);
+  font-size:     1rem;
+  cursor:        pointer;
+  padding:       0.25rem 0.4rem;
+  border-radius: var(--radius-sm);
+  transition:    color 0.15s ease, background 0.15s ease;
+  flex-shrink:   0;
+  line-height:   1;
+}
+
+.dpd-gen-modal__close:hover {
+  color:       var(--color-text);
+  background:  rgba(255, 255, 255, 0.06);
+}
+
+.dpd-gen-modal__sub {
+  font-size:   0.82rem;
+  color:       var(--color-text-muted);
+  line-height: 1.6;
+  margin:      0;
+}
+
+/* Scrollable body — everything below the sticky header */
+.dpd-gen-modal__body {
+  flex:       1;              /* expand to fill remaining modal height */
+  overflow-y: auto;           /* only this zone scrolls                */
+  padding:    1.25rem 2rem 2rem;
+  display:    flex;
+  flex-direction: column;
+  gap:        1rem;
+}
+
+/* ── Loading Overlay ─────────────────────────────────────────────────────────── */
+
+.dpd-gen-loading {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            1rem;
+  padding:        2.5rem 1rem;
+  text-align:     center;
+}
+
+.dpd-gen-loading__spinner {
+  display:       block;
+  width:         44px;
+  height:        44px;
+  border:        4px solid rgba(108, 99, 255, 0.2);
+  border-top:    4px solid var(--color-primary);
+  border-radius: 50%;
+  animation:     dpd-spin 0.8s linear infinite;
+}
+
+.dpd-gen-loading__text {
+  font-size:   0.9rem;
+  color:       var(--color-text-muted);
+  font-style:  italic;
+  line-height: 1.55;
+  max-width:   280px;
+  margin:      0;
+}
+
+/* ── Generate Form ───────────────────────────────────────────────────────────── */
+
+.dpd-gen-form {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.9rem;
+}
+
+.dpd-gen-field {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.35rem;
+}
+
+.dpd-gen-label {
+  font-size:   0.82rem;
+  font-weight: 600;
+  color:       var(--color-text);
+}
+
+.dpd-gen-label__hint {
+  font-weight: 400;
+  color:       var(--color-text-muted);
+  font-size:   0.76rem;
+}
+
+.dpd-gen-label__required {
+  color: #fb7185;
+}
+
+.dpd-gen-input,
+.dpd-gen-select,
+.dpd-gen-textarea {
+  width:         100%;
+  background:    var(--color-surface-2);
+  border:        1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color:         var(--color-text);
+  font-family:   inherit;
+  font-size:     0.875rem;
+  padding:       0.65rem 0.9rem;
+  outline:       none;
+  transition:    border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing:    border-box;
+}
+
+.dpd-gen-input:focus,
+.dpd-gen-select:focus,
+.dpd-gen-textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow:   0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+.dpd-gen-input::placeholder,
+.dpd-gen-textarea::placeholder {
+  color:      var(--color-text-muted);
+  font-style: italic;
+}
+
+.dpd-gen-select {
+  cursor:               pointer;
+  appearance:           none;
+  background-image:     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:    no-repeat;
+  background-position:  right 0.85rem center;
+  padding-right:        2.5rem;
+}
+
+.dpd-gen-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* ── Form Error ──────────────────────────────────────────────────────────────── */
+
+.dpd-gen-error {
+  padding:       0.65rem 1rem;
+  border-radius: var(--radius-sm);
+  background:    rgba(255, 77, 109, 0.1);
+  border:        1px solid rgba(255, 77, 109, 0.25);
+  color:         #fb7185;
+  font-size:     0.82rem;
+  line-height:   1.5;
+}
+
+/* ── Form Action Buttons ─────────────────────────────────────────────────────── */
+
+.dpd-gen-actions {
+  display:         flex;
+  align-items:     center;
+  justify-content: flex-end;
+  gap:             0.75rem;
+  flex-wrap:       wrap;
+  margin-top:      0.25rem;
+}
+
+.dpd-gen-btn {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.45rem;
+  padding:         0.6rem 1.3rem;
+  border-radius:   var(--radius-sm);
+  font-family:     inherit;
+  font-size:       0.875rem;
+  font-weight:     700;
+  cursor:          pointer;
+  transition:      all 0.2s ease;
+  border:          none;
+  letter-spacing:  0.01em;
+}
+
+.dpd-gen-btn--cancel {
+  background:   rgba(255, 255, 255, 0.05);
+  border:       1px solid var(--color-border);
+  color:        var(--color-text-muted);
+}
+
+.dpd-gen-btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color:      var(--color-text);
+}
+
+.dpd-gen-btn--submit {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #8b5cf6 100%);
+  color:      #fff;
+  box-shadow: 0 4px 14px rgba(108, 99, 255, 0.35);
+}
+
+.dpd-gen-btn--submit:hover {
+  background: linear-gradient(135deg, #7c75ff 0%, #9b6dff 100%);
+  box-shadow: 0 6px 20px rgba(108, 99, 255, 0.5);
+  transform:  translateY(-1px);
+}
