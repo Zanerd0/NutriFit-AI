@@ -118,7 +118,7 @@ const AIChat = () => {
       //   consumerId   — used to fetch the active DietPlan for context
       //   userMessage  — the new message text
       //   chatHistory  — full conversation array (role + text) for Gemini memory
-      const response = await fetch("http://localhost:5000/api/chat/send", {
+      const response = await fetch("/api/chat/send", {
         method:      "POST",
         headers:     { "Content-Type": "application/json" },
         credentials: "include",  // send JWT cookie for future auth middleware

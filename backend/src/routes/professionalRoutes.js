@@ -8,6 +8,7 @@
  *   GET  /clients                   — verifyToken + isProfessional (Dietician | Instructor)
  *   POST /request-instructor        — verifyToken + isConsumer (Consumer triggering assignment)
  *   POST /request-dietician         — verifyToken + isConsumer
+ *   POST /connect-by-code           — verifyToken + isConsumer
  *
  * Mounted at:
  *   /api/professionals  → public directory + Hub requests
@@ -18,6 +19,7 @@
  *   GET  /api/professional/clients                 → getMyClients
  *   POST /api/professionals/request-instructor     → requestInstructor
  *   POST /api/professionals/request-dietician      → requestDietician
+ *   POST /api/professionals/connect-by-code        → connectByCode
  */
 
 const express = require("express");
@@ -30,11 +32,21 @@ const isConsumer     = require("../middleware/isConsumer");
 
 // ── Controller ────────────────────────────────────────────────────────────────
 const {
+  getConnectionStatus,
   getProfessionals,
   getMyClients,
   requestInstructor,
   requestDietician,
+  connectByCode,
+  requestWorkout,
 } = require("../controllers/professionalController");
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/professionals/status
+// Consumer — returns connection status for dietician + instructor.
+// ─────────────────────────────────────────────────────────────────────────────
+router.get("/status", verifyToken, isConsumer, getConnectionStatus);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/professionals
@@ -59,5 +71,18 @@ router.post("/request-instructor", verifyToken, isConsumer, requestInstructor);
 // Premium Hub — Consumer submits their AI diet plan for dietician review.
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/request-dietician", verifyToken, isConsumer, requestDietician);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/professionals/connect-by-code
+// Premium Hub — Consumer connects to a professional using their unique code.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/connect-by-code", verifyToken, isConsumer, connectByCode);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/professionals/request-workout
+// Consumer — sends a workout plan request (with optional notes) to their
+// connected instructor. Stored as flags on the consumer's User document.
+// ─────────────────────────────────────────────────────────────────────────────
+router.post("/request-workout", verifyToken, isConsumer, requestWorkout);
 
 module.exports = router;

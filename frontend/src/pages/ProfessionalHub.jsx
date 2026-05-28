@@ -2,24 +2,26 @@
  * @file pages/ProfessionalHub.jsx
  * @description Premium portal for NutriFit AI consumers.
  *
- * Vertically stacked single-column layout offering two professional paths:
+ * Premium users can CONNECT to a Dietician or Gym Instructor using their
+ * unique professional code. Once connected, the consumer can send / request
+ * diet plans directly from the AI-Generated tab.
  *
- *   Path A — Dietary Review
- *     POST /api/professionals/request-dietician
+ *   Path A — Dietary Review (Dietician)
+ *     POST /api/professionals/connect-by-code  { code, type: "Dietician" }
  *
- *   Path B — Custom Workout Plan
- *     POST /api/professionals/request-instructor
+ *   Path B — Fitness Plan (Instructor)
+ *     POST /api/professionals/connect-by-code  { code, type: "Instructor" }
  *
  * Connection Status:
  *   On mount the component fetches GET /api/professionals/status to determine
  *   whether the consumer is already connected to a professional. The UI adapts:
- *     'none'      → standard Request / Submit buttons
- *     'pending'   → button disabled + "Request Pending…" badge
- *     'connected' → button hidden; green "Connected to [Name]" banner shown
+ *     'loading'   → skeleton row
+ *     'none'      → code-entry form
+ *     'connected' → green "Connected to [Name]" banner + disconnect button
  *
  * Props:
  *   consumer  {object}  — Consumer document from ConsumerDashboard state.
- *                         Must contain at least `_id`.
+ *   isPremium {boolean} — Whether the consumer holds an active premium subscription.
  *
  * BEM class prefix: ph-
  */
@@ -29,8 +31,8 @@ import "./ProfessionalHub.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// All requests go through the Vite dev-server proxy → backend:5000
 const API_BASE = "/api";
-const BACKEND  = "http://localhost:5000/api";
 
 // ─── Shared Sub-Components ───────────────────────────────────────────────────
 
@@ -58,25 +60,25 @@ const FeatureBullet = ({ icon, text }) => (
 
 /**
  * ConnectedBanner — shown when the consumer is already connected to a professional.
- * Replaces the CTA button entirely.
  */
-const ConnectedBanner = ({ name }) => (
+const ConnectedBanner = ({ name, onDisconnect, disconnecting }) => (
   <div className="ph-connected-banner" role="status">
     <span className="ph-connected-banner__dot" aria-hidden="true" />
-    <p className="ph-connected-banner__text">
-      Currently connected to{" "}
-      <span className="ph-connected-banner__name">{name}</span>
-    </p>
-  </div>
-);
-
-/**
- * PendingBadge — shown next to a disabled button when a request is in-flight.
- */
-const PendingBadge = () => (
-  <div className="ph-pending-badge">
-    <span className="ph-pending-badge__dot" aria-hidden="true" />
-    Request Pending…
+    <div className="ph-connected-banner__body">
+      <p className="ph-connected-banner__text">
+        Connected to{" "}
+        <span className="ph-connected-banner__name">{name}</span>
+      </p>
+      <button
+        type="button"
+        className="ph-disconnect-btn"
+        onClick={onDisconnect}
+        disabled={disconnecting}
+        aria-label={`Disconnect from ${name}`}
+      >
+        {disconnecting ? "Disconnecting…" : "✕ Disconnect"}
+      </button>
+    </div>
   </div>
 );
 
@@ -90,48 +92,234 @@ const StatusLoadingRow = () => (
   </div>
 );
 
-// ─── Path A — Dietary Review ─────────────────────────────────────────────────
+// ─── Dual Connect Options ─────────────────────────────────────────────────────
 
-const DietaryReviewPanel = ({ consumer, dietStatus, connectedName }) => {
-  const [notes,      setNotes]      = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [status,     setStatus]     = useState({ type: "", text: "" });
+/**
+ * ConnectOptions — shows BOTH connection paths:
+ *   Left  — Enter a known professional's unique code
+ *   Right — Get matched with a random verified professional
+ *
+ * Props:
+ *   type        {string}   — "Dietician" | "Instructor"
+ *   consumer    {object}   — Consumer document
+ *   onConnected {function} — called with { name } on any successful connection
+ */
+const ConnectOptions = ({ type, consumer, onConnected }) => {
+  const colorMod       = type === "Dietician" ? "diet" : "workout";
+  const randomEndpoint = type === "Dietician"
+    ? `${API_BASE}/professionals/request-dietician`
+    : `${API_BASE}/professionals/request-instructor`;
 
-  const handleSubmit = async (e) => {
+  // ── Code-entry state
+  const [code,        setCode]        = useState("");
+  const [codeLoading, setCodeLoading] = useState(false);
+  const [codeStatus,  setCodeStatus]  = useState({ type: "", text: "" });
+
+  // ── Random-match state
+  const [randLoading, setRandLoading] = useState(false);
+  const [randStatus,  setRandStatus]  = useState({ type: "", text: "" });
+
+  const isWorking = codeLoading || randLoading;
+
+  const handleCodeConnect = async (e) => {
     e.preventDefault();
-
-    if (!consumer?._id) {
-      setStatus({ type: "error", text: "Your session is still loading. Please wait and try again." });
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      setCodeStatus({ type: "error", text: "Please enter a professional code." });
       return;
     }
-
-    setSubmitting(true);
-    setStatus({ type: "", text: "" });
-
+    setCodeLoading(true);
+    setCodeStatus({ type: "", text: "" });
     try {
-      const response = await fetch(`${API_BASE}/professionals/request-dietician`, {
+      const res = await fetch(`${API_BASE}/professionals/connect-by-code`, {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          consumerId: consumer._id,
-          dietPlanId: consumer.activeDietPlanId ?? null,
-          notes:      notes.trim(),
-        }),
+        body: JSON.stringify({ code: trimmedCode, type, consumerId: consumer?._id }),
       });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || `Server error (${response.status})`);
-      }
-
-      setStatus({ type: "success", text: data.message });
-      setNotes("");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `Error (${res.status})`);
+      setCodeStatus({ type: "success", text: data.message });
+      setCode("");
+      onConnected({ name: data.professional?.full_name || "Professional" });
     } catch (err) {
-      setStatus({ type: "error", text: err.message || "Failed to submit. Please try again." });
+      setCodeStatus({ type: "error", text: err.message || "Failed to connect." });
     } finally {
-      setSubmitting(false);
+      setCodeLoading(false);
+    }
+  };
+
+  const handleRandomConnect = async () => {
+    setRandLoading(true);
+    setRandStatus({ type: "", text: "" });
+    try {
+      const res = await fetch(randomEndpoint, {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({ consumerId: consumer?._id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `Error (${res.status})`);
+      setRandStatus({ type: "success", text: data.message });
+      const name = data.dietician?.full_name || data.instructor?.full_name || "Professional";
+      onConnected({ name });
+    } catch (err) {
+      setRandStatus({ type: "error", text: err.message || "Failed to find a match. Please try again." });
+    } finally {
+      setRandLoading(false);
+    }
+  };
+
+  const inputId = `ph-code-${type.toLowerCase()}`;
+
+  return (
+    <div className="ph-connect-options">
+
+      {/* ── Card A: Connect by Code ── */}
+      <div className="ph-connect-card ph-connect-card--code">
+        <div className="ph-connect-card__header">
+          <span className="ph-connect-card__icon" aria-hidden="true">🔗</span>
+          <div>
+            <p className="ph-connect-card__title">Connect with a Code</p>
+            <p className="ph-connect-card__sub">Use your {type.toLowerCase()}&apos;s unique code</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleCodeConnect} id={`ph-form-connect-${type.toLowerCase()}`}>
+          <label className="ph-label" htmlFor={inputId}>
+            Professional Code
+          </label>
+          <div className="ph-connect-form__row">
+            <input
+              id={inputId}
+              type="text"
+              className="ph-code-input"
+              placeholder="e.g. 6837f2a1c4b9e84d2f0a1b2c"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              maxLength={100}
+              autoComplete="off"
+              spellCheck="false"
+              disabled={isWorking}
+            />
+            <button
+              type="submit"
+              id={`ph-connect-btn-${type.toLowerCase()}`}
+              className={`ph-btn ph-btn--${colorMod} ph-btn--connect`}
+              disabled={isWorking || !code.trim()}
+            >
+              {codeLoading ? (
+                <>
+                  <span className="ph-btn__spinner" aria-hidden="true" />
+                  Connecting…
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true">🔗</span>
+                  Connect
+                </>
+              )}
+            </button>
+          </div>
+          <p className="ph-code-hint">
+            💡 Ask your {type.toLowerCase()} to share their code from their dashboard.
+          </p>
+          {codeStatus.text && <StatusMessage status={codeStatus} />}
+        </form>
+      </div>
+
+      {/* ── "or" Divider ── */}
+      <div className="ph-connect-divider" aria-hidden="true">
+        <span className="ph-connect-divider__line" />
+        <span className="ph-connect-divider__label">or</span>
+        <span className="ph-connect-divider__line" />
+      </div>
+
+      {/* ── Card B: Random Match ── */}
+      <div className="ph-connect-card ph-connect-card--random">
+        <div className="ph-connect-card__header">
+          <span className="ph-connect-card__icon" aria-hidden="true">🎲</span>
+          <div>
+            <p className="ph-connect-card__title">Match me Randomly</p>
+            <p className="ph-connect-card__sub">We&apos;ll find a verified {type.toLowerCase()} for you</p>
+          </div>
+        </div>
+        <p className="ph-connect-card__desc">
+          Don&apos;t have a specific {type.toLowerCase()} in mind? Let NutriFit AI instantly
+          connect you with a verified professional from our network.
+        </p>
+        <button
+          type="button"
+          id={`ph-random-btn-${type.toLowerCase()}`}
+          className={`ph-btn ph-btn--${colorMod}`}
+          onClick={handleRandomConnect}
+          disabled={isWorking}
+        >
+          {randLoading ? (
+            <>
+              <span className="ph-btn__spinner" aria-hidden="true" />
+              Finding a match…
+            </>
+          ) : (
+            <>
+              <span aria-hidden="true">🎲</span>
+              Find me a {type}
+            </>
+          )}
+        </button>
+        {randStatus.text && <StatusMessage status={randStatus} />}
+      </div>
+
+    </div>
+  );
+};
+
+// ─── Path A — Dietary Review ─────────────────────────────────────────────────
+
+const DietaryReviewPanel = ({
+  consumer,
+  dietStatus,
+  connectedName,
+  onDisconnected,
+  onConsumerChange,
+}) => {
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectErr, setDisconnectErr] = useState("");
+  const [localStatus, setLocalStatus]     = useState(dietStatus);
+  const [localName,   setLocalName]       = useState(connectedName);
+
+  // Sync props → local state when parent re-fetches
+  useEffect(() => { setLocalStatus(dietStatus); }, [dietStatus]);
+  useEffect(() => { setLocalName(connectedName); }, [connectedName]);
+
+  const handleConnected = ({ name }) => {
+    setLocalStatus("connected");
+    setLocalName(name);
+    onDisconnected?.();   // trigger parent re-fetch
+    onConsumerChange?.(); // re-sync parent consumer object
+  };
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    setDisconnectErr("");
+    try {
+      const res = await fetch(`${API_BASE}/consumer/disconnect-professional`, {
+        method:      "PUT",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({ professionalRole: "Dietician" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to disconnect.");
+      setLocalStatus("none");
+      setLocalName("");
+      onDisconnected?.();   // trigger parent re-fetch
+      onConsumerChange?.(); // re-sync parent consumer object
+    } catch (err) {
+      setDisconnectErr(err.message);
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -151,9 +339,9 @@ const DietaryReviewPanel = ({ consumer, dietStatus, connectedName }) => {
 
       {/* Description */}
       <p className="ph-panel__desc">
-        Get personalised feedback on your AI-generated 7-day diet plan from a
-        certified human dietician. They'll review your macros, flag any concerns,
-        and refine the plan to better match your goals and medical history.
+        Connect with a certified human dietician using their unique code.
+        Once connected, you can send your AI-generated diet plan for
+        personalised review, and request custom diet plans directly from them.
       </p>
 
       {/* Feature bullets */}
@@ -161,78 +349,38 @@ const DietaryReviewPanel = ({ consumer, dietStatus, connectedName }) => {
         <FeatureBullet icon="🔬" text="Macro & micro-nutrient analysis" />
         <FeatureBullet icon="💊" text="Allergy & medical condition cross-check" />
         <FeatureBullet icon="✏️" text="Personalised plan refinement notes" />
-        <FeatureBullet icon="📞" text="Optional follow-up consultation" />
+        <FeatureBullet icon="📤" text="Send your AI plan for review (from Diet Plans tab)" />
       </ul>
 
       {/* ── Connection-state-aware CTA ─────────────────────────────────────── */}
 
       {/* Status still loading */}
-      {dietStatus === "loading" && <StatusLoadingRow />}
+      {localStatus === "loading" && <StatusLoadingRow />}
 
-      {/* Already connected — hide form, show banner */}
-      {dietStatus === "connected" && <ConnectedBanner name={connectedName} />}
-
-      {/* Request pending — show disabled button + badge */}
-      {dietStatus === "pending" && (
-        <div>
-          <PendingBadge />
-          <button
-            type="button"
-            id="ph-submit-diet-btn"
-            className="ph-btn ph-btn--diet"
-            disabled
-            style={{ marginTop: "0.75rem" }}
-          >
-            Submit AI Diet Plan for Professional Review
-          </button>
-        </div>
+      {/* Already connected — show banner + disconnect */}
+      {localStatus === "connected" && (
+        <>
+          <ConnectedBanner
+            name={localName}
+            onDisconnect={handleDisconnect}
+            disconnecting={disconnecting}
+          />
+          {disconnectErr && (
+            <p className="ph-status ph-status--error" role="alert">
+              <span className="ph-status__icon">✕</span>
+              {disconnectErr}
+            </p>
+          )}
+        </>
       )}
 
-      {/* Default — show live form */}
-      {(dietStatus === "none" || !dietStatus) && (
-        <form
-          className="ph-form"
-          id="ph-form-diet"
-          onSubmit={handleSubmit}
-          aria-label="Submit diet plan for review"
-        >
-          <label className="ph-label" htmlFor="ph-diet-notes">
-            Additional Notes{" "}
-            <span className="ph-label__hint">(optional — share specific concerns)</span>
-          </label>
-          <textarea
-            id="ph-diet-notes"
-            className="ph-textarea"
-            placeholder="e.g. I have a nut allergy, I struggle with the Tuesday dinner portion sizes…"
-            rows={4}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            maxLength={600}
-            disabled={submitting}
-          />
-          <span className="ph-char-count">{notes.length}/600</span>
-
-          <StatusMessage status={status} />
-
-          <button
-            type="submit"
-            id="ph-submit-diet-btn"
-            className="ph-btn ph-btn--diet"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <>
-                <span className="ph-btn__spinner" aria-hidden="true" />
-                Submitting…
-              </>
-            ) : (
-              <>
-                <span aria-hidden="true">📤</span>
-                Submit AI Diet Plan for Professional Review
-              </>
-            )}
-          </button>
-        </form>
+      {/* Default — show both connect options */}
+      {(localStatus === "none" || !localStatus) && (
+        <ConnectOptions
+          type="Dietician"
+          consumer={consumer}
+          onConnected={handleConnected}
+        />
       )}
     </div>
   );
@@ -240,49 +388,48 @@ const DietaryReviewPanel = ({ consumer, dietStatus, connectedName }) => {
 
 // ─── Path B — Fitness Plan ───────────────────────────────────────────────────
 
-const FitnessPlanPanel = ({ consumer, instructorStatus, connectedName }) => {
-  const [goal,       setGoal]       = useState("");
-  const [notes,      setNotes]      = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [status,     setStatus]     = useState({ type: "", text: "" });
+const FitnessPlanPanel = ({
+  consumer,
+  instructorStatus,
+  connectedName,
+  onDisconnected,
+  onConsumerChange,
+}) => {
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [disconnectErr, setDisconnectErr] = useState("");
+  const [localStatus, setLocalStatus]     = useState(instructorStatus);
+  const [localName,   setLocalName]       = useState(connectedName);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  useEffect(() => { setLocalStatus(instructorStatus); }, [instructorStatus]);
+  useEffect(() => { setLocalName(connectedName); }, [connectedName]);
 
-    if (!consumer?._id) {
-      setStatus({ type: "error", text: "Your session is still loading. Please wait and try again." });
-      return;
-    }
+  const handleConnected = ({ name }) => {
+    setLocalStatus("connected");
+    setLocalName(name);
+    onDisconnected?.();
+    onConsumerChange?.();
+  };
 
-    setSubmitting(true);
-    setStatus({ type: "", text: "" });
-
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    setDisconnectErr("");
     try {
-      const response = await fetch(`${API_BASE}/professionals/request-instructor`, {
-        method:      "POST",
+      const res = await fetch(`${API_BASE}/consumer/disconnect-professional`, {
+        method:      "PUT",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          consumerId:  consumer._id,
-          fitnessGoal: goal.trim(),
-          notes:       notes.trim(),
-        }),
+        body: JSON.stringify({ professionalRole: "Instructor" }),
       });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.error || data.message || `Server error (${response.status})`);
-      }
-
-      // data.message contains the instructor's name from the backend
-      setStatus({ type: "success", text: data.message });
-      setGoal("");
-      setNotes("");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to disconnect.");
+      setLocalStatus("none");
+      setLocalName("");
+      onDisconnected?.();
+      onConsumerChange?.();
     } catch (err) {
-      setStatus({ type: "error", text: err.message || "Failed to send request. Please try again." });
+      setDisconnectErr(err.message);
     } finally {
-      setSubmitting(false);
+      setDisconnecting(false);
     }
   };
 
@@ -316,9 +463,9 @@ const FitnessPlanPanel = ({ consumer, instructorStatus, connectedName }) => {
 
       {/* Description */}
       <p className="ph-panel__desc">
-        Don't have a workout plan yet, or want a completely new programme?
-        Submit a request and your linked instructor will create a custom routine
-        for you and assign it directly to your dashboard.
+        Connect with a certified gym instructor using their unique code.
+        Once connected, they'll be able to create custom workout routines
+        assigned directly to your dashboard.
       </p>
 
       {/* Feature bullets */}
@@ -332,94 +479,32 @@ const FitnessPlanPanel = ({ consumer, instructorStatus, connectedName }) => {
       {/* ── Connection-state-aware CTA ─────────────────────────────────────── */}
 
       {/* Status still loading */}
-      {instructorStatus === "loading" && <StatusLoadingRow />}
+      {localStatus === "loading" && <StatusLoadingRow />}
 
-      {/* Already connected — hide form, show banner */}
-      {instructorStatus === "connected" && <ConnectedBanner name={connectedName} />}
-
-      {/* Request pending — show disabled button + badge */}
-      {instructorStatus === "pending" && (
-        <div>
-          <PendingBadge />
-          <button
-            type="button"
-            id="ph-submit-workout-btn"
-            className="ph-btn ph-btn--workout"
-            disabled
-            style={{ marginTop: "0.75rem" }}
-          >
-            Request Custom Workout Plan
-          </button>
-        </div>
+      {/* Already connected — show banner + disconnect */}
+      {localStatus === "connected" && (
+        <>
+          <ConnectedBanner
+            name={localName}
+            onDisconnect={handleDisconnect}
+            disconnecting={disconnecting}
+          />
+          {disconnectErr && (
+            <p className="ph-status ph-status--error" role="alert">
+              <span className="ph-status__icon">✕</span>
+              {disconnectErr}
+            </p>
+          )}
+        </>
       )}
 
-      {/* Default — show live form */}
-      {(instructorStatus === "none" || !instructorStatus) && (
-        <form
-          className="ph-form"
-          id="ph-form-workout"
-          onSubmit={handleSubmit}
-          aria-label="Request custom workout plan"
-        >
-          <label className="ph-label" htmlFor="ph-workout-goal">
-            Primary Fitness Goal
-            <span className="ph-label__required" aria-hidden="true"> *</span>
-          </label>
-          <select
-            id="ph-workout-goal"
-            className="ph-select"
-            value={goal}
-            onChange={(e) => setGoal(e.target.value)}
-            required
-            disabled={submitting}
-          >
-            <option value="">— Select your goal —</option>
-            <option value="Lose Weight">Lose Weight</option>
-            <option value="Gain Muscle">Gain Muscle (Bulk)</option>
-            <option value="Improve Endurance">Improve Endurance</option>
-            <option value="Improve Flexibility">Improve Flexibility</option>
-            <option value="General Fitness">General Fitness</option>
-            <option value="Athletic Performance">Athletic Performance</option>
-            <option value="Rehabilitation">Rehabilitation / Injury Recovery</option>
-          </select>
-
-          <label className="ph-label" htmlFor="ph-workout-notes">
-            Additional Details{" "}
-            <span className="ph-label__hint">(equipment, injuries, experience level…)</span>
-          </label>
-          <textarea
-            id="ph-workout-notes"
-            className="ph-textarea"
-            placeholder="e.g. I train at home with dumbbells and a pull-up bar, intermediate level, previous lower back injury…"
-            rows={4}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            maxLength={600}
-            disabled={submitting}
-          />
-          <span className="ph-char-count">{notes.length}/600</span>
-
-          <StatusMessage status={status} />
-
-          <button
-            type="submit"
-            id="ph-submit-workout-btn"
-            className="ph-btn ph-btn--workout"
-            disabled={submitting}
-          >
-            {submitting ? (
-              <>
-                <span className="ph-btn__spinner ph-btn__spinner--workout" aria-hidden="true" />
-                Sending Request…
-              </>
-            ) : (
-              <>
-                <span aria-hidden="true">💪</span>
-                Request Custom Workout Plan
-              </>
-            )}
-          </button>
-        </form>
+      {/* Default — show both connect options */}
+      {(localStatus === "none" || !localStatus) && (
+        <ConnectOptions
+          type="Instructor"
+          consumer={consumer}
+          onConnected={handleConnected}
+        />
       )}
     </div>
   );
@@ -430,19 +515,16 @@ const FitnessPlanPanel = ({ consumer, instructorStatus, connectedName }) => {
 /**
  * ProfessionalHub — Premium portal landing page.
  *
- * @param {object} props
- * @param {object} props.consumer  - Consumer document (from ConsumerDashboard state).
+ * @param {object}  props
+ * @param {object}  props.consumer  - Consumer document (from ConsumerDashboard state).
  * @param {boolean} props.isPremium - Whether the consumer holds an active premium subscription.
  */
-const ProfessionalHub = ({ consumer, isPremium }) => {
+const ProfessionalHub = ({ consumer, isPremium, onConsumerChange }) => {
   const [upgradingStripe, setUpgradingStripe] = useState(false);
   const [upgradeError,    setUpgradeError]    = useState("");
 
   /**
    * handleUpgrade — POSTs to the backend to create a Stripe Checkout Session.
-   * On success, redirects the browser to the Stripe-hosted payment page.
-   * The consumerId is sent in the request body and stored in Stripe metadata;
-   * on completion the webhook sets isPremium = true on the User document.
    */
   const handleUpgrade = async () => {
     if (!consumer?._id) {
@@ -452,7 +534,7 @@ const ProfessionalHub = ({ consumer, isPremium }) => {
     setUpgradingStripe(true);
     setUpgradeError("");
     try {
-      const response = await fetch(`${BACKEND}/stripe/create-checkout-session`, {
+      const response = await fetch(`${API_BASE}/stripe/create-checkout-session`, {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
@@ -462,63 +544,59 @@ const ProfessionalHub = ({ consumer, isPremium }) => {
       if (!response.ok) {
         throw new Error(data.error || `Server error (${response.status})`);
       }
-      // Redirect the browser to the Stripe Checkout URL
       window.location.href = data.url;
     } catch (err) {
       setUpgradeError(err.message || "Failed to start checkout. Please try again.");
       setUpgradingStripe(false);
     }
   };
+
   /**
    * Connection status state.
    *   'loading'   — waiting for GET /api/professionals/status to resolve
-   *   'none'      — no connection or request
-   *   'pending'   — request sent, not yet confirmed
+   *   'none'      — no connection
    *   'connected' — actively connected to a professional
    */
   const [dietStatus,       setDietStatus]       = useState("loading");
   const [instructorStatus, setInstructorStatus] = useState("loading");
 
-  /** Names of connected professionals for the "Connected to [Name]" banner. */
+  /** Names of connected professionals. */
   const [dietConnectedName,       setDietConnectedName]       = useState("");
   const [instructorConnectedName, setInstructorConnectedName] = useState("");
 
   // ── Fetch connection status on mount ────────────────────────────────────
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response = await fetch(`${API_BASE}/professionals/status`, {
-          method:      "GET",
-          credentials: "include",
-        });
+  const fetchStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/professionals/status`, {
+        method:      "GET",
+        credentials: "include",
+      });
 
-        if (!response.ok) {
-          // Non-2xx (e.g. endpoint not yet built) → fall back to "none" gracefully
-          setDietStatus("none");
-          setInstructorStatus("none");
-          return;
-        }
-
-        const data = await response.json().catch(() => ({}));
-
-        // Expected shape:
-        //   { dietician: { status, name }, instructor: { status, name } }
-        const d = data?.dietician  || {};
-        const i = data?.instructor || {};
-
-        setDietStatus(d.status || "none");
-        setDietConnectedName(d.name || "");
-
-        setInstructorStatus(i.status || "none");
-        setInstructorConnectedName(i.name || "");
-      } catch {
-        // Network error or endpoint doesn't exist yet — fail silently
+      if (!response.ok) {
         setDietStatus("none");
         setInstructorStatus("none");
+        return;
       }
-    };
 
+      const data = await response.json().catch(() => ({}));
+
+      const d = data?.dietician  || {};
+      const i = data?.instructor || {};
+
+      setDietStatus(d.status || "none");
+      setDietConnectedName(d.name || "");
+
+      setInstructorStatus(i.status || "none");
+      setInstructorConnectedName(i.name || "");
+    } catch {
+      setDietStatus("none");
+      setInstructorStatus("none");
+    }
+  };
+
+  useEffect(() => {
     fetchStatus();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [consumer?._id]);
 
   return (
@@ -534,7 +612,7 @@ const ProfessionalHub = ({ consumer, isPremium }) => {
           <p className="ph-intro__sub">
             Elevate your health journey with certified human expertise.
             {isPremium
-              ? " Choose your path below to connect with a professional."
+              ? " Enter your professional's unique code below to connect."
               : " Upgrade to Premium to unlock professional connections."}
           </p>
         </div>
@@ -549,15 +627,15 @@ const ProfessionalHub = ({ consumer, isPremium }) => {
           <h2 className="ph-paywall__title">Professional Hub is a Premium Feature</h2>
           <p className="ph-paywall__desc">
             Upgrade to <strong>NutriFit Premium</strong> to connect with a licensed
-            dietician for personalised nutrition reviews, or request a custom workout
-            programme from a certified fitness instructor.
+            dietician for personalised nutrition reviews, or connect with a certified
+            fitness instructor for custom workout programmes.
           </p>
 
           {/* What's included */}
           <ul className="ph-paywall__features" aria-label="Premium features included">
-            <li><span aria-hidden="true">🥗</span> AI Diet Plan reviewed by a Licensed Dietician</li>
-            <li><span aria-hidden="true">🏋️</span> Custom Workout Plan by a Certified Instructor</li>
-            <li><span aria-hidden="true">📄</span> PDF downloads of your diet &amp; workout plans</li>
+            <li><span aria-hidden="true">🥗</span> Connect with a Licensed Dietician via unique code</li>
+            <li><span aria-hidden="true">🏋️</span> Connect with a Certified Instructor via unique code</li>
+            <li><span aria-hidden="true">📤</span> Send AI diet plans directly to your dietician</li>
             <li><span aria-hidden="true">⚡</span> Priority response within 24–48 hours</li>
           </ul>
 
@@ -601,19 +679,23 @@ const ProfessionalHub = ({ consumer, isPremium }) => {
             consumer={consumer}
             dietStatus={dietStatus}
             connectedName={dietConnectedName}
+            onDisconnected={fetchStatus}
+            onConsumerChange={onConsumerChange}
           />
 
           <FitnessPlanPanel
             consumer={consumer}
             instructorStatus={instructorStatus}
             connectedName={instructorConnectedName}
+            onDisconnected={fetchStatus}
+            onConsumerChange={onConsumerChange}
           />
         </div>
       )}
 
       {/* ── Info strip ── */}
       <p className="ph-footnote">
-        ⚕ Professional reviews are conducted by verified NutriFit AI partners.
+        ⚕ Professional connections are made with verified NutriFit AI partners.
         Response times are typically within 24–48 hours. Premium subscription required.
       </p>
 

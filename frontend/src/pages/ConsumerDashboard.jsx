@@ -121,6 +121,16 @@ const ConsumerDashboard = () => {
    */
   const [aiPlan, setAiPlan] = useState(null);
 
+  /**
+   * dieticianName — Display name of the consumer's connected dietician.
+   */
+  const [dieticianName,   setDieticianName]   = useState("");
+
+  /**
+   * instructorName — Display name of the consumer's connected instructor.
+   */
+  const [instructorName,  setInstructorName]  = useState("");
+
   // ── Profile edit state ─────────────────────────────────────────────────────
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm,    setProfileForm]    = useState({
@@ -173,7 +183,7 @@ const ConsumerDashboard = () => {
         axios.get("/consumer/my-workout"),
         // Restore the persisted AI plan — null response is fine (no plan yet)
         consumerId
-          ? fetch(`http://localhost:5000/api/diet-plan/active/${consumerId}`, {
+          ? fetch(`/api/diet-plan/active/${consumerId}`, {
               credentials: "include",
             }).then((r) => r.json()).catch(() => ({ success: false, data: null }))
           : Promise.resolve({ success: false, data: null }),
@@ -238,23 +248,53 @@ const ConsumerDashboard = () => {
   }, []); // Run once on mount — location.search is read synchronously
 
   /**
-   * refreshConsumer — Fetches the full consumer document from the server on
-   * mount so that fields like dieticianId / instructorId are always current.
+   * refreshConsumer — Fetches the full consumer document from the server so
+   * that fields like dieticianId / instructorId are always current. Called once
+   * on mount AND exposed as a callback to ProfessionalHub so it can trigger a
+   * sync after connect / disconnect without a full page reload.
+   */
+  const refreshConsumer = useCallback(async () => {
+    try {
+      const res = await axios.get("/consumer/me");
+      const fresh = res.data.user;
+      setConsumer(fresh);
+      localStorage.setItem("user", JSON.stringify(fresh));
+    } catch (err) {
+      // Non-critical: fall back gracefully to whatever is in localStorage
+      console.warn("Could not refresh consumer from server:", err.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshConsumer();
+  }, []); // run once on mount
+
+  /**
+   * dieticianNameEffect — Fetches the connected dietician's display name
+   * whenever consumer.dieticianId changes (e.g., after connecting in the Hub).
+   * This name is passed to DietPlanDisplay so the action bar shows it.
    */
   useEffect(() => {
-    const refresh = async () => {
+    const fetchProfessionalNames = async () => {
+      if (!consumer?.dieticianId && !consumer?.instructorId) {
+        setDieticianName("");
+        setInstructorName("");
+        return;
+      }
       try {
-        const res = await axios.get("/consumer/me");
-        const fresh = res.data.user;
-        setConsumer(fresh);
-        localStorage.setItem("user", JSON.stringify(fresh));
-      } catch (err) {
-        // Non-critical: fall back gracefully to whatever is in localStorage
-        console.warn("Could not refresh consumer from server:", err.message);
+        const res = await fetch("/api/professionals/status", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json().catch(() => ({}));
+        if (data?.dietician?.name)   setDieticianName(data.dietician.name);
+        if (data?.instructor?.name)  setInstructorName(data.instructor.name);
+      } catch {
+        // Non-critical — display names are cosmetic
       }
     };
-    refresh();
-  }, []); // run once on mount
+    fetchProfessionalNames();
+  }, [consumer?.dieticianId, consumer?.instructorId]);
 
   // ── Event Handlers ─────────────────────────────────────────────────────────
 
@@ -472,6 +512,9 @@ const ConsumerDashboard = () => {
         isPremium={consumer?.isPremium ?? false}
         onUpgradeClick={handleUpgradeClick}
         onPlanGenerated={handleAiPlanGenerated}
+        onPlanDeleted={() => setAiPlan(null)}
+        dieticianId={consumer?.dieticianId ?? null}
+        connectedDieticianName={dieticianName}
       />
 
       {/* ── Dietician-Assigned Plans ─────────────────────────────────── */}
@@ -615,12 +658,20 @@ const ConsumerDashboard = () => {
         </header>
 
         <div className="con-content">
-          {/* Home tab — stacked overview */}
+          {/* Home tab — clean overview: greeting + progress chart only */}
           {activeTab === "home" && (
             <>
               {renderWelcomeCard()}
-              {renderAIAdvisor()}
-              {renderDietPlans()}
+
+              {/* Progress chart inline on home */}
+              <div className="con-section" id="section-home-progress">
+                <div className="con-section__header">
+                  <span className="con-section__icon">📈</span>
+                  <h2 className="con-section__title">My Progress</h2>
+                  <span className="con-section__count">Weight Tracking</span>
+                </div>
+                <ProgressCharts refreshTrigger={refreshTrigger} />
+              </div>
             </>
           )}
 
@@ -634,6 +685,9 @@ const ConsumerDashboard = () => {
               workoutPlan={activeWorkout}
               isPremium={consumer?.isPremium ?? false}
               onUpgradeClick={handleUpgradeClick}
+              instructorId={consumer?.instructorId ?? null}
+              connectedInstructorName={instructorName}
+              consumer={consumer}
             />
           )}
 
@@ -667,7 +721,11 @@ const ConsumerDashboard = () => {
 
           {/* Professional Hub — sole premium connection portal */}
           {activeTab === "hub" && (
-            <ProfessionalHub consumer={consumer} isPremium={consumer?.isPremium ?? false} />
+            <ProfessionalHub
+            consumer={consumer}
+            isPremium={consumer?.isPremium ?? false}
+            onConsumerChange={refreshConsumer}
+          />
           )}
         </div>
       </main>

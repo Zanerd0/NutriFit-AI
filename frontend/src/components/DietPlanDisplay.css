@@ -704,3 +704,205 @@
   box-shadow: 0 6px 20px rgba(108, 99, 255, 0.5);
   transform:  translateY(-1px);
 }
+
+/* ── Dietician Action Bar ─────────────────────────────────────────────────────── */
+
+/**
+ * .dpd-dietician-bar
+ * Shown below the action bar when the consumer is connected to a dietician.
+ * Contains two CTA buttons: Send Plan and Request Plan.
+ */
+.dpd-dietician-bar {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.85rem;
+  padding:        1.1rem 1.25rem;
+  border-radius:  var(--radius);
+  background:     linear-gradient(135deg, rgba(108, 99, 255, 0.06) 0%, rgba(139, 92, 246, 0.04) 100%);
+  border:         1px solid rgba(108, 99, 255, 0.2);
+  animation:      dpd-fade-in 0.3s ease both;
+}
+
+.dpd-dietician-bar__header {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+}
+
+.dpd-dietician-bar__icon {
+  font-size:   1.4rem;
+  line-height: 1;
+  filter:      drop-shadow(0 0 6px rgba(108, 99, 255, 0.5));
+}
+
+.dpd-dietician-bar__title {
+  font-size:   0.7rem;
+  font-weight: 600;
+  color:       var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin:      0 0 0.1rem;
+}
+
+.dpd-dietician-bar__name {
+  font-size:   0.88rem;
+  font-weight: 700;
+  color:       #a5b4fc;
+  margin:      0;
+}
+
+/* Action buttons row */
+.dpd-dietician-bar__actions {
+  display:   flex;
+  gap:       0.65rem;
+  flex-wrap: wrap;
+}
+
+/* Individual dietician action button */
+.dpd-diet-action-btn {
+  display:         inline-flex;
+  align-items:     center;
+  gap:             0.45rem;
+  padding:         0.55rem 1.1rem;
+  border-radius:   var(--radius-sm);
+  font-family:     inherit;
+  font-size:       0.82rem;
+  font-weight:     700;
+  cursor:          pointer;
+  border:          none;
+  transition:      all 0.2s ease;
+  letter-spacing:  0.01em;
+  white-space:     nowrap;
+  flex-shrink:     0;
+}
+
+.dpd-diet-action-btn:disabled {
+  opacity: 0.6;
+  cursor:  not-allowed;
+}
+
+.dpd-diet-action-btn--loading {
+  pointer-events: none;
+}
+
+/* Send Plan button — indigo/purple */
+.dpd-diet-action-btn--send {
+  background: linear-gradient(135deg, var(--color-primary) 0%, #8b5cf6 100%);
+  color:      #fff;
+  box-shadow: 0 3px 12px rgba(108, 99, 255, 0.3);
+}
+
+.dpd-diet-action-btn--send:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c75ff 0%, #9b6dff 100%);
+  box-shadow: 0 5px 18px rgba(108, 99, 255, 0.45);
+  transform:  translateY(-1px);
+}
+
+/* Request Plan button — teal/emerald */
+.dpd-diet-action-btn--request {
+  background:   rgba(16, 185, 129, 0.12);
+  color:        #34d399;
+  border:       1px solid rgba(16, 185, 129, 0.3);
+  box-shadow:   none;
+}
+
+.dpd-diet-action-btn--request:hover:not(:disabled) {
+  background:    rgba(16, 185, 129, 0.2);
+  border-color:  rgba(16, 185, 129, 0.55);
+  color:         #6ee7b7;
+  transform:     translateY(-1px);
+}
+
+/* Spinner inside action buttons */
+.dpd-diet-action-btn__spinner {
+  display:       inline-block;
+  width:         13px;
+  height:        13px;
+  border:        2px solid rgba(255, 255, 255, 0.3);
+  border-top:    2px solid currentColor;
+  border-radius: 50%;
+  animation:     dpd-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+/* Status message below the actions */
+.dpd-diet-status {
+  display:       flex;
+  align-items:   center;
+  gap:           0.5rem;
+  padding:       0.6rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size:     0.82rem;
+  line-height:   1.5;
+  animation:     dpd-fade-in 0.25s ease both;
+}
+
+.dpd-diet-status--success {
+  background:  rgba(16, 185, 129, 0.1);
+  border:      1px solid rgba(16, 185, 129, 0.25);
+  color:       #34d399;
+}
+
+.dpd-diet-status--error {
+  background:  rgba(255, 77, 109, 0.1);
+  border:      1px solid rgba(255, 77, 109, 0.25);
+  color:       #fb7185;
+}
+
+/* ── Delete Plan Button ─────────────────────────────────────────────────────── */
+
+.dpd-delete-btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.45rem 0.9rem;
+  border-radius: 999px;
+  border:        1px solid rgba(239, 68, 68, 0.3);
+  background:    rgba(239, 68, 68, 0.08);
+  color:         #f87171;
+  font-family:   inherit;
+  font-size:     0.78rem;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    all 0.2s ease;
+  white-space:   nowrap;
+  flex-shrink:   0;
+}
+
+.dpd-delete-btn:hover:not(:disabled) {
+  background:   rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.55);
+  color:        #fca5a5;
+  box-shadow:   0 4px 12px rgba(239, 68, 68, 0.18);
+  transform:    translateY(-1px);
+}
+
+.dpd-delete-btn:disabled {
+  opacity: 0.6;
+  cursor:  not-allowed;
+}
+
+.dpd-delete-btn--loading {
+  pointer-events: none;
+}
+
+.dpd-delete-btn__spinner {
+  display:       inline-block;
+  width:         12px;
+  height:        12px;
+  border:        2px solid rgba(239, 68, 68, 0.2);
+  border-top:    2px solid #f87171;
+  border-radius: 50%;
+  animation:     dpd-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+.dpd-delete-error {
+  font-size:     0.78rem;
+  color:         #f87171;
+  padding:       0.45rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background:    rgba(239, 68, 68, 0.08);
+  border:        1px solid rgba(239, 68, 68, 0.2);
+  margin-top:    -0.25rem;
+}

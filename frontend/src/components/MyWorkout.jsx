@@ -2,23 +2,15 @@
  * @file components/MyWorkout.jsx
  * @description Consumer-facing "My Workout" component.
  *
- * Prop-driven — receives the active WorkoutPlan document from the
- * parent (ConsumerDashboard) and renders:
- *   - Loading state → spinner (while parent is fetching)
- *   - Empty state   → friendly card with a call-to-action when no plan exists
- *   - Loaded state  → plan header + responsive grid of exercise cards
- *
  * Props:
- *   workoutPlan {object | null | undefined}
- *     • undefined → still loading (parent fetch in progress)
- *     • null      → fetch complete, no plan assigned
- *     • object    → the active WorkoutPlan document from the API
- *   isPremium      {boolean}  — Whether the consumer holds an active premium subscription.
- *   onUpgradeClick {function} — Called when a free-tier user clicks the locked download
- *                               button — navigates them to the Professional Hub paywall.
+ *   workoutPlan          {object | null | undefined}
+ *   isPremium            {boolean}
+ *   onUpgradeClick       {function}
+ *   instructorId         {string | null}   — ObjectId of connected instructor
+ *   connectedInstructorName {string}       — Display name of connected instructor
+ *   consumer             {object}          — Consumer document
  *
- * Styling: BEM class prefix `mw-` (MyWorkout). All layout via CSS
- * Flexbox/Grid in MyWorkout.css — no inline styles, no utility classes.
+ * Styling: BEM class prefix `mw-`
  */
 
 import { useState } from "react";
@@ -69,15 +61,109 @@ const ExerciseCard = ({ exercise, index }) => (
 );
 
 // =============================================================================
+// INSTRUCTOR REQUEST PANEL
+// =============================================================================
+
+/**
+ * InstructorRequestPanel — shown when consumer is connected to an instructor.
+ * Lets them write notes/requirements and submit a workout request.
+ */
+const InstructorRequestPanel = ({ instructorName, consumer }) => {
+  const [notes,      setNotes]      = useState("");
+  const [loading,    setLoading]    = useState(false);
+  const [status,     setStatus]     = useState({ type: "", text: "" });
+
+  const handleRequest = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setStatus({ type: "", text: "" });
+    try {
+      const res = await fetch("/api/professionals/request-workout", {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({ consumerId: consumer?._id, notes: notes.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || data.message || `Error ${res.status}`);
+      setStatus({ type: "success", text: data.message || "Request sent to your instructor!" });
+      setNotes("");
+    } catch (err) {
+      setStatus({ type: "error", text: err.message || "Failed to send request. Please try again." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mw-instructor-panel" id="mw-instructor-request">
+      <div className="mw-instructor-panel__header">
+        <span className="mw-instructor-panel__icon" aria-hidden="true">🏋️</span>
+        <div>
+          <p className="mw-instructor-panel__label">Connected Instructor</p>
+          <p className="mw-instructor-panel__name">{instructorName || "Your Instructor"}</p>
+        </div>
+      </div>
+
+      <form className="mw-request-form" onSubmit={handleRequest}>
+        <label className="mw-request-form__label" htmlFor="mw-workout-notes">
+          Request a Custom Workout Plan
+          <span className="mw-request-form__hint"> (optional notes for your instructor)</span>
+        </label>
+        <textarea
+          id="mw-workout-notes"
+          className="mw-request-form__textarea"
+          placeholder="e.g. I want to focus on upper body, I train 4 days a week, I have a knee injury so no heavy squats…"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={4}
+          disabled={loading}
+          maxLength={1000}
+        />
+        <div className="mw-request-form__footer">
+          <span className="mw-request-form__char-count">{notes.length}/1000</span>
+          <button
+            id="mw-request-workout-btn"
+            type="submit"
+            className="mw-request-form__btn"
+            disabled={loading}
+          >
+            {loading ? (
+              <><span className="mw-request-form__spinner" aria-hidden="true" />Sending…</>
+            ) : (
+              <><span aria-hidden="true">📋</span> Request Workout Plan</>
+            )}
+          </button>
+        </div>
+        {status.text && (
+          <div
+            className={`mw-request-status mw-request-status--${status.type}`}
+            role={status.type === "error" ? "alert" : "status"}
+          >
+            <span aria-hidden="true">{status.type === "success" ? "✔" : "✕"}</span>
+            {status.text}
+          </div>
+        )}
+      </form>
+    </div>
+  );
+};
+
+// =============================================================================
 // MAIN COMPONENT
 // =============================================================================
 
 /**
  * MyWorkout — Consumer's current active workout plan view.
- *
- * @param {{ workoutPlan: object | null | undefined }} props
  */
-const MyWorkout = ({ workoutPlan, isPremium = false, onUpgradeClick }) => {
+const MyWorkout = ({
+  workoutPlan,
+  isPremium      = false,
+  onUpgradeClick,
+  instructorId   = null,
+  connectedInstructorName = "",
+  consumer,
+}) => {
   // ── PDF download state ────────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError,   setPdfError]   = useState("");
@@ -112,21 +198,35 @@ const MyWorkout = ({ workoutPlan, isPremium = false, onUpgradeClick }) => {
     );
   }
 
-  // ── Empty state (fetch done, no plan assigned) ────────────────────────────
+  // ── Empty state (fetch done, no plan assigned yet) ────────────────────────
   if (!workoutPlan) {
     return (
-      <div className="mw-empty-state" id="my-workout-empty">
-        <div className="mw-empty-state__icon">🏋️</div>
-        <h2 className="mw-empty-state__title">No Active Workout Assigned</h2>
-        <p className="mw-empty-state__text">
-          No active workout plan has been assigned yet.
-          Request one from a Gym Instructor to get started!
-        </p>
-        <div className="mw-empty-state__hint">
-          💡 Use the{" "}
-          <strong>Professional Hub</strong>{" "}
-          tab to request a custom workout plan from a certified instructor.
+      <div className="mw-empty-wrapper" id="my-workout-empty">
+        <div className="mw-empty-state">
+          <div className="mw-empty-state__icon">🏋️</div>
+          <h2 className="mw-empty-state__title">No Active Workout Assigned</h2>
+          <p className="mw-empty-state__text">
+            No active workout plan has been assigned yet.
+            {instructorId
+              ? " Use the request form below to ask your instructor for a plan."
+              : " Connect with a certified instructor in the Professional Hub to get started."}
+          </p>
+          {!instructorId && (
+            <div className="mw-empty-state__hint">
+              💡 Use the{" "}
+              <strong>Professional Hub</strong>{" "}
+              tab to connect with a certified instructor.
+            </div>
+          )}
         </div>
+
+        {/* Show request panel even when no plan exists, if instructor is connected */}
+        {instructorId && (
+          <InstructorRequestPanel
+            instructorName={connectedInstructorName}
+            consumer={consumer}
+          />
+        )}
       </div>
     );
   }
@@ -224,6 +324,14 @@ const MyWorkout = ({ workoutPlan, isPremium = false, onUpgradeClick }) => {
         <div className="mw-no-exercises">
           <p>This plan has no exercises defined yet.</p>
         </div>
+      )}
+
+      {/* ── Instructor request panel (always visible when instructor connected) ── */}
+      {instructorId && (
+        <InstructorRequestPanel
+          instructorName={connectedInstructorName}
+          consumer={consumer}
+        />
       )}
 
     </div>

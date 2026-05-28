@@ -338,6 +338,193 @@ const getActivePlan = async (req, res) => {
   }
 };
 
+// ─── Controller: sendPlanToDietician ─────────────────────────────────────────
+
+/**
+ * POST /api/diet-plan/send-to-dietician
+ *
+ * Marks the consumer's active AI diet plan as "sent for review" by attaching
+ * a sentToDietician flag and timestamp. The dietician can then see this plan
+ * in their dashboard.
+ *
+ * Request Body:
+ *   consumerId {string} — MongoDB ObjectId of the Consumer
+ *
+ * Success Response — 200:
+ *   { success: true, message: string, plan: <DietPlan document> }
+ *
+ * Error Responses:
+ *   400 — Missing consumerId
+ *   404 — No active plan / no dietician connected
+ *   500 — Database error
+ */
+const sendPlanToDietician = async (req, res) => {
+  try {
+    const { consumerId } = req.body;
+
+    if (!consumerId) {
+      return res.status(400).json({ success: false, message: "consumerId is required." });
+    }
+
+    // Find the active AI plan for this consumer
+    const plan = await DietPlan.findOne({ consumerId, status: "Active" }).sort({ createdAt: -1 });
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: "No active AI diet plan found. Generate one first.",
+      });
+    }
+
+    // Verify consumer has a connected dietician
+    const User = require("../models/User");
+    const consumer = await User.findById(consumerId).select("dieticianId");
+    if (!consumer?.dieticianId) {
+      return res.status(404).json({
+        success: false,
+        message: "You are not connected to a dietician. Connect one in the Professional Hub first.",
+      });
+    }
+
+    // Mark as sent
+    plan.sentToDietician       = true;
+    plan.sentToDieticianAt     = new Date();
+    plan.reviewRequestedBy     = consumerId;
+    await plan.save();
+
+    console.log(`[sendPlanToDietician] Consumer ${consumerId} sent plan ${plan._id} to dietician ${consumer.dieticianId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Your AI diet plan has been sent to your dietician for review!",
+      plan,
+    });
+  } catch (error) {
+    console.error("[dietPlanController] sendPlanToDietician error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send plan to dietician.",
+      error: error.message,
+    });
+  }
+};
+
+// ─── Controller: requestPlanFromDietician ────────────────────────────────────
+
+/**
+ * POST /api/diet-plan/request-from-dietician
+ *
+ * Creates a plan-request record so the connected dietician knows the consumer
+ * wants a custom plan built for them. This notification is stored as a flag
+ * on the consumer's User document that the dietician can see.
+ *
+ * Request Body:
+ *   consumerId {string} — MongoDB ObjectId of the Consumer
+ *   notes      {string} — (Optional) Consumer's notes / requirements
+ *
+ * Success Response — 200:
+ *   { success: true, message: string }
+ *
+ * Error Responses:
+ *   400 — Missing consumerId
+ *   404 — No dietician connected
+ *   500 — Database error
+ */
+const requestPlanFromDietician = async (req, res) => {
+  try {
+    const { consumerId, notes } = req.body;
+
+    if (!consumerId) {
+      return res.status(400).json({ success: false, message: "consumerId is required." });
+    }
+
+    const User = require("../models/User");
+    const consumer = await User.findById(consumerId).select("dieticianId full_name");
+    if (!consumer?.dieticianId) {
+      return res.status(404).json({
+        success: false,
+        message: "You are not connected to a dietician. Connect one in the Professional Hub first.",
+      });
+    }
+
+    // Store the request as a flag on the consumer's document
+    await User.findByIdAndUpdate(consumerId, {
+      dietPlanRequested:      true,
+      dietPlanRequestedAt:    new Date(),
+      dietPlanRequestNotes:   notes?.trim() || "",
+    });
+
+    console.log(`[requestPlanFromDietician] Consumer ${consumerId} requested plan from dietician ${consumer.dieticianId}`);
+
+    return res.status(200).json({
+      success: true,
+      message: "Your request has been sent to your dietician! They will create a custom plan for you soon.",
+    });
+  } catch (error) {
+    console.error("[dietPlanController] requestPlanFromDietician error:", error.message);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send request to dietician.",
+      error: error.message,
+    });
+  }
+};
+
+// ─── Controller: deleteAIPlan ─────────────────────────────────────────────────
+
+/**
+ * DELETE /api/diet-plan/:id
+ *
+ * Permanently removes an AI-generated diet plan that belongs to the consumer.
+ * Ownership is verified to prevent cross-consumer deletion.
+ *
+ * URL Params:
+ *   id {string} — MongoDB ObjectId of the DietPlan to delete
+ *
+ * Success Response — 200:
+ *   { success: true, message: string }
+ *
+ * Error Responses:
+ *   400 — Missing or invalid id
+ *   403 — Plan does not belong to this consumer
+ *   404 — Plan not found
+ *   500 — Database error
+ */
+const deleteAIPlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({ success: false, message: "Plan ID is required." });
+    }
+
+    const plan = await DietPlan.findById(id).select("consumerId");
+    if (!plan) {
+      return res.status(404).json({ success: false, message: "Diet plan not found." });
+    }
+
+    // Ownership check — compare string representations of ObjectIds
+    if (plan.consumerId?.toString() !== req.userId?.toString()) {
+      return res.status(403).json({ success: false, message: "You do not own this plan." });
+    }
+
+    await DietPlan.findByIdAndDelete(id);
+
+    console.log(`[deleteAIPlan] Plan ${id} deleted by consumer ${req.userId}`);
+
+    return res.status(200).json({ success: true, message: "Diet plan deleted successfully." });
+  } catch (error) {
+    console.error("[dietPlanController] deleteAIPlan error:", error.message);
+    return res.status(500).json({ success: false, message: "Failed to delete plan.", error: error.message });
+  }
+};
+
 // ─── Export ───────────────────────────────────────────────────────────────────
 
-module.exports = { generateAIPlan, getActivePlan };
+module.exports = {
+  generateAIPlan,
+  getActivePlan,
+  sendPlanToDietician,
+  requestPlanFromDietician,
+  deleteAIPlan,
+};
+

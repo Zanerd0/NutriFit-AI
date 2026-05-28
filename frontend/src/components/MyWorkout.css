@@ -420,3 +420,196 @@
   text-transform: uppercase;
 }
 
+/* ── Empty Wrapper (holds empty-state card + request panel) ────────────────── */
+
+.mw-empty-wrapper {
+  display:        flex;
+  flex-direction: column;
+  gap:            1.25rem;
+}
+
+/* ── Instructor Request Panel ─────────────────────────────────────────────────── */
+
+.mw-instructor-panel {
+  display:        flex;
+  flex-direction: column;
+  gap:            0;
+  border-radius:  var(--mw-radius);
+  background:     rgba(15, 14, 26, 0.6);
+  border:         1px solid rgba(251, 191, 36, 0.2);
+  overflow:       hidden;
+  animation:      mw-fade-in 0.3s ease both;
+}
+
+.mw-instructor-panel__header {
+  display:     flex;
+  align-items: center;
+  gap:         0.75rem;
+  padding:     0.9rem 1.2rem;
+  background:  linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border-bottom: 1px solid rgba(251, 191, 36, 0.15);
+}
+
+.mw-instructor-panel__icon {
+  font-size:   1.4rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mw-instructor-panel__label {
+  font-size:      0.65rem;
+  font-weight:    700;
+  color:          rgba(251, 191, 36, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin:         0 0 0.15rem;
+}
+
+.mw-instructor-panel__name {
+  font-size:   0.95rem;
+  font-weight: 700;
+  color:       #fde68a;
+  margin:      0;
+}
+
+/* ── Request Form ── */
+
+.mw-request-form {
+  display:        flex;
+  flex-direction: column;
+  gap:            0;
+  padding:        1.1rem 1.2rem 1.2rem;
+}
+
+.mw-request-form__label {
+  font-size:   0.8rem;
+  font-weight: 700;
+  color:       var(--mw-text);
+  display:     block;
+  margin-bottom: 0.45rem;
+}
+
+.mw-request-form__hint {
+  font-size:   0.72rem;
+  font-weight: 400;
+  color:       var(--mw-muted);
+  font-style:  italic;
+}
+
+.mw-request-form__textarea {
+  width:         100%;
+  min-height:    90px;
+  background:    rgba(255, 255, 255, 0.04);
+  border:        1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color:         var(--mw-text);
+  font-family:   inherit;
+  font-size:     0.84rem;
+  line-height:   1.6;
+  padding:       0.65rem 0.85rem;
+  resize:        vertical;
+  outline:       none;
+  transition:    border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing:    border-box;
+  margin-bottom: 0.65rem;
+}
+
+.mw-request-form__textarea::placeholder {
+  color:      rgba(255, 255, 255, 0.25);
+  font-style: normal;
+}
+
+.mw-request-form__textarea:focus {
+  border-color: rgba(251, 191, 36, 0.45);
+  box-shadow:   0 0 0 3px rgba(251, 191, 36, 0.08);
+  background:   rgba(255, 255, 255, 0.06);
+}
+
+.mw-request-form__textarea:disabled {
+  opacity: 0.5;
+  cursor:  not-allowed;
+}
+
+.mw-request-form__footer {
+  display:         flex;
+  align-items:     center;
+  justify-content: flex-end;
+  gap:             0.75rem;
+}
+
+.mw-request-form__char-count {
+  font-size:     0.68rem;
+  color:         var(--mw-muted);
+  background:    rgba(255,255,255,0.05);
+  border:        1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  padding:       0.15rem 0.55rem;
+  flex-shrink:   0;
+}
+
+.mw-request-form__btn {
+  display:       inline-flex;
+  align-items:   center;
+  gap:           0.4rem;
+  padding:       0.55rem 1.2rem;
+  border-radius: 999px;
+  border:        none;
+  background:    linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color:         #1a1000;
+  font-family:   inherit;
+  font-size:     0.82rem;
+  font-weight:   700;
+  cursor:        pointer;
+  transition:    all 0.2s ease;
+  white-space:   nowrap;
+  flex-shrink:   0;
+  letter-spacing: 0.01em;
+}
+
+.mw-request-form__btn:hover:not(:disabled) {
+  background:   linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow:   0 4px 14px rgba(245, 158, 11, 0.35);
+  transform:    translateY(-1px);
+}
+
+.mw-request-form__btn:disabled {
+  opacity: 0.6;
+  cursor:  not-allowed;
+  transform: none;
+}
+
+.mw-request-form__spinner {
+  display:       inline-block;
+  width:         12px;
+  height:        12px;
+  border:        2px solid rgba(26, 16, 0, 0.3);
+  border-top:    2px solid #1a1000;
+  border-radius: 50%;
+  animation:     mw-spin 0.7s linear infinite;
+  flex-shrink:   0;
+}
+
+/* ── Request Status Banner ── */
+
+.mw-request-status {
+  display:       flex;
+  align-items:   center;
+  gap:           0.5rem;
+  padding:       0.55rem 0.85rem;
+  border-radius: 7px;
+  font-size:     0.8rem;
+  margin-top:    0.65rem;
+  animation:     mw-fade-in 0.25s ease both;
+}
+
+.mw-request-status--success {
+  background:  rgba(16, 185, 129, 0.1);
+  border:      1px solid rgba(16, 185, 129, 0.2);
+  color:       #34d399;
+}
+
+.mw-request-status--error {
+  background:  rgba(239, 68, 68, 0.1);
+  border:      1px solid rgba(239, 68, 68, 0.2);
+  color:       #fb7185;
+}

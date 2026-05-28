@@ -514,10 +514,10 @@
   50%       { opacity: 1;   transform: scale(1);    }
 }
 
-/* "Connected" banner — replaces the button entirely */
+/* "Connected" banner */
 .ph-connected-banner {
   display:       flex;
-  align-items:   center;
+  align-items:   flex-start;
   gap:           0.75rem;
   padding:       1rem 1.25rem;
   border-radius: var(--radius-sm);
@@ -532,13 +532,24 @@
   background:    #22c55e;
   box-shadow:    0 0 0 3px rgba(34, 197, 94, 0.25);
   flex-shrink:   0;
+  margin-top:    0.3rem;
   animation:     ph-pulse 2s ease-in-out infinite;
+}
+
+.ph-connected-banner__body {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  flex:            1;
+  gap:             1rem;
+  flex-wrap:       wrap;
 }
 
 .ph-connected-banner__text {
   font-size:   0.88rem;
   color:       var(--color-text);
   line-height: 1.45;
+  margin:      0;
 }
 
 .ph-connected-banner__name {
@@ -546,27 +557,221 @@
   color:       #34d399;
 }
 
-/* "Pending" badge overlaid on the button */
-.ph-pending-badge {
+/* Disconnect button — small, muted, inside the banner */
+.ph-disconnect-btn {
   display:       inline-flex;
   align-items:   center;
-  gap:           0.4rem;
-  padding:       0.35rem 0.85rem;
+  gap:           0.3rem;
+  padding:       0.3rem 0.75rem;
   border-radius: 999px;
-  background:    rgba(251, 191, 36, 0.12);
-  border:        1px solid rgba(251, 191, 36, 0.28);
-  color:         #fbbf24;
-  font-size:     0.78rem;
+  border:        1px solid rgba(255, 77, 109, 0.3);
+  background:    rgba(255, 77, 109, 0.08);
+  color:         #fb7185;
+  font-family:   inherit;
+  font-size:     0.75rem;
   font-weight:   600;
+  cursor:        pointer;
+  transition:    all 0.2s ease;
+  white-space:   nowrap;
+  flex-shrink:   0;
 }
 
-.ph-pending-badge__dot {
-  width:         7px;
-  height:        7px;
-  border-radius: 50%;
-  background:    #fbbf24;
-  animation:     ph-pulse 1.2s ease-in-out infinite;
-  flex-shrink:   0;
+.ph-disconnect-btn:hover:not(:disabled) {
+  background:    rgba(255, 77, 109, 0.18);
+  border-color:  rgba(255, 77, 109, 0.55);
+  color:         #fda4af;
+}
+
+.ph-disconnect-btn:disabled {
+  opacity: 0.55;
+  cursor:  not-allowed;
+}
+
+/* ── Connect-by-Code Form ─────────────────────────────────────────────────────── */
+
+.ph-connect-form {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.85rem;
+  margin-top:     0.25rem;
+}
+
+.ph-connect-form__code-area {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.5rem;
+}
+
+/* Inline row: code input + connect button side-by-side */
+.ph-connect-form__row {
+  display:   flex;
+  gap:       0.6rem;
+  flex-wrap: wrap;
+}
+
+/* The code text input */
+.ph-code-input {
+  flex:          1;
+  min-width:     180px;
+  background:    var(--color-surface-2);
+  border:        1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color:         var(--color-text);
+  font-family:   monospace;
+  font-size:     0.82rem;
+  padding:       0.65rem 0.9rem;
+  outline:       none;
+  transition:    border-color 0.2s ease, box-shadow 0.2s ease;
+  letter-spacing: 0.03em;
+}
+
+.ph-code-input::placeholder {
+  color:      var(--color-text-muted);
+  font-style: italic;
+  font-family: inherit;
+  letter-spacing: normal;
+}
+
+.ph-code-input:focus {
+  border-color: var(--color-primary);
+  box-shadow:   0 0 0 3px rgba(108, 99, 255, 0.15);
+}
+
+/* Small hint below the input row */
+.ph-code-hint {
+  font-size:   0.76rem;
+  color:       var(--color-text-muted);
+  line-height: 1.55;
+  margin:      0;
+  font-style:  italic;
+}
+
+/* Connect button — compact variant of ph-btn */
+.ph-btn--connect {
+  padding:   0.65rem 1.1rem;
+  font-size: 0.85rem;
+  width:     auto;
+  flex-shrink: 0;
+}
+
+/* ── Dual Connect Options Layout ─────────────────────────────────────────────── */
+
+/**
+ * .ph-connect-options
+ * Flex row containing the two connection-method cards with an "or" divider.
+ * On narrow screens the divider rotates to horizontal and cards stack.
+ */
+.ph-connect-options {
+  display:   flex;
+  align-items: stretch;
+  gap:       0;
+  margin-top: 0.5rem;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+/* ── Individual connect card ── */
+.ph-connect-card {
+  flex:           1;
+  display:        flex;
+  flex-direction: column;
+  gap:            0.9rem;
+  padding:        1.1rem 1.15rem;
+  min-width:      0;
+}
+
+.ph-connect-card--code {
+  background: rgba(108, 99, 255, 0.04);
+}
+
+.ph-connect-card--random {
+  background: rgba(16, 185, 129, 0.03);
+}
+
+/* Card header — icon + title/sub */
+.ph-connect-card__header {
+  display:     flex;
+  align-items: center;
+  gap:         0.65rem;
+}
+
+.ph-connect-card__icon {
+  font-size:   1.5rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.ph-connect-card__title {
+  font-size:   0.88rem;
+  font-weight: 700;
+  color:       var(--color-text);
+  margin:      0 0 0.1rem;
+  letter-spacing: -0.01em;
+}
+
+.ph-connect-card__sub {
+  font-size:   0.74rem;
+  color:       var(--color-text-muted);
+  margin:      0;
+}
+
+.ph-connect-card__desc {
+  font-size:   0.8rem;
+  color:       var(--color-text-muted);
+  line-height: 1.6;
+  margin:      0;
+  flex:        1; /* push button to the bottom */
+}
+
+/* ── "or" Divider ── */
+.ph-connect-divider {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  justify-content: center;
+  padding:        0 0.1rem;
+  gap:            0.35rem;
+  flex-shrink:    0;
+  width:          32px;
+  background:     var(--color-border);
+}
+
+.ph-connect-divider__line {
+  flex:       1;
+  width:      1px;
+  background: var(--color-border);
+  opacity:    0.6;
+}
+
+.ph-connect-divider__label {
+  font-size:   0.65rem;
+  font-weight: 700;
+  color:       var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding:     0.3rem 0;
+  white-space: nowrap;
+}
+
+/* ── Responsive: stack vertically on narrow screens ── */
+@media (max-width: 700px) {
+  .ph-connect-options {
+    flex-direction: column;
+  }
+
+  .ph-connect-divider {
+    flex-direction: row;
+    width:          auto;
+    height:         32px;
+    padding:        0.1rem 0;
+  }
+
+  .ph-connect-divider__line {
+    flex:   1;
+    width:  auto;
+    height: 1px;
+  }
 }
 
 

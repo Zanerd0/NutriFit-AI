@@ -4,16 +4,19 @@
  *              Grid calendar layout, with an inline "Generate Plan" form.
  *
  * Props:
- *   weekSchedule    {object}   — The weekSchedule JSON from the DietPlan document.
- *   generatedAt     {string}   — ISO date string for the plan creation timestamp.
- *   planData        {object}   — (Optional) Full DietPlan document (enables PDF download).
- *   consumer        {object}   — Consumer user object (used to pre-fill the generate form).
- *   isPremium       {boolean}  — Whether the consumer holds an active premium subscription.
- *   onUpgradeClick  {function} — Called when a free-tier user clicks the locked download
- *                                button — navigates them to the Professional Hub paywall.
- *   onPlanGenerated {function} — Callback called with the new plan after a
- *                                successful generate request. The parent can
- *                                update its own state from this callback.
+ *   weekSchedule            {object}   — The weekSchedule JSON from the DietPlan document.
+ *   generatedAt             {string}   — ISO date string for the plan creation timestamp.
+ *   planData                {object}   — (Optional) Full DietPlan document (enables PDF download).
+ *   consumer                {object}   — Consumer user object (used to pre-fill the generate form).
+ *   isPremium               {boolean}  — Whether the consumer holds an active premium subscription.
+ *   onUpgradeClick          {function} — Called when a free-tier user clicks the locked download
+ *                                        button — navigates them to the Professional Hub paywall.
+ *   onPlanGenerated         {function} — Callback called with the new plan after a
+ *                                        successful generate request. The parent can
+ *                                        update its own state from this callback.
+ *   dieticianId             {string}   — (Optional) ObjectId of the connected dietician.
+ *                                        When truthy, dietician action buttons are shown.
+ *   connectedDieticianName  {string}   — (Optional) Display name of the connected dietician.
  */
 
 import { useState } from "react";
@@ -116,7 +119,7 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
     setGenerating(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/diet-plan/generate", {
+      const response = await fetch("/api/diet-plan/generate", {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
@@ -307,14 +310,25 @@ const DietPlanDisplay = ({
   generatedAt,
   planData,
   consumer,
-  isPremium     = false,
+  isPremium            = false,
   onUpgradeClick,
   onPlanGenerated,
+  onPlanDeleted,
+  dieticianId          = null,
+  connectedDieticianName = "",
 }) => {
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [showForm,   setShowForm]   = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [pdfError,   setPdfError]   = useState("");
+  const [showForm,    setShowForm]    = useState(false);
+  const [pdfLoading,  setPdfLoading]  = useState(false);
+  const [pdfError,    setPdfError]    = useState("");
+  const [deletingPlan, setDeletingPlan] = useState(false);
+  const [deleteError,  setDeleteError]  = useState("");
+
+  // ── Dietician action state ─────────────────────────────────────────────────
+  const [sendingToDiet,  setSendingToDiet]  = useState(false);
+  const [sendDietStatus, setSendDietStatus] = useState({ type: "", text: "" });
+  const [requestingPlan, setRequestingPlan] = useState(false);
+  const [requestStatus,  setRequestStatus]  = useState({ type: "", text: "" });
 
   const hasExistingPlan = !!(weekSchedule && Object.keys(weekSchedule).length > 0);
 
@@ -324,6 +338,68 @@ const DietPlanDisplay = ({
     setShowForm(false);
     if (typeof onPlanGenerated === "function") {
       onPlanGenerated(newPlan);
+    }
+  };
+
+  /** Send the current AI plan to the connected dietician for review. */
+  const handleSendToDietician = async () => {
+    setSendingToDiet(true);
+    setSendDietStatus({ type: "", text: "" });
+    try {
+      const res = await fetch("/api/diet-plan/send-to-dietician", {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({ consumerId: consumer?._id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || `Error ${res.status}`);
+      setSendDietStatus({ type: "success", text: data.message || "Plan sent to your dietician!" });
+    } catch (err) {
+      setSendDietStatus({ type: "error", text: err.message || "Failed to send plan." });
+    } finally {
+      setSendingToDiet(false);
+    }
+  };
+
+  /** Request the connected dietician to build a custom plan. */
+  const handleRequestFromDietician = async () => {
+    setRequestingPlan(true);
+    setRequestStatus({ type: "", text: "" });
+    try {
+      const res = await fetch("/api/diet-plan/request-from-dietician", {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body: JSON.stringify({ consumerId: consumer?._id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || `Error ${res.status}`);
+      setRequestStatus({ type: "success", text: data.message || "Request sent to your dietician!" });
+    } catch (err) {
+      setRequestStatus({ type: "error", text: err.message || "Failed to send request." });
+    } finally {
+      setRequestingPlan(false);
+    }
+  };
+
+  /** Delete the current AI diet plan. */
+  const handleDeletePlan = async () => {
+    if (!planData?._id) return;
+    setDeletingPlan(true);
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/diet-plan/${planData._id}`, {
+        method:      "DELETE",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || data.error || `Error ${res.status}`);
+      if (typeof onPlanDeleted === "function") onPlanDeleted();
+    } catch (err) {
+      setDeleteError(err.message || "Failed to delete plan.");
+    } finally {
+      setDeletingPlan(false);
     }
   };
 
@@ -416,7 +492,107 @@ const DietPlanDisplay = ({
             </button>
           )
         )}
+
+        {/* Delete plan button — only when plan exists */}
+        {hasExistingPlan && planData?._id && (
+          <button
+            id="dpd-delete-btn"
+            className={`dpd-delete-btn${deletingPlan ? " dpd-delete-btn--loading" : ""}`}
+            onClick={handleDeletePlan}
+            disabled={deletingPlan}
+            aria-label="Delete this AI diet plan"
+            title="Delete AI Diet Plan"
+          >
+            {deletingPlan ? (
+              <><span className="dpd-delete-btn__spinner" aria-hidden="true" />Deleting…</>
+            ) : (
+              <><span aria-hidden="true">🗑️</span> Delete Plan</>
+            )}
+          </button>
+        )}
       </div>
+      {deleteError && (
+        <div className="dpd-delete-error" role="alert">{deleteError}</div>
+      )}
+
+      {/* ── Dietician Action Bar — only visible when connected to a dietician ── */}
+      {dieticianId && (
+        <div className="dpd-dietician-bar">
+          <div className="dpd-dietician-bar__header">
+            <span className="dpd-dietician-bar__icon" aria-hidden="true">🥗</span>
+            <div>
+              <p className="dpd-dietician-bar__title">Connected Dietician</p>
+              <p className="dpd-dietician-bar__name">{connectedDieticianName || "Your Dietician"}</p>
+            </div>
+          </div>
+
+          <div className="dpd-dietician-bar__actions">
+            {/* Send AI plan to dietician — only visible when plan exists */}
+            {hasExistingPlan && (
+              <button
+                id="dpd-send-diet-btn"
+                className={`dpd-diet-action-btn dpd-diet-action-btn--send${sendingToDiet ? " dpd-diet-action-btn--loading" : ""}`}
+                onClick={handleSendToDietician}
+                disabled={sendingToDiet || requestingPlan}
+                title="Send your current AI diet plan to your dietician for review"
+              >
+                {sendingToDiet ? (
+                  <>
+                    <span className="dpd-diet-action-btn__spinner" aria-hidden="true" />
+                    Sending…
+                  </>
+                ) : (
+                  <>
+                    <span aria-hidden="true">📤</span>
+                    Send Plan to Dietician
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Request dietician to build a custom plan */}
+            <button
+              id="dpd-request-diet-btn"
+              className={`dpd-diet-action-btn dpd-diet-action-btn--request${requestingPlan ? " dpd-diet-action-btn--loading" : ""}`}
+              onClick={handleRequestFromDietician}
+              disabled={requestingPlan || sendingToDiet}
+              title="Ask your dietician to build you a custom plan"
+            >
+              {requestingPlan ? (
+                <>
+                  <span className="dpd-diet-action-btn__spinner" aria-hidden="true" />
+                  Requesting…
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true">📋</span>
+                  Request Plan from Dietician
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Status messages for dietician actions */}
+          {sendDietStatus.text && (
+            <div
+              className={`dpd-diet-status dpd-diet-status--${sendDietStatus.type}`}
+              role={sendDietStatus.type === "error" ? "alert" : "status"}
+            >
+              <span aria-hidden="true">{sendDietStatus.type === "success" ? "✔" : "✕"}</span>
+              {sendDietStatus.text}
+            </div>
+          )}
+          {requestStatus.text && (
+            <div
+              className={`dpd-diet-status dpd-diet-status--${requestStatus.type}`}
+              role={requestStatus.type === "error" ? "alert" : "status"}
+            >
+              <span aria-hidden="true">{requestStatus.type === "success" ? "✔" : "✕"}</span>
+              {requestStatus.text}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* PDF error */}
       {pdfError && (
