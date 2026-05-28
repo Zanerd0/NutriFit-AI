@@ -339,8 +339,8 @@ const DietaryReviewPanel = ({
 
       {/* Description */}
       <p className="ph-panel__desc">
-        Connect with a certified human dietician using their unique code.
-        Once connected, you can send your AI-generated diet plan for
+        Connect with a certified human dietician using their code or get matched
+        randomly. Once connected, you can send your AI-generated diet plan for
         personalised review, and request custom diet plans directly from them.
       </p>
 
@@ -463,8 +463,8 @@ const FitnessPlanPanel = ({
 
       {/* Description */}
       <p className="ph-panel__desc">
-        Connect with a certified gym instructor using their unique code.
-        Once connected, they'll be able to create custom workout routines
+        Connect with a certified gym instructor using their code or get matched
+        randomly. Once connected, they'll be able to create custom workout routines
         assigned directly to your dashboard.
       </p>
 
@@ -612,7 +612,7 @@ const ProfessionalHub = ({ consumer, isPremium, onConsumerChange }) => {
           <p className="ph-intro__sub">
             Elevate your health journey with certified human expertise.
             {isPremium
-              ? " Enter your professional's unique code below to connect."
+              ? " Connect with a professional using their code, or get matched randomly."
               : " Upgrade to Premium to unlock professional connections."}
           </p>
         </div>
@@ -633,8 +633,8 @@ const ProfessionalHub = ({ consumer, isPremium, onConsumerChange }) => {
 
           {/* What's included */}
           <ul className="ph-paywall__features" aria-label="Premium features included">
-            <li><span aria-hidden="true">🥗</span> Connect with a Licensed Dietician via unique code</li>
-            <li><span aria-hidden="true">🏋️</span> Connect with a Certified Instructor via unique code</li>
+            <li><span aria-hidden="true">🥗</span> Connect with a Licensed Dietician</li>
+            <li><span aria-hidden="true">🏋️</span> Connect with a Certified Instructor</li>
             <li><span aria-hidden="true">📤</span> Send AI diet plans directly to your dietician</li>
             <li><span aria-hidden="true">⚡</span> Priority response within 24–48 hours</li>
           </ul>
