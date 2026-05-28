@@ -29,7 +29,7 @@
  *   - formSuccess:    Success message after a plan is created
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import "./InstructorDashboard.css";
@@ -152,6 +152,31 @@ const InstructorDashboard = () => {
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("overview");
+
+  /** showCodePopup — toggles the sidebar avatar connection code popup */
+  const [showCodePopup, setShowCodePopup] = useState(false);
+  const [codeCopied,   setCodeCopied]    = useState(false);
+  const [popupPos,     setPopupPos]      = useState({ bottom: 0, left: 0 });
+  const avatarBtnRef = useRef(null);
+
+  const handleAvatarClick = () => {
+    if (!showCodePopup && avatarBtnRef.current) {
+      const rect = avatarBtnRef.current.getBoundingClientRect();
+      setPopupPos({
+        bottom: window.innerHeight - rect.top + 8,
+        left:   rect.left,
+      });
+    }
+    setShowCodePopup((v) => !v);
+  };
+
+  const handleCopyCode = () => {
+    if (!instructor?._id) return;
+    navigator.clipboard.writeText(instructor._id).then(() => {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    });
+  };
 
   // ── Remote data ───────────────────────────────────────────────────────────
   const [clients, setClients] = useState([]);
@@ -487,9 +512,52 @@ const InstructorDashboard = () => {
 
         <div className="inst-sidebar__footer">
           <div className="inst-sidebar__user">
-            <div className="inst-sidebar__avatar">
+
+            {/* ── Avatar — clickable for connection code popup ── */}
+            <button
+              ref={avatarBtnRef}
+              className="inst-sidebar__avatar"
+              id="instructor-avatar-btn"
+              aria-label="View your connection code"
+              onClick={handleAvatarClick}
+              style={{ cursor: "pointer", border: "none" }}
+            >
               {instructor?.full_name?.charAt(0).toUpperCase()}
-            </div>
+            </button>
+
+            {/* Connection code popup — rendered fixed to escape sidebar overflow */}
+            {showCodePopup && (
+              <div
+                className="inst-code-popup"
+                id="instructor-code-popup"
+                role="dialog"
+                aria-label="Your connection code"
+                style={{ bottom: popupPos.bottom, left: popupPos.left }}
+              >
+                <button
+                  className="inst-code-popup__close"
+                  onClick={() => setShowCodePopup(false)}
+                  aria-label="Close"
+                >✕</button>
+                <div className="inst-code-popup__icon" aria-hidden="true">🔗</div>
+                <p className="inst-code-popup__title">Your Connection Code</p>
+                <p className="inst-code-popup__hint">
+                  Share this code with your consumers so they can connect with you in the Professional Hub.
+                </p>
+                <div className="inst-code-popup__code-wrap">
+                  <code className="inst-code-popup__code">{instructor?._id}</code>
+                  <button
+                    className={`inst-code-popup__copy ${codeCopied ? "inst-code-popup__copy--done" : ""}`}
+                    id="copy-instructor-code-btn"
+                    onClick={handleCopyCode}
+                    aria-label="Copy code"
+                  >
+                    {codeCopied ? "✔ Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div>
               <span className="inst-sidebar__user-name">{instructor?.full_name}</span>
               <span className="inst-sidebar__user-role">Instructor</span>

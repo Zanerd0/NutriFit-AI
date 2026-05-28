@@ -29,7 +29,7 @@
  *   - formSuccess:    Success message after a plan is created
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import "./DieticianDashboard.css";
@@ -153,6 +153,31 @@ const DieticianDashboard = () => {
 
   // ── Navigation ────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState("overview");
+
+  /** showCodePopup — toggles the sidebar avatar code popup */
+  const [showCodePopup, setShowCodePopup] = useState(false);
+  const [codeCopied,   setCodeCopied]    = useState(false);
+  const [popupPos,     setPopupPos]      = useState({ bottom: 0, left: 0 });
+  const avatarBtnRef = useRef(null);
+
+  const handleAvatarClick = () => {
+    if (!showCodePopup && avatarBtnRef.current) {
+      const rect = avatarBtnRef.current.getBoundingClientRect();
+      setPopupPos({
+        bottom: window.innerHeight - rect.top + 8,
+        left:   rect.left,
+      });
+    }
+    setShowCodePopup((v) => !v);
+  };
+
+  const handleCopyCode = () => {
+    if (!dietician?._id) return;
+    navigator.clipboard.writeText(dietician._id).then(() => {
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    });
+  };
 
   // ── Remote data ───────────────────────────────────────────────────────────
   const [clients,  setClients]  = useState([]);   // All Consumer users
@@ -493,9 +518,52 @@ const DieticianDashboard = () => {
         {/* Footer: user info + logout */}
         <div className="diet-sidebar__footer">
           <div className="diet-sidebar__user">
-            <div className="diet-sidebar__avatar">
+
+            {/* ── Avatar — clickable for connection code popup ── */}
+            <button
+              ref={avatarBtnRef}
+              className="diet-sidebar__avatar"
+              id="dietician-avatar-btn"
+              aria-label="View your connection code"
+              onClick={handleAvatarClick}
+              style={{ cursor: "pointer", border: "none" }}
+            >
               {dietician?.full_name?.charAt(0).toUpperCase()}
-            </div>
+            </button>
+
+            {/* Connection code popup — rendered fixed to escape sidebar overflow */}
+            {showCodePopup && (
+              <div
+                className="diet-code-popup"
+                id="dietician-code-popup"
+                role="dialog"
+                aria-label="Your connection code"
+                style={{ bottom: popupPos.bottom, left: popupPos.left }}
+              >
+                <button
+                  className="diet-code-popup__close"
+                  onClick={() => setShowCodePopup(false)}
+                  aria-label="Close"
+                >✕</button>
+                <div className="diet-code-popup__icon" aria-hidden="true">🔗</div>
+                <p className="diet-code-popup__title">Your Connection Code</p>
+                <p className="diet-code-popup__hint">
+                  Share this code with your consumers so they can connect with you in the Professional Hub.
+                </p>
+                <div className="diet-code-popup__code-wrap">
+                  <code className="diet-code-popup__code">{dietician?._id}</code>
+                  <button
+                    className={`diet-code-popup__copy ${codeCopied ? "diet-code-popup__copy--done" : ""}`}
+                    id="copy-dietician-code-btn"
+                    onClick={handleCopyCode}
+                    aria-label="Copy code"
+                  >
+                    {codeCopied ? "✔ Copied" : "Copy"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div>
               <span className="diet-sidebar__user-name">{dietician?.full_name}</span>
               <span className="diet-sidebar__user-role">Dietician</span>

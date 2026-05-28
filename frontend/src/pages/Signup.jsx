@@ -1,76 +1,155 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import axios from "../api/axios"; // Use the configured instance (withCredentials: true)
+import axios from "../api/axios";
+import "./AuthPages.css";
 
 const Signup = () => {
-    // FIX 2: Changed "fullname" to "full_name" to match backend Schema
-    const [formData, setFormData] = useState({ full_name: "", email: "", password: "", role: "Consumer" });
-    const [error, setError] = useState("");
-    const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    full_name: "",
+    email:     "",
+    password:  "",
+    role:      "Consumer",
+  });
+  const [error,   setError]   = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        try {
-            // Use /auth/signup (baseURL already set to http://localhost:5000/api)
-            const response = await axios.post("/auth/signup", formData);
-            
-            // Assuming your backend sends the user data back
-            localStorage.setItem("user", JSON.stringify(response.data));
-            
-            // Redirect based on role — Admins go to /admin
-            if (response.data.role === "Admin") {
-                navigate("/admin");
-            } else {
-                navigate("/dashboard");
-            }
-        }
-        catch (err) {
-            // FIX 3: Fixed the syntax for the fallback error message
-            setError(err.response?.data?.error || "Signup failed. Please try again.");
-            console.error("Signup Error:", err); // Added this so you can see exact errors in the console!
-        }
-    };
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      const response = await axios.post("/auth/signup", formData);
+      localStorage.setItem("user", JSON.stringify(response.data));
+      if (response.data.role === "Admin") navigate("/admin");
+      else                                navigate("/dashboard");
+    } catch (err) {
+      setError(err.response?.data?.error || "Signup failed. Please try again.");
+      console.error("Signup Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <div style={{ padding: "2rem", maxWidth: "400px", margin: "0 auto" }}>
-            <h2>Sign Up</h2>
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            
-            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                <input
-                    type="text" 
-                    placeholder="Full Name" 
-                    required
-                    // FIX 2: Updated to full_name
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                />
-                
-                <input
-                    type="email" 
-                    placeholder="Email" 
-                    required
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-                
-                <input
-                    type="password" 
-                    placeholder="Password" 
-                    required
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-                
-                <select onChange={(e) => setFormData({ ...formData, role: e.target.value })}>
-                    <option value="Consumer">Consumer</option>
-                    <option value="Dietician">Dietician</option>
-                    <option value="Instructor">Instructor</option>
-                </select>
-                
-                <button type="submit">Sign Up</button>
-            </form>
-            
-            <p>Already have an account? <Link to="/login">Login here</Link></p>
+  const roles = [
+    { value: "Consumer",   label: "Consumer",   icon: "🍊" },
+    { value: "Dietician",  label: "Dietician",  icon: "🥗" },
+    { value: "Instructor", label: "Instructor", icon: "🏋️" },
+  ];
+
+  return (
+    <div className="auth-page">
+      {/* Animated background orbs */}
+      <div className="auth-orb auth-orb--1" aria-hidden="true" />
+      <div className="auth-orb auth-orb--2" aria-hidden="true" />
+      <div className="auth-orb auth-orb--3" aria-hidden="true" />
+
+      <div className="auth-card auth-card--wide" role="main">
+
+        {/* Header */}
+        <div className="auth-card__header">
+          <div className="auth-brand">
+            NutriFit<span className="auth-brand__accent">-AI</span>
+          </div>
+          <h1 className="auth-card__title">Create your account</h1>
+          <p className="auth-card__sub">Start your personalised health journey today</p>
         </div>
-    );
+
+        {/* Error banner */}
+        {error && (
+          <div className="auth-error" role="alert">
+            <span aria-hidden="true">⚠</span> {error}
+          </div>
+        )}
+
+        {/* Form */}
+        <form className="auth-form" onSubmit={handleSubmit} id="signup-form">
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="signup-name">Full Name</label>
+            <input
+              id="signup-name"
+              type="text"
+              className="auth-input"
+              placeholder="e.g. Alex Johnson"
+              required
+              autoComplete="name"
+              value={formData.full_name}
+              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+            />
+          </div>
+
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="signup-email">Email</label>
+            <input
+              id="signup-email"
+              type="email"
+              className="auth-input"
+              placeholder="you@example.com"
+              required
+              autoComplete="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            />
+          </div>
+
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="signup-password">Password</label>
+            <input
+              id="signup-password"
+              type="password"
+              className="auth-input"
+              placeholder="Choose a strong password"
+              required
+              autoComplete="new-password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            />
+          </div>
+
+          {/* Role selector — pill buttons */}
+          <div className="auth-field">
+            <label className="auth-label">I am a…</label>
+            <div className="auth-role-group" role="group" aria-label="Account role">
+              {roles.map((r) => (
+                <button
+                  key={r.value}
+                  type="button"
+                  id={`role-btn-${r.value.toLowerCase()}`}
+                  className={`auth-role-btn ${formData.role === r.value ? "auth-role-btn--active" : ""}`}
+                  onClick={() => setFormData({ ...formData, role: r.value })}
+                  aria-pressed={formData.role === r.value}
+                >
+                  <span aria-hidden="true">{r.icon}</span>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            id="signup-submit-btn"
+            className="auth-btn"
+            disabled={loading}
+          >
+            {loading ? (
+              <><span className="auth-btn__spinner" aria-hidden="true" /> Creating account…</>
+            ) : (
+              "Create Account"
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <p className="auth-footer">
+          Already have an account?{" "}
+          <Link to="/login" className="auth-link" id="goto-login-link">
+            Sign in here
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default Signup;

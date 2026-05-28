@@ -1032,3 +1032,106 @@
   background:   rgba(248,81,73,0.14);
   border-color: var(--inst-danger);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   CONNECTION CODE POPUP
+   ═══════════════════════════════════════════════════════════════════════════════ */
+.inst-code-popup {
+  position: fixed;
+  width: 280px;
+  background: var(--inst-surface-2, #1c2330);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: var(--inst-radius);
+  padding: 1.1rem 1.1rem 1rem;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 102, 241, 0.1);
+  z-index: 9999;
+  animation: instPopupIn 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes instPopupIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.inst-code-popup__close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  background: none;
+  border: none;
+  color: var(--inst-text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: var(--inst-transition);
+}
+
+.inst-code-popup__close:hover {
+  color: var(--inst-danger);
+}
+
+.inst-code-popup__icon {
+  font-size: 1.6rem;
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.inst-code-popup__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--inst-text);
+  margin: 0 0 0.3rem;
+  text-align: center;
+}
+
+.inst-code-popup__hint {
+  font-size: 0.75rem;
+  color: var(--inst-text-muted);
+  margin: 0 0 0.85rem;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.inst-code-popup__code-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--inst-surface);
+  border: 1px solid var(--inst-border);
+  border-radius: var(--inst-radius-sm);
+  padding: 0.5rem 0.7rem;
+}
+
+.inst-code-popup__code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.7rem;
+  color: var(--inst-accent);
+  word-break: break-all;
+  flex: 1;
+}
+
+.inst-code-popup__copy {
+  flex-shrink: 0;
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--inst-border);
+  background: transparent;
+  color: var(--inst-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--inst-transition);
+  white-space: nowrap;
+}
+
+.inst-code-popup__copy:hover {
+  border-color: var(--inst-accent);
+  color: var(--inst-accent);
+}
+
+.inst-code-popup__copy--done {
+  border-color: var(--inst-accent) !important;
+  color: var(--inst-accent) !important;
+  background: rgba(99, 102, 241, 0.1) !important;
+}
