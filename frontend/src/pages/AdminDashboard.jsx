@@ -177,6 +177,7 @@ const AdminDashboard = () => {
           <StatCard label="Dieticians"       value={stats?.totalDieticians} icon="🥗" accent="#f59e0b" />
           <StatCard label="Instructors"      value={stats?.totalInstructors}icon="🏋️" accent="#3b82f6" />
           <StatCard label="Admins"           value={stats?.totalAdmins}     icon="🛡️" accent="#ff4d6d" />
+          <StatCard label="Premium Members"  value={stats?.totalPremium}    icon="⭐" accent="#f59e0b" />
         </div>
       )}
     </section>
@@ -210,17 +211,18 @@ const AdminDashboard = () => {
                 <th>Full Name</th>
                 <th>Email Address</th>
                 <th>Role</th>
+                <th>Premium</th>
                 <th>Joined</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {users.length === 0 ? (
-                <tr>
-                  <td colSpan="6" style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
-                    No users found.
-                  </td>
-                </tr>
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: "center", padding: "2rem", color: "var(--color-text-muted)" }}>
+                      No users found.
+                    </td>
+                  </tr>
               ) : (
                 users.map((user, index) => (
                   <tr key={user._id} className="table-row">
@@ -246,6 +248,19 @@ const AdminDashboard = () => {
 
                     {/* Role badge */}
                     <td><RoleBadge role={user.role} /></td>
+
+                    {/* Premium status — only meaningful for Consumers */}
+                    <td>
+                      {user.role === "Consumer" ? (
+                        user.isPremium ? (
+                          <span className="badge badge--premium">⭐ Premium</span>
+                        ) : (
+                          <span className="badge badge--free">Free</span>
+                        )
+                      ) : (
+                        <span style={{ color: "var(--color-text-muted, #6b7280)", fontSize: "0.78rem" }}>—</span>
+                      )}
+                    </td>
 
                     {/* Formatted join date */}
                     <td className="date-cell">

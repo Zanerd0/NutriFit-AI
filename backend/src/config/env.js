@@ -25,6 +25,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   // GEMINI_API_KEY is optional at startup; ragController validates it at request time
   GEMINI_API_KEY: z.string().optional(),
+  // Stripe keys — optional at startup; stripeController validates them at request time
+  STRIPE_SECRET_KEY:     z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 // Validate

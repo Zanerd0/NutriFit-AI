@@ -13,6 +13,9 @@
  *     • undefined → still loading (parent fetch in progress)
  *     • null      → fetch complete, no plan assigned
  *     • object    → the active WorkoutPlan document from the API
+ *   isPremium      {boolean}  — Whether the consumer holds an active premium subscription.
+ *   onUpgradeClick {function} — Called when a free-tier user clicks the locked download
+ *                               button — navigates them to the Professional Hub paywall.
  *
  * Styling: BEM class prefix `mw-` (MyWorkout). All layout via CSS
  * Flexbox/Grid in MyWorkout.css — no inline styles, no utility classes.
@@ -74,7 +77,7 @@ const ExerciseCard = ({ exercise, index }) => (
  *
  * @param {{ workoutPlan: object | null | undefined }} props
  */
-const MyWorkout = ({ workoutPlan }) => {
+const MyWorkout = ({ workoutPlan, isPremium = false, onUpgradeClick }) => {
   // ── PDF download state ────────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError,   setPdfError]   = useState("");
@@ -166,31 +169,47 @@ const MyWorkout = ({ workoutPlan }) => {
           </div>
         </div>
 
-        {/* Right: Premium PDF download action */}
+        {/* Right: PDF download action */}
         <div className="mw-plan-header__actions">
           {pdfError && (
             <span className="mw-pdf-error" role="alert">{pdfError}</span>
           )}
-          <button
-            id="mw-download-btn"
-            className={`mw-download-btn${pdfLoading ? " mw-download-btn--loading" : ""}`}
-            onClick={handleDownloadPDF}
-            disabled={pdfLoading}
-            aria-label="Download workout plan as PDF (Premium)"
-            title="Download Workout Plan (Premium)"
-          >
-            {pdfLoading ? (
-              <>
-                <span className="mw-download-btn__spinner" aria-hidden="true" />
-                Generating PDF…
-              </>
-            ) : (
-              <>
-                <span aria-hidden="true">⬇</span>
-                Download Plan (Premium)
-              </>
-            )}
-          </button>
+          {isPremium ? (
+            /* ── Premium: real download ── */
+            <button
+              id="mw-download-btn"
+              className={`mw-download-btn${pdfLoading ? " mw-download-btn--loading" : ""}`}
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              aria-label="Download workout plan as PDF"
+              title="Download Workout Plan as PDF"
+            >
+              {pdfLoading ? (
+                <>
+                  <span className="mw-download-btn__spinner" aria-hidden="true" />
+                  Generating PDF…
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true">⬇</span>
+                  Download Plan
+                </>
+              )}
+            </button>
+          ) : (
+            /* ── Free tier: locked button → upgrade paywall ── */
+            <button
+              id="mw-download-btn"
+              className="mw-download-btn mw-download-btn--locked"
+              onClick={onUpgradeClick}
+              aria-label="Upgrade to Premium to download workout plan as PDF"
+              title="Upgrade to Premium to unlock PDF downloads"
+            >
+              <span aria-hidden="true">🔒</span>
+              Download Plan{" "}
+              <span className="mw-download-btn__lock-hint">Premium</span>
+            </button>
+          )}
         </div>
       </div>
 

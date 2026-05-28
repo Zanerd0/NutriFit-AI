@@ -12,6 +12,7 @@ const consumerRoutes   = require("./src/routes/consumerRoutes");   // Load Consu
 const professionalRoutes = require("./src/routes/professionalRoutes"); // Load Professionals directory routes
 const dietPlanRoutes     = require("./src/routes/dietPlanRoutes");     // Load AI Diet Plan (RAG) routes
 const chatRoutes         = require("./src/routes/chatRoutes");         // Load Free Tier AI Chat routes
+const stripeRoutes       = require("./src/routes/stripeRoutes");       // Load Stripe payment routes
 const seedWorkoutTemplates = require("./src/utils/seedTemplates"); // Auto-seed default workout templates
 
 const app = express();
@@ -23,13 +24,20 @@ app.use(cors({
   credentials: true
 }));
 
-
-
-// Parse incoming JSON payloads
-app.use(express.json());
-
-// Parse incoming cookies
+// Parse incoming cookies — must be before ANY route that reads req.cookies,
+// including the Stripe create-checkout-session route which calls verifyToken.
 app.use(cookieParser());
+
+// ---------------------------------------------------------------------------
+// ⚠️  CRITICAL: Mount Stripe routes BEFORE express.json().
+// The webhook handler uses express.raw() internally to receive the unparsed
+// request body required by stripe.webhooks.constructEvent().
+// If express.json() runs first it consumes the body stream and verification fails.
+// ---------------------------------------------------------------------------
+app.use("/api/stripe", stripeRoutes);
+
+// Parse incoming JSON payloads (applied to all other routes)
+app.use(express.json());
 
 // --- ROUTES ---
 // Mount the authentication routes

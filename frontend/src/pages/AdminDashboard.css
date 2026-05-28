@@ -495,6 +495,19 @@
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
+.badge--premium {
+  background: rgba(251, 191, 36, 0.14);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.badge--free {
+  background: rgba(255, 255, 255, 0.04);
+  color: #6b7280;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+
 /* ── Action Buttons ──────────────────────────────────────────────────────── */
 
 .btn-delete {

@@ -30,6 +30,7 @@ import "./ProfessionalHub.css";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const API_BASE = "/api";
+const BACKEND  = "http://localhost:5000/api";
 
 // ─── Shared Sub-Components ───────────────────────────────────────────────────
 
@@ -430,9 +431,44 @@ const FitnessPlanPanel = ({ consumer, instructorStatus, connectedName }) => {
  * ProfessionalHub — Premium portal landing page.
  *
  * @param {object} props
- * @param {object} props.consumer - Consumer document (from ConsumerDashboard state).
+ * @param {object} props.consumer  - Consumer document (from ConsumerDashboard state).
+ * @param {boolean} props.isPremium - Whether the consumer holds an active premium subscription.
  */
-const ProfessionalHub = ({ consumer }) => {
+const ProfessionalHub = ({ consumer, isPremium }) => {
+  const [upgradingStripe, setUpgradingStripe] = useState(false);
+  const [upgradeError,    setUpgradeError]    = useState("");
+
+  /**
+   * handleUpgrade — POSTs to the backend to create a Stripe Checkout Session.
+   * On success, redirects the browser to the Stripe-hosted payment page.
+   * The consumerId is sent in the request body and stored in Stripe metadata;
+   * on completion the webhook sets isPremium = true on the User document.
+   */
+  const handleUpgrade = async () => {
+    if (!consumer?._id) {
+      setUpgradeError("Your session is still loading. Please try again in a moment.");
+      return;
+    }
+    setUpgradingStripe(true);
+    setUpgradeError("");
+    try {
+      const response = await fetch(`${BACKEND}/stripe/create-checkout-session`, {
+        method:      "POST",
+        credentials: "include",
+        headers:     { "Content-Type": "application/json" },
+        body:        JSON.stringify({ consumerId: consumer._id }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || `Server error (${response.status})`);
+      }
+      // Redirect the browser to the Stripe Checkout URL
+      window.location.href = data.url;
+    } catch (err) {
+      setUpgradeError(err.message || "Failed to start checkout. Please try again.");
+      setUpgradingStripe(false);
+    }
+  };
   /**
    * Connection status state.
    *   'loading'   — waiting for GET /api/professionals/status to resolve
@@ -497,26 +533,83 @@ const ProfessionalHub = ({ consumer }) => {
           </h1>
           <p className="ph-intro__sub">
             Elevate your health journey with certified human expertise.
-            Choose your path below to connect with a professional.
+            {isPremium
+              ? " Choose your path below to connect with a professional."
+              : " Upgrade to Premium to unlock professional connections."}
           </p>
         </div>
         <span className="ph-intro__badge">Premium Tier</span>
       </div>
 
-      {/* ── Single-column stacked panels ── */}
-      <div className="ph-split" role="main">
-        <DietaryReviewPanel
-          consumer={consumer}
-          dietStatus={dietStatus}
-          connectedName={dietConnectedName}
-        />
+      {/* ── PAYWALL — shown to free-tier users ── */}
+      {!isPremium && (
+        <div className="ph-paywall" id="ph-paywall-gate">
+          <div className="ph-paywall__icon-wrap" aria-hidden="true">🔒</div>
 
-        <FitnessPlanPanel
-          consumer={consumer}
-          instructorStatus={instructorStatus}
-          connectedName={instructorConnectedName}
-        />
-      </div>
+          <h2 className="ph-paywall__title">Professional Hub is a Premium Feature</h2>
+          <p className="ph-paywall__desc">
+            Upgrade to <strong>NutriFit Premium</strong> to connect with a licensed
+            dietician for personalised nutrition reviews, or request a custom workout
+            programme from a certified fitness instructor.
+          </p>
+
+          {/* What's included */}
+          <ul className="ph-paywall__features" aria-label="Premium features included">
+            <li><span aria-hidden="true">🥗</span> AI Diet Plan reviewed by a Licensed Dietician</li>
+            <li><span aria-hidden="true">🏋️</span> Custom Workout Plan by a Certified Instructor</li>
+            <li><span aria-hidden="true">📄</span> PDF downloads of your diet &amp; workout plans</li>
+            <li><span aria-hidden="true">⚡</span> Priority response within 24–48 hours</li>
+          </ul>
+
+          {upgradeError && (
+            <p className="ph-status ph-status--error" role="alert">
+              <span className="ph-status__icon">✕</span>
+              {upgradeError}
+            </p>
+          )}
+
+          <button
+            id="ph-upgrade-btn"
+            className="ph-btn ph-btn--upgrade"
+            onClick={handleUpgrade}
+            disabled={upgradingStripe}
+            aria-label="Upgrade to NutriFit Premium"
+          >
+            {upgradingStripe ? (
+              <>
+                <span className="ph-btn__spinner" aria-hidden="true" />
+                Redirecting to Checkout…
+              </>
+            ) : (
+              <>
+                <span aria-hidden="true">✦</span>
+                Upgrade to Premium — $9.99
+              </>
+            )}
+          </button>
+
+          <p className="ph-paywall__hint">
+            Secure payment powered by Stripe. Cancel anytime.
+          </p>
+        </div>
+      )}
+
+      {/* ── Single-column stacked panels — only for Premium users ── */}
+      {isPremium && (
+        <div className="ph-split" role="main">
+          <DietaryReviewPanel
+            consumer={consumer}
+            dietStatus={dietStatus}
+            connectedName={dietConnectedName}
+          />
+
+          <FitnessPlanPanel
+            consumer={consumer}
+            instructorStatus={instructorStatus}
+            connectedName={instructorConnectedName}
+          />
+        </div>
+      )}
 
       {/* ── Info strip ── */}
       <p className="ph-footnote">

@@ -17,7 +17,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate }                       from "react-router-dom";
+import { useNavigate, useLocation }          from "react-router-dom";
 import axios                                 from "../api/axios";
 import ProfessionalHub                       from "./ProfessionalHub";
 import MyWorkout                             from "../components/MyWorkout";
@@ -90,6 +90,7 @@ const DietPlanCard = ({ plan }) => (
 
 const ConsumerDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Read the consumer object saved to localStorage on login.
   // We keep a local copy in state so profile edits update the UI immediately.
@@ -129,6 +130,19 @@ const ConsumerDashboard = () => {
   });
   const [saving,        setSaving]        = useState(false);
   const [profileMsg,    setProfileMsg]    = useState({ type: "", text: "" });
+
+  /**
+   * upgradeSuccess — true when the user just returned from a successful Stripe
+   * payment. Triggers the "Welcome to Premium!" toast banner.
+   */
+  const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+
+  /**
+   * handleUpgradeClick — Called by the locked 🔒 PDF buttons in DietPlanDisplay
+   * and MyWorkout. Navigates the consumer to the Professional Hub tab where the
+   * Stripe upgrade paywall is displayed.
+   */
+  const handleUpgradeClick = () => setActiveTab("hub");
 
   /**
    * refreshTrigger — an incrementing counter passed to ProgressCharts.
@@ -187,6 +201,41 @@ const ConsumerDashboard = () => {
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
+
+  /**
+   * upgradeEffect — Fires once when the component mounts (or when the URL
+   * changes). If ?upgrade=success is present in the query string:
+   *   1. Re-fetches the consumer profile from the server — this guarantees
+   *      isPremium reflects the Stripe webhook update without a manual reload.
+   *   2. Cleans the ?upgrade=success param from the URL (replaceState so it
+   *      doesn't create a new history entry).
+   *   3. Shows the "Welcome to Premium!" success toast for 6 seconds.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("upgrade") !== "success") return;
+
+    // Strip the query param from the URL immediately
+    window.history.replaceState({}, "", "/consumer");
+
+    const handleUpgrade = async () => {
+      try {
+        const res = await axios.get("/consumer/me");
+        const fresh = res.data.user;
+        setConsumer(fresh);
+        localStorage.setItem("user", JSON.stringify(fresh));
+      } catch (err) {
+        console.warn("Could not re-fetch consumer after upgrade:", err.message);
+      } finally {
+        // Show the success toast regardless of fetch outcome
+        setUpgradeSuccess(true);
+        setTimeout(() => setUpgradeSuccess(false), 6000);
+      }
+    };
+
+    handleUpgrade();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount — location.search is read synchronously
 
   /**
    * refreshConsumer — Fetches the full consumer document from the server on
@@ -420,6 +469,8 @@ const ConsumerDashboard = () => {
         generatedAt={aiPlan?.createdAt}
         planData={aiPlan ?? undefined}
         consumer={consumer}
+        isPremium={consumer?.isPremium ?? false}
+        onUpgradeClick={handleUpgradeClick}
         onPlanGenerated={handleAiPlanGenerated}
       />
 
@@ -471,6 +522,24 @@ const ConsumerDashboard = () => {
   return (
     <div className="con-layout">
 
+      {/* ── Premium Upgrade Toast ── */}
+      {upgradeSuccess && (
+        <div className="con-upgrade-toast" role="status" aria-live="polite">
+          <span className="con-upgrade-toast__icon" aria-hidden="true">⭐</span>
+          <div>
+            <strong>Welcome to NutriFit Premium!</strong>
+            <p>You now have full access to the Professional Hub and PDF downloads.</p>
+          </div>
+          <button
+            className="con-upgrade-toast__close"
+            aria-label="Dismiss"
+            onClick={() => setUpgradeSuccess(false)}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* ── Sidebar ── */}
       <aside className="con-sidebar" aria-label="Consumer navigation">
         <div className="con-sidebar__brand">
@@ -500,7 +569,14 @@ const ConsumerDashboard = () => {
             </div>
             <div>
               <span className="con-sidebar__user-name">{consumer.full_name}</span>
-              <span className="con-sidebar__user-role">Consumer</span>
+              <span className="con-sidebar__user-role">
+                Consumer
+                {consumer?.isPremium && (
+                  <span className="con-premium-badge con-premium-badge--sidebar" aria-label="Premium member">
+                    ⭐ Premium
+                  </span>
+                )}
+              </span>
             </div>
           </div>
           <button
@@ -528,7 +604,14 @@ const ConsumerDashboard = () => {
               })}
             </p>
           </div>
-          <div className="con-topbar__badge">🍊 Consumer</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            {consumer?.isPremium && (
+              <span className="con-premium-badge" aria-label="Premium member">
+                ⭐ Premium
+              </span>
+            )}
+            <div className="con-topbar__badge">🍊 Consumer</div>
+          </div>
         </header>
 
         <div className="con-content">
@@ -547,7 +630,11 @@ const ConsumerDashboard = () => {
 
           {/* My Workout — prop-driven; receives the active plan from fetchPlans */}
           {activeTab === "my-workout" && (
-            <MyWorkout workoutPlan={activeWorkout} />
+            <MyWorkout
+              workoutPlan={activeWorkout}
+              isPremium={consumer?.isPremium ?? false}
+              onUpgradeClick={handleUpgradeClick}
+            />
           )}
 
           {/*
@@ -580,7 +667,7 @@ const ConsumerDashboard = () => {
 
           {/* Professional Hub — sole premium connection portal */}
           {activeTab === "hub" && (
-            <ProfessionalHub consumer={consumer} />
+            <ProfessionalHub consumer={consumer} isPremium={consumer?.isPremium ?? false} />
           )}
         </div>
       </main>

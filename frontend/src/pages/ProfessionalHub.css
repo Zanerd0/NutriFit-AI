@@ -569,6 +569,115 @@
   flex-shrink:   0;
 }
 
+
+/* ── Paywall Gate ─────────────────────────────────────────────────────────────── */
+
+/**
+ * .ph-paywall
+ * Centred card shown to free-tier users in place of the professional panels.
+ * Uses a strong premium purple glow to signal an upgrade opportunity.
+ */
+.ph-paywall {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  text-align:      center;
+  gap:             1.25rem;
+  padding:         3rem 2rem;
+  background:      linear-gradient(160deg, #12103a 0%, var(--color-surface) 100%);
+  border:          1px solid rgba(108, 99, 255, 0.35);
+  border-radius:   var(--radius);
+  box-shadow:      0 0 60px rgba(108, 99, 255, 0.12);
+  max-width:       580px;
+  margin:          0 auto;
+  animation:       ph-fade-in 0.45s ease both;
+}
+
+.ph-paywall__icon-wrap {
+  font-size:     3.5rem;
+  line-height:   1;
+  filter:        drop-shadow(0 0 16px rgba(108, 99, 255, 0.5));
+}
+
+.ph-paywall__title {
+  font-size:      1.5rem;
+  font-weight:    800;
+  color:          var(--color-text);
+  margin:         0;
+  letter-spacing: -0.02em;
+}
+
+.ph-paywall__desc {
+  font-size:   0.9rem;
+  color:       var(--color-text-muted);
+  line-height: 1.65;
+  max-width:   440px;
+  margin:      0;
+}
+
+.ph-paywall__desc strong {
+  color:       #c4b5fd;
+  font-weight: 700;
+}
+
+.ph-paywall__features {
+  list-style:  none;
+  padding:     0;
+  margin:      0;
+  display:     flex;
+  flex-direction: column;
+  gap:         0.6rem;
+  text-align:  left;
+  width:       100%;
+  max-width:   380px;
+}
+
+.ph-paywall__features li {
+  display:     flex;
+  align-items: center;
+  gap:         0.65rem;
+  font-size:   0.85rem;
+  color:       var(--color-text-muted);
+  padding:     0.45rem 0.75rem;
+  background:  rgba(108, 99, 255, 0.06);
+  border-radius: var(--radius-sm);
+  border:      1px solid rgba(108, 99, 255, 0.12);
+}
+
+.ph-paywall__features li span {
+  font-size:   1rem;
+  flex-shrink: 0;
+}
+
+.ph-paywall__hint {
+  font-size:  0.72rem;
+  color:      var(--color-text-muted);
+  font-style: italic;
+  margin:     -0.5rem 0 0;
+}
+
+/* ── Upgrade CTA Button ───────────────────────────────────────────────────────── */
+
+/**
+ * .ph-btn--upgrade
+ * The main paywall CTA — larger than the standard ph-btn with a glowing
+ * purple gradient to reinforce the Premium brand.
+ */
+.ph-btn--upgrade {
+  background:    linear-gradient(135deg, #6c63ff 0%, #8b5cf6 100%);
+  color:         #fff;
+  box-shadow:    0 6px 24px rgba(108, 99, 255, 0.45);
+  padding:       1rem 2rem;
+  font-size:     1rem;
+  letter-spacing: 0.01em;
+}
+
+.ph-btn--upgrade:hover:not(:disabled) {
+  background: linear-gradient(135deg, #7c75ff 0%, #9b6dff 100%);
+  box-shadow: 0 8px 32px rgba(108, 99, 255, 0.6);
+  transform:  translateY(-2px);
+}
+
 /* ── Responsive ──────────────────────────────────────────────────────────────── */
 
 @media (max-width: 480px) {
@@ -585,5 +694,8 @@
   .ph-panel__badge {
     margin-left: 0;
   }
-}
 
+  .ph-paywall {
+    padding: 2rem 1.25rem;
+  }
+}

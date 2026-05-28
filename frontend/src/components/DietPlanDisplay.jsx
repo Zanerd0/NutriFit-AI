@@ -4,10 +4,13 @@
  *              Grid calendar layout, with an inline "Generate Plan" form.
  *
  * Props:
- *   weekSchedule {object} — The weekSchedule JSON from the DietPlan document.
- *   generatedAt  {string} — ISO date string for the plan creation timestamp.
- *   planData     {object} — (Optional) Full DietPlan document (enables PDF download).
- *   consumer     {object} — Consumer user object (used to pre-fill the generate form).
+ *   weekSchedule    {object}   — The weekSchedule JSON from the DietPlan document.
+ *   generatedAt     {string}   — ISO date string for the plan creation timestamp.
+ *   planData        {object}   — (Optional) Full DietPlan document (enables PDF download).
+ *   consumer        {object}   — Consumer user object (used to pre-fill the generate form).
+ *   isPremium       {boolean}  — Whether the consumer holds an active premium subscription.
+ *   onUpgradeClick  {function} — Called when a free-tier user clicks the locked download
+ *                                button — navigates them to the Professional Hub paywall.
  *   onPlanGenerated {function} — Callback called with the new plan after a
  *                                successful generate request. The parent can
  *                                update its own state from this callback.
@@ -304,6 +307,8 @@ const DietPlanDisplay = ({
   generatedAt,
   planData,
   consumer,
+  isPremium     = false,
+  onUpgradeClick,
   onPlanGenerated,
 }) => {
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -374,26 +379,42 @@ const DietPlanDisplay = ({
 
         {/* PDF download — only shown when there is an active plan */}
         {hasExistingPlan && (
-          <button
-            id="dpd-download-btn"
-            className={`dpd-download-btn${pdfLoading ? " dpd-download-btn--loading" : ""}`}
-            onClick={handleDownloadPDF}
-            disabled={pdfLoading}
-            aria-label="Download diet plan as PDF (Premium)"
-            title="Download Diet Plan (Premium)"
-          >
-            {pdfLoading ? (
-              <>
-                <span className="dpd-download-btn__spinner" aria-hidden="true" />
-                Generating PDF…
-              </>
-            ) : (
-              <>
-                <span aria-hidden="true">⬇</span>
-                Download Plan (Premium)
-              </>
-            )}
-          </button>
+          isPremium ? (
+            /* ── Premium: real download ── */
+            <button
+              id="dpd-download-btn"
+              className={`dpd-download-btn${pdfLoading ? " dpd-download-btn--loading" : ""}`}
+              onClick={handleDownloadPDF}
+              disabled={pdfLoading}
+              aria-label="Download diet plan as PDF"
+              title="Download Diet Plan as PDF"
+            >
+              {pdfLoading ? (
+                <>
+                  <span className="dpd-download-btn__spinner" aria-hidden="true" />
+                  Generating PDF…
+                </>
+              ) : (
+                <>
+                  <span aria-hidden="true">⬇</span>
+                  Download Plan
+                </>
+              )}
+            </button>
+          ) : (
+            /* ── Free tier: locked button → upgrade paywall ── */
+            <button
+              id="dpd-download-btn"
+              className="dpd-download-btn dpd-download-btn--locked"
+              onClick={onUpgradeClick}
+              aria-label="Upgrade to Premium to download diet plan as PDF"
+              title="Upgrade to Premium to unlock PDF downloads"
+            >
+              <span aria-hidden="true">🔒</span>
+              Download Plan{" "}
+              <span className="dpd-download-btn__lock-hint">Premium</span>
+            </button>
+          )
         )}
       </div>
 

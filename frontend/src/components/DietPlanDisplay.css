@@ -355,6 +355,35 @@
   to { transform: rotate(360deg); }
 }
 
+/* ── Locked (free-tier) variant ─────────────────────────────────────────────────── */
+
+.dpd-download-btn--locked {
+  border-color: rgba(251, 191, 36, 0.35);
+  background:   rgba(251, 191, 36, 0.07);
+  color:        #fbbf24;
+  cursor:       pointer;
+}
+
+.dpd-download-btn--locked:hover {
+  background:   rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.55);
+  color:        #fde68a;
+  box-shadow:   0 4px 14px rgba(251, 191, 36, 0.18);
+  transform:    translateY(-1px);
+}
+
+.dpd-download-btn__lock-hint {
+  padding:       0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size:     0.65rem;
+  font-weight:   700;
+  background:    rgba(251, 191, 36, 0.15);
+  border:        1px solid rgba(251, 191, 36, 0.3);
+  color:         #fbbf24;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* ── PDF Error Banner ────────────────────────────────────────────────────────── */
 
 .dpd-pdf-error {

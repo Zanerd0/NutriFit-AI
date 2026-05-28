@@ -63,12 +63,14 @@ exports.getSystemStats = async (req, res) => {
       totalDieticians,
       totalInstructors,
       totalAdmins,
+      totalPremium,
     ] = await Promise.all([
       User.countDocuments({}),                            // All users regardless of role
       User.countDocuments({ role: "Consumer" }),          // Only Consumers
       User.countDocuments({ role: "Dietician" }),         // Only Dieticians
       User.countDocuments({ role: "Instructor" }),        // Only Instructors
       User.countDocuments({ role: "Admin" }),             // Only Admins
+      User.countDocuments({ isPremium: true }),           // Active Premium subscribers
     ]);
 
     // Return the aggregated stats as a single structured object
@@ -78,6 +80,7 @@ exports.getSystemStats = async (req, res) => {
       totalDieticians,
       totalInstructors,
       totalAdmins,
+      totalPremium,
     });
   } catch (error) {
     console.error("Error in getSystemStats:", error.message);
