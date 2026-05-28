@@ -144,8 +144,8 @@ const handleWebhook = async (req, res) => {
           {
             $set: {
               isPremium:          true,
-              // Set a 1-year expiry from now; adjust as needed for your billing model
-              subscriptionExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+              // Monthly subscription — expires 30 days from now
+              subscriptionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
             },
           },
           { new: true, select: "full_name email isPremium" }

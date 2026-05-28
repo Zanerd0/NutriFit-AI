@@ -161,6 +161,9 @@ const ConsumerDashboard = () => {
    */
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  /** showPremiumPopup — toggles the avatar premium info popup card. */
+  const [showPremiumPopup, setShowPremiumPopup] = useState(false);
+
   /**
    * handleProgressSaved — callback passed to DailyLogForm.onSuccess.
    * Bumps refreshTrigger by 1, which triggers the ProgressCharts useEffect.
@@ -607,19 +610,50 @@ const ConsumerDashboard = () => {
 
         <div className="con-sidebar__footer">
           <div className="con-sidebar__user">
-            <div className="con-sidebar__avatar">
-              {consumer.full_name?.charAt(0).toUpperCase()}
+
+            {/* ── Avatar — clickable for premium popup ── */}
+            <div style={{ position: "relative" }}>
+              <button
+                className="con-sidebar__avatar"
+                id="consumer-avatar-btn"
+                aria-label="View account info"
+                onClick={() => setShowPremiumPopup((v) => !v)}
+                style={{ cursor: consumer?.isPremium ? "pointer" : "default", border: "none" }}
+              >
+                {consumer.full_name?.charAt(0).toUpperCase()}
+              </button>
+
+              {/* Premium popup card */}
+              {consumer?.isPremium && showPremiumPopup && (() => {
+                const expiry   = consumer?.subscriptionExpiry ? new Date(consumer.subscriptionExpiry) : null;
+                const now      = new Date();
+                const daysLeft = expiry ? Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))) : null;
+                return (
+                  <div className="con-premium-popup" id="consumer-premium-popup" role="dialog" aria-label="Premium subscription info">
+                    <div className="con-premium-popup__crown" aria-hidden="true">✦</div>
+                    <p className="con-premium-popup__title">NutriFit Premium</p>
+                    <p className="con-premium-popup__status">Active subscription</p>
+                    {daysLeft !== null ? (
+                      <div className="con-premium-popup__renew">
+                        <span className="con-premium-popup__days">{daysLeft}</span>
+                        <span className="con-premium-popup__days-label">day{daysLeft !== 1 ? "s" : ""} until renewal</span>
+                      </div>
+                    ) : (
+                      <p className="con-premium-popup__no-expiry">Renewal date not set</p>
+                    )}
+                    {expiry && (
+                      <p className="con-premium-popup__date">
+                        Renews {expiry.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
+
             <div>
               <span className="con-sidebar__user-name">{consumer.full_name}</span>
-              <span className="con-sidebar__user-role">
-                Consumer
-                {consumer?.isPremium && (
-                  <span className="con-premium-badge con-premium-badge--sidebar" aria-label="Premium member">
-                    ⭐ Premium
-                  </span>
-                )}
-              </span>
+              <span className="con-sidebar__user-role">Consumer</span>
             </div>
           </div>
           <button
