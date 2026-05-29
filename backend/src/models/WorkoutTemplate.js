@@ -24,7 +24,7 @@ const mongoose = require("mongoose");
 const baseExerciseSchema = new mongoose.Schema(
   {
     /**
-     * exerciseName — The movement (e.g. "Burpee", "Barbell Row").
+     * exerciseName — The movement (e.g. "Burpee", "Barbell Row", "Running").
      */
     exerciseName: {
       type:     String,
@@ -33,26 +33,41 @@ const baseExerciseSchema = new mongoose.Schema(
     },
 
     /**
-     * baseSets — Default number of sets for this template.
-     * Instructors can override this per-client in the assignment form.
+     * metricType — Describes what unit/format this exercise uses.
+     * "sets_reps"  : classic sets × reps
+     * "sets_time"  : sets × duration in seconds
+     * "distance"   : a distance value (km / miles / meters)
+     * "time"       : total time in minutes
+     * "laps"       : number of laps
+     * "custom"     : free-text metric
      */
-    baseSets: {
-      type:     Number,
-      required: [true, "baseSets is required."],
-      min:      [1,    "baseSets must be at least 1."],
+    metricType: {
+      type:    String,
+      enum:    ["sets_reps", "sets_time", "distance", "time", "laps", "custom"],
+      default: "sets_reps",
     },
 
-    /**
-     * baseReps — Default number of reps per set.
-     * Instructors can override this per-client in the assignment form.
-     */
-    baseReps: {
-      type:     Number,
-      required: [true, "baseReps is required."],
-      min:      [1,    "baseReps must be at least 1."],
-    },
+    // sets_reps
+    baseSets: { type: Number, default: null },
+    baseReps: { type: Number, default: null },
+
+    // sets_time
+    baseDurationSecs: { type: Number, default: null },
+
+    // distance
+    baseDistanceValue: { type: Number, default: null },
+    baseDistanceUnit:  { type: String, default: "km", enum: ["km", "miles", "meters"] },
+
+    // time
+    baseTimeMinutes: { type: Number, default: null },
+
+    // laps
+    baseLaps: { type: Number, default: null },
+
+    // custom
+    baseCustomMetric: { type: String, default: "" },
   },
-  { _id: true } // Give each exercise its own _id for future operations
+  { _id: true }
 );
 
 // ─── WorkoutTemplate Schema ───────────────────────────────────────────────────

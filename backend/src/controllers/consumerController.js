@@ -23,6 +23,14 @@ const User        = require("../models/User");
 const DietPlan    = require("../models/DietPlan");
 const WorkoutPlan = require("../models/WorkoutPlan");
 const DailyLog    = require("../models/DailyLog");
+const PlanAdherence = require("../models/PlanAdherence");
+const {
+  formatDateKey,
+  syncBlockForDate,
+  getEntryForDate,
+  upsertEntryForDate,
+  migrateLegacyBlock,
+} = require("../utils/adherenceHelpers");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/consumer/diet-plans
@@ -105,6 +113,119 @@ const getMyWorkout = async (req, res) => {
   } catch (error) {
     console.error("getMyWorkout error:", error.message);
     res.status(500).json({ error: "Failed to fetch your workout." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/consumer/adherence
+// ─────────────────────────────────────────────────────────────────────────────
+const getAdherence = async (req, res) => {
+  try {
+    const dateKey = req.query.date || formatDateKey(new Date());
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      return res.status(400).json({ error: "Invalid date. Use YYYY-MM-DD." });
+    }
+
+    const [dietPlan, workoutPlan] = await Promise.all([
+      DietPlan.findOne({ consumerId: req.userId, status: "Active" }).sort({ createdAt: -1 }),
+      WorkoutPlan.findOne({ clientId: req.userId }).sort({ createdAt: -1 }),
+    ]);
+
+    const adherence = await PlanAdherence.findOneAndUpdate(
+      { userId: req.userId },
+      { $setOnInsert: { userId: req.userId } },
+      { upsert: true, new: true }
+    );
+
+    let changed = false;
+
+    const dietSync = syncBlockForDate(adherence.diet, "diet", dietPlan, dateKey);
+    adherence.diet = dietSync.block;
+    if (dietSync.changed) changed = true;
+
+    if (!dietPlan && (adherence.diet?.planId || (adherence.diet?.entries || []).length > 0)) {
+      adherence.diet = { planId: null, sourceSignature: "", entries: [], updatedAt: null };
+      changed = true;
+    }
+
+    const workoutSync = syncBlockForDate(adherence.workout, "workout", workoutPlan, dateKey);
+    adherence.workout = workoutSync.block;
+    if (workoutSync.changed) changed = true;
+
+    if (!workoutPlan && (adherence.workout?.planId || (adherence.workout?.entries || []).length > 0)) {
+      adherence.workout = { planId: null, sourceSignature: "", entries: [], updatedAt: null };
+      changed = true;
+    }
+
+    if (changed) await adherence.save();
+
+    res.status(200).json({
+      date: dateKey,
+      diet: dietPlan ? dietSync.payload : { planId: null, date: dateKey, items: [] },
+      workout: workoutPlan ? workoutSync.payload : { planId: null, date: dateKey, items: [] },
+    });
+  } catch (error) {
+    console.error("getAdherence error:", error.message);
+    res.status(500).json({ error: "Failed to load adherence checklist." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/consumer/adherence/:type
+// ─────────────────────────────────────────────────────────────────────────────
+const updateAdherence = async (req, res) => {
+  try {
+    const { type } = req.params;
+    const { itemKey, completed, date } = req.body;
+    const dateKey = date || formatDateKey(new Date());
+
+    if (!["diet", "workout"].includes(type)) {
+      return res.status(400).json({ error: "Invalid adherence type." });
+    }
+    if (!itemKey || typeof completed !== "boolean") {
+      return res.status(400).json({ error: "itemKey and completed are required." });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) {
+      return res.status(400).json({ error: "Invalid date. Use YYYY-MM-DD." });
+    }
+
+    const plan =
+      type === "diet"
+        ? await DietPlan.findOne({ consumerId: req.userId, status: "Active" }).sort({ createdAt: -1 })
+        : await WorkoutPlan.findOne({ clientId: req.userId }).sort({ createdAt: -1 });
+
+    if (!plan) {
+      return res.status(404).json({ error: "No active plan found for this checklist." });
+    }
+
+    let adherence = await PlanAdherence.findOne({ userId: req.userId });
+    if (!adherence) {
+      adherence = await PlanAdherence.create({ userId: req.userId });
+    }
+
+    const sync = syncBlockForDate(adherence[type], type, plan, dateKey);
+    adherence[type] = sync.block;
+
+    const entry = getEntryForDate(adherence[type], dateKey);
+    const idx = (entry?.items || []).findIndex((it) => it.key === itemKey);
+    if (idx === -1) {
+      return res.status(404).json({ error: "Checklist item not found." });
+    }
+
+    entry.items[idx].completed = completed;
+    upsertEntryForDate(adherence[type], dateKey, entry.items);
+    migrateLegacyBlock(adherence[type]);
+
+    await adherence.save();
+
+    res.status(200).json({
+      message: "Checklist updated.",
+      date: dateKey,
+      [type]: { planId: plan._id, date: dateKey, items: entry.items },
+    });
+  } catch (error) {
+    console.error("updateAdherence error:", error.message);
+    res.status(500).json({ error: "Failed to update checklist." });
   }
 };
 
@@ -530,6 +651,8 @@ module.exports = {
   getMyDietPlans,
   getMyWorkoutPlans,
   getMyWorkout,
+  getAdherence,
+  updateAdherence,
   updateProfile,
   completeOnboarding,
   linkProfessional,

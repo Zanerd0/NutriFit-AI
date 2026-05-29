@@ -34,7 +34,12 @@ const isDietician  = require("../middleware/isDietician");
 // ── Controller ──────────────────────────────────────────────────────────────
 const {
   getClients,
+  getPendingDietRequests,
+  getClientPlans,
+  getClientProgress,
   createDietPlan,
+  updateDietPlan,
+  deleteDietPlan,
   getDietPlans,
 } = require("../controllers/dieticianController");
 
@@ -44,6 +49,9 @@ const {
 // Returns a list of all Consumer-role users the dietician can assign plans to.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/clients", verifyToken, isDietician, getClients);
+router.get("/clients/:clientId/plans", verifyToken, isDietician, getClientPlans);
+router.get("/pending-requests", verifyToken, isDietician, getPendingDietRequests);
+router.get("/client-progress/:clientId", verifyToken, isDietician, getClientProgress);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DIET PLAN ROUTES
@@ -52,5 +60,7 @@ router.get("/clients", verifyToken, isDietician, getClients);
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/plans",  verifyToken, isDietician, getDietPlans);
 router.post("/plans", verifyToken, isDietician, createDietPlan);
+router.put("/plans/:planId", verifyToken, isDietician, updateDietPlan);
+router.delete("/plans/:planId", verifyToken, isDietician, deleteDietPlan);
 
 module.exports = router;

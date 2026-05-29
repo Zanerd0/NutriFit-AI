@@ -35,6 +35,28 @@ import axios from "../api/axios";
 import "./DieticianDashboard.css";
 import ClientList from "../components/ClientList";
 
+const DAYS_ORDER = [
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+];
+const DAY_LABELS = {
+  monday: "Monday", tuesday: "Tuesday", wednesday: "Wednesday", thursday: "Thursday",
+  friday: "Friday", saturday: "Saturday", sunday: "Sunday",
+};
+const MEAL_KEYS = ["breakfast", "lunch", "dinner"];
+
+const isAiPlan = (plan) =>
+  !!plan?.weekSchedule &&
+  typeof plan.weekSchedule === "object" &&
+  Object.keys(plan.weekSchedule).length > 0;
+
+const emptyWeekSchedule = () =>
+  Object.fromEntries(
+    DAYS_ORDER.map((day) => [
+      day,
+      { breakfast: "", lunch: "", dinner: "" },
+    ])
+  );
+
 // =============================================================================
 // SUB-COMPONENTS
 // =============================================================================
@@ -180,10 +202,12 @@ const DieticianDashboard = () => {
   };
 
   // ── Remote data ───────────────────────────────────────────────────────────
-  const [clients,  setClients]  = useState([]);   // All Consumer users
-  const [plans,    setPlans]    = useState([]);    // This dietician's plans
-  const [loading,  setLoading]  = useState(true);  // Initial load spinner
-  const [error,    setError]    = useState("");    // Fetch error message
+  const [clients,          setClients]          = useState([]);
+  const [plans,            setPlans]            = useState([]);
+  const [pendingRequests,  setPendingRequests]  = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState("");
+  const [dataRefreshKey,   setDataRefreshKey]   = useState(0);
 
   // ── Modal state ───────────────────────────────────────────────────────────
   const [showModal,      setShowModal]      = useState(false);
@@ -193,6 +217,12 @@ const DieticianDashboard = () => {
   const [submitting,     setSubmitting]     = useState(false);
   const [formError,      setFormError]      = useState("");
   const [formSuccess,    setFormSuccess]    = useState("");
+  const [modalPhase,     setModalPhase]     = useState("client");
+  const [clientAiPlan,   setClientAiPlan]   = useState(null);
+  const [clientCustomPlans, setClientCustomPlans] = useState([]);
+  const [managingPlan,   setManagingPlan]   = useState(null);
+  const [weekScheduleEdit, setWeekScheduleEdit] = useState(emptyWeekSchedule());
+  const [loadingClientPlans, setLoadingClientPlans] = useState(false);
 
   // ── Data Fetching ─────────────────────────────────────────────────────────
 
@@ -205,12 +235,14 @@ const DieticianDashboard = () => {
     setError("");
     try {
       // Fire both requests simultaneously — avoids waterfall latency
-      const [clientsRes, plansRes] = await Promise.all([
+      const [clientsRes, plansRes, pendingRes] = await Promise.all([
         axios.get("/dietician/clients"),
         axios.get("/dietician/plans"),
+        axios.get("/dietician/pending-requests"),
       ]);
       setClients(clientsRes.data);
       setPlans(plansRes.data);
+      setPendingRequests(pendingRes.data);
     } catch (err) {
       if (err.response?.status === 403) {
         setError("Access denied. You do not have Dietician privileges.");
@@ -248,18 +280,52 @@ const DieticianDashboard = () => {
    * Called when the user clicks a ClientCard.
    * @param {object} client - The Consumer user document
    */
-  const openModalForClient = (client) => {
+  const loadClientPlans = useCallback(async (clientId) => {
+    setLoadingClientPlans(true);
+    try {
+      const res = await axios.get(`/dietician/clients/${clientId}/plans`);
+      const { aiPlan, customPlans } = res.data;
+      setClientAiPlan(aiPlan || null);
+      setClientCustomPlans(customPlans || []);
+      const primary = aiPlan || (customPlans?.length ? customPlans[0] : null);
+      setManagingPlan(primary);
+      setModalPhase(primary ? "manage" : "create");
+      return { aiPlan, customPlans, primary };
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to load client plans.");
+      setClientAiPlan(null);
+      setClientCustomPlans([]);
+      setManagingPlan(null);
+      setModalPhase("create");
+      return null;
+    } finally {
+      setLoadingClientPlans(false);
+    }
+  }, []);
+
+  const openModalForClient = async (client) => {
     setSelectedClient(client);
     setFormData({ title: "", description: "" });
     setMeals([]);
     setFormError("");
     setFormSuccess("");
     setShowModal(true);
+    await loadClientPlans(client._id);
   };
 
-  /**
-   * closeModal — Resets all modal state and hides the overlay.
-   */
+  const openNewPlanModal = () => {
+    setSelectedClient(null);
+    setFormData({ title: "", description: "" });
+    setMeals([]);
+    setFormError("");
+    setFormSuccess("");
+    setClientAiPlan(null);
+    setClientCustomPlans([]);
+    setManagingPlan(null);
+    setModalPhase("client");
+    setShowModal(true);
+  };
+
   const closeModal = () => {
     setShowModal(false);
     setSelectedClient(null);
@@ -267,6 +333,150 @@ const DieticianDashboard = () => {
     setMeals([]);
     setFormError("");
     setFormSuccess("");
+    setModalPhase("client");
+    setClientAiPlan(null);
+    setClientCustomPlans([]);
+    setManagingPlan(null);
+    setWeekScheduleEdit(emptyWeekSchedule());
+  };
+
+  const syncAfterPlanChange = (clientId) => {
+    if (clientId) {
+      setPendingRequests((prev) => prev.filter((r) => r._id !== clientId));
+      setDataRefreshKey((k) => k + 1);
+    }
+  };
+
+  const selectManagingPlanById = (planId) => {
+    if (clientAiPlan?._id === planId) {
+      setManagingPlan(clientAiPlan);
+      return;
+    }
+    const found = clientCustomPlans.find((p) => p._id === planId);
+    if (found) setManagingPlan(found);
+  };
+
+  const startEditAi = () => {
+    if (!managingPlan || !isAiPlan(managingPlan)) return;
+    setWeekScheduleEdit(
+      DAYS_ORDER.reduce((acc, day) => {
+        const src = managingPlan.weekSchedule?.[day] || {};
+        acc[day] = {
+          breakfast: src.breakfast || "",
+          lunch: src.lunch || "",
+          dinner: src.dinner || "",
+        };
+        return acc;
+      }, {})
+    );
+    setModalPhase("edit-ai");
+    setFormError("");
+    setFormSuccess("");
+  };
+
+  const startEditCustom = () => {
+    if (!managingPlan || isAiPlan(managingPlan)) return;
+    setFormData({
+      title: managingPlan.title || "",
+      description: managingPlan.description || "",
+    });
+    setMeals(managingPlan.meals?.length ? [...managingPlan.meals] : []);
+    setModalPhase("edit-custom");
+    setFormError("");
+    setFormSuccess("");
+  };
+
+  const startCreateCustom = () => {
+    setFormData({ title: "", description: "" });
+    setMeals([]);
+    setModalPhase("create");
+    setFormError("");
+    setFormSuccess("");
+  };
+
+  const updateWeekMeal = (day, meal, value) => {
+    setWeekScheduleEdit((prev) => ({
+      ...prev,
+      [day]: { ...prev[day], [meal]: value },
+    }));
+  };
+
+  const handleUpdateAiPlan = async (e) => {
+    e.preventDefault();
+    if (!managingPlan?._id) return;
+    setSubmitting(true);
+    setFormError("");
+    setFormSuccess("");
+    try {
+      const res = await axios.put(`/dietician/plans/${managingPlan._id}`, {
+        weekSchedule: weekScheduleEdit,
+      });
+      setClientAiPlan(res.data.plan);
+      setManagingPlan(res.data.plan);
+      syncAfterPlanChange(selectedClient?._id);
+      setModalPhase("manage");
+      setFormSuccess("AI diet plan updated successfully!");
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to update plan.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateCustomPlan = async (e) => {
+    e.preventDefault();
+    if (!managingPlan?._id || !formData.title.trim()) {
+      setFormError("Plan title is required.");
+      return;
+    }
+    setSubmitting(true);
+    setFormError("");
+    setFormSuccess("");
+    try {
+      const res = await axios.put(`/dietician/plans/${managingPlan._id}`, {
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        meals,
+      });
+      const updated = res.data.plan;
+      setClientCustomPlans((prev) =>
+        prev.map((p) => (p._id === updated._id ? updated : p))
+      );
+      setManagingPlan(updated);
+      syncAfterPlanChange(selectedClient?._id);
+      setModalPhase("manage");
+      setFormSuccess("Custom plan updated successfully!");
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to update plan.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeletePlan = async (plan) => {
+    if (!plan?._id) return;
+    const label = isAiPlan(plan) ? "AI diet plan" : `"${plan.title}"`;
+    if (!window.confirm(`Delete this ${label}? This cannot be undone.`)) return;
+    setFormError("");
+    try {
+      await axios.delete(`/dietician/plans/${plan._id}`);
+      if (isAiPlan(plan)) {
+        setClientAiPlan(null);
+      } else {
+        setClientCustomPlans((prev) => prev.filter((p) => p._id !== plan._id));
+      }
+      const remaining = isAiPlan(plan)
+        ? clientCustomPlans[0] || null
+        : clientAiPlan || clientCustomPlans.find((p) => p._id !== plan._id) || null;
+      setManagingPlan(remaining);
+      setModalPhase(remaining ? "manage" : "create");
+      syncAfterPlanChange(selectedClient?._id);
+      const plansRes = await axios.get("/dietician/plans");
+      setPlans(plansRes.data);
+      setFormSuccess("Plan deleted.");
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to delete plan.");
+    }
   };
 
   /**
@@ -324,12 +534,18 @@ const DieticianDashboard = () => {
 
       setFormSuccess("Diet plan created successfully! 🎉");
 
-      // Refresh the plans list to show the newly created plan
       const plansRes = await axios.get("/dietician/plans");
       setPlans(plansRes.data);
 
-      // Close the modal after a short delay so the user can read the message
-      setTimeout(closeModal, 1200);
+      if (selectedClient?._id) {
+        syncAfterPlanChange(selectedClient._id);
+        const loaded = await loadClientPlans(selectedClient._id);
+        if (loaded?.customPlans?.length) {
+          const newest = loaded.customPlans[0];
+          setManagingPlan(newest);
+          setModalPhase("manage");
+        }
+      }
     } catch (err) {
       setFormError(err.response?.data?.error || "Failed to create plan. Try again.");
     } finally {
@@ -419,7 +635,7 @@ const DieticianDashboard = () => {
         <button
           id="create-plan-btn"
           className="diet-btn diet-btn--primary"
-          onClick={() => setShowModal(true)}
+          onClick={openNewPlanModal}
         >
           ＋ New Plan
         </button>
@@ -429,6 +645,7 @@ const DieticianDashboard = () => {
       <ClientList
         variant="dietician"
         onSelectClient={openModalForClient}
+        refreshTrigger={dataRefreshKey}
       />
     </section>
   );
@@ -448,7 +665,7 @@ const DieticianDashboard = () => {
         <button
           id="create-plan-from-plans-btn"
           className="diet-btn diet-btn--primary"
-          onClick={() => setShowModal(true)}
+          onClick={openNewPlanModal}
           disabled={clients.length === 0}
         >
           ＋ New Plan
@@ -482,7 +699,7 @@ const DieticianDashboard = () => {
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
     { id: "overview", label: "Overview",    icon: "📊" },
-    { id: "clients",  label: "Clients",     icon: "👥" },
+    { id: "clients",  label: "Clients",     icon: "👥", badge: pendingRequests.length },
     { id: "plans",    label: "Diet Plans",  icon: "📋" },
   ];
 
@@ -511,6 +728,11 @@ const DieticianDashboard = () => {
             >
               <span className="diet-nav-link__icon">{item.icon}</span>
               <span>{item.label}</span>
+              {item.badge > 0 && (
+                <span className="diet-nav-badge" aria-label={`${item.badge} pending requests`}>
+                  {item.badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -607,7 +829,7 @@ const DieticianDashboard = () => {
         </div>
       </main>
 
-      {/* ── Create Plan Modal ── */}
+      {/* ── Plan management modal ── */}
       {showModal && (
         <div
           className="diet-modal-overlay"
@@ -616,189 +838,293 @@ const DieticianDashboard = () => {
           aria-labelledby="modal-title"
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="diet-modal">
+          <div className="diet-modal diet-modal--wide">
 
-            {/* Modal header */}
             <div className="diet-modal__header">
               <h2 className="diet-modal__title" id="modal-title">
-                ＋ Create New Diet Plan
+                {modalPhase === "manage" && "Manage Client Diet Plan"}
+                {modalPhase === "create" && "Create Custom Diet Plan"}
+                {modalPhase === "edit-ai" && "Edit AI Diet Plan"}
+                {modalPhase === "edit-custom" && "Edit Custom Diet Plan"}
+                {modalPhase === "client" && "Select Client"}
               </h2>
-              <button
-                className="diet-modal__close"
-                onClick={closeModal}
-                aria-label="Close modal"
-              >
-                ✕
-              </button>
+              <button className="diet-modal__close" onClick={closeModal} aria-label="Close modal">✕</button>
             </div>
 
-            {/* Form */}
-            <form className="diet-form" onSubmit={handleSubmitPlan}>
+            {formError && <div className="diet-error-banner" role="alert">{formError}</div>}
+            {formSuccess && <div className="diet-success-banner" role="status">{formSuccess}</div>}
 
-              {/* Client selector */}
-              <div className="diet-form__group">
-                <label className="diet-form__label" htmlFor="plan-client-select">
-                  Assign to Client *
-                </label>
-                {selectedClient ? (
-                  /* Show chosen client + allow changing */
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <div className="diet-selected-client">
-                      <div className="diet-avatar diet-avatar--sm">
-                        {selectedClient.full_name?.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="diet-selected-client__info">
-                        <div className="diet-selected-client__name">
-                          {selectedClient.full_name}
-                        </div>
-                        <div className="diet-selected-client__email">
-                          {selectedClient.email}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      className="diet-btn diet-btn--ghost"
-                      style={{ fontSize: "0.78rem", padding: "0.4rem 0.75rem", width: "max-content" }}
-                      onClick={() => setSelectedClient(null)}
+            {selectedClient && (() => {
+              const req = pendingRequests.find((r) => r._id === selectedClient._id);
+              if (!req) return null;
+              return (
+                <div className="diet-request-banner">
+                  <span className="diet-request-banner__icon">📋</span>
+                  <div>
+                    <span className="diet-request-banner__title">
+                      {req.aiPlanSentForReview
+                        ? "Client Sent AI Diet Plan for Review"
+                        : "Client Requested a Diet Plan"}
+                    </span>
+                    {req.dietPlanRequestNotes && (
+                      <p className="diet-request-banner__notes">&ldquo;{req.dietPlanRequestNotes}&rdquo;</p>
+                    )}
+                    {req.dietPlanRequestedAt && (
+                      <span className="diet-request-banner__date">
+                        {new Date(req.dietPlanRequestedAt).toLocaleDateString("en-US", {
+                          month: "short", day: "numeric", year: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {modalPhase === "client" && (
+              <div className="diet-form__group" style={{ paddingTop: "0.5rem" }}>
+                <label className="diet-form__label" htmlFor="plan-client-select">Select client *</label>
+                <select
+                  id="plan-client-select"
+                  className="diet-form__select"
+                  value={selectedClient?._id || ""}
+                  onChange={async (e) => {
+                    const found = clients.find((c) => c._id === e.target.value);
+                    if (found) {
+                      setSelectedClient(found);
+                      await loadClientPlans(found._id);
+                    }
+                  }}
+                >
+                  <option value="" disabled>— Select a consumer —</option>
+                  {clients.map((c) => (
+                    <option key={c._id} value={c._id}>{c.full_name} ({c.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {loadingClientPlans && (
+              <div className="diet-loading" style={{ padding: "1.5rem" }}>
+                <div className="diet-spinner" />
+                <p>Loading plans…</p>
+              </div>
+            )}
+
+            {!loadingClientPlans && modalPhase === "manage" && selectedClient && (
+              <div className="diet-manage">
+                <div className="diet-context-chip">
+                  Plans for <strong>{selectedClient.full_name}</strong>
+                </div>
+
+                {(clientAiPlan || clientCustomPlans.length > 0) && (
+                  <div className="diet-form__group">
+                    <label className="diet-form__label" htmlFor="diet-plan-picker">View plan</label>
+                    <select
+                      id="diet-plan-picker"
+                      className="diet-form__select"
+                      value={managingPlan?._id || ""}
+                      onChange={(e) => selectManagingPlanById(e.target.value)}
                     >
-                      ↩ Change client
-                    </button>
-                  </div>
-                ) : (
-                  /* Dropdown to pick client */
-                  <select
-                    id="plan-client-select"
-                    className="diet-form__select"
-                    value=""
-                    onChange={(e) => {
-                      const found = clients.find((c) => c._id === e.target.value);
-                      if (found) setSelectedClient(found);
-                    }}
-                  >
-                    <option value="" disabled>— Select a consumer —</option>
-                    {clients.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.full_name} ({c.email})
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-
-              {/* Title */}
-              <div className="diet-form__group">
-                <label className="diet-form__label" htmlFor="plan-title">
-                  Plan Title *
-                </label>
-                <input
-                  id="plan-title"
-                  type="text"
-                  className="diet-form__input"
-                  placeholder="e.g., Weight-Loss Week 1"
-                  value={formData.title}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, title: e.target.value }))
-                  }
-                  maxLength={120}
-                  required
-                />
-              </div>
-
-              {/* Description */}
-              <div className="diet-form__group">
-                <label className="diet-form__label" htmlFor="plan-desc">
-                  Description (optional)
-                </label>
-                <textarea
-                  id="plan-desc"
-                  className="diet-form__textarea"
-                  placeholder="Goals, notes, or instructions for the client…"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                  maxLength={1000}
-                />
-              </div>
-
-              {/* Meals */}
-              <div className="diet-form__group">
-                <label className="diet-form__label">
-                  Meals (optional)
-                </label>
-
-                {meals.length > 0 && (
-                  <div className="diet-meals-list">
-                    {meals.map((meal, index) => (
-                      <div key={index} className="diet-meal-row">
-                        <input
-                          type="text"
-                          className="diet-form__input"
-                          placeholder="Meal time (e.g. Breakfast)"
-                          value={meal.mealTime}
-                          onChange={(e) => updateMeal(index, "mealTime", e.target.value)}
-                          aria-label={`Meal ${index + 1} time`}
-                        />
-                        <input
-                          type="text"
-                          className="diet-form__input"
-                          placeholder="Food items"
-                          value={meal.foodItems}
-                          onChange={(e) => updateMeal(index, "foodItems", e.target.value)}
-                          aria-label={`Meal ${index + 1} food items`}
-                        />
-                        <button
-                          type="button"
-                          className="diet-meal-row__remove"
-                          onClick={() => removeMeal(index)}
-                          aria-label={`Remove meal ${index + 1}`}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                      {clientAiPlan && (
+                        <option value={clientAiPlan._id}>
+                          AI Plan (Active){clientAiPlan.sentToDietician ? " — sent for review" : ""}
+                        </option>
+                      )}
+                      {clientCustomPlans.map((p) => (
+                        <option key={p._id} value={p._id}>Custom: {p.title}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  className="diet-btn-add-meal"
-                  onClick={addMealRow}
-                  id="add-meal-btn"
-                >
-                  ＋ Add Meal
-                </button>
-              </div>
+                {managingPlan && isAiPlan(managingPlan) && (
+                  <div className="diet-manage__preview">
+                    <h3 className="diet-manage__heading">AI 7-Day Plan</h3>
+                    {managingPlan.sentToDietician && (
+                      <p className="diet-manage__badge">Awaiting your review</p>
+                    )}
+                    <div className="diet-ai-week">
+                      {DAYS_ORDER.map((day) => (
+                        <div key={day} className="diet-ai-day">
+                          <strong>{DAY_LABELS[day]}</strong>
+                          {MEAL_KEYS.map((meal) => (
+                            <p key={meal} className="diet-ai-meal">
+                              <span>{meal}:</span>{" "}
+                              {managingPlan.weekSchedule?.[day]?.[meal] || "—"}
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-              {/* Inline messages */}
-              {formError   && <div className="diet-error-banner"   role="alert">{formError}</div>}
-              {formSuccess  && <div className="diet-success-banner" role="status">{formSuccess}</div>}
+                {managingPlan && !isAiPlan(managingPlan) && (
+                  <div className="diet-manage__preview">
+                    <h3 className="diet-manage__heading">{managingPlan.title}</h3>
+                    {managingPlan.description && (
+                      <p className="diet-manage__desc">{managingPlan.description}</p>
+                    )}
+                    <ul className="diet-manage__meals">
+                      {(managingPlan.meals || []).map((m, i) => (
+                        <li key={i}>
+                          <strong>{m.mealTime || "Meal"}</strong> — {m.foodItems || "—"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-              {/* Actions */}
-              <div className="diet-form__actions">
-                <button
-                  type="button"
-                  className="diet-btn diet-btn--ghost"
-                  onClick={closeModal}
-                  id="cancel-plan-btn"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="diet-btn diet-btn--primary"
-                  disabled={submitting}
-                  id="submit-plan-btn"
-                >
-                  {submitting ? (
-                    <><span className="diet-spinner-sm" /> Saving…</>
-                  ) : (
-                    "Create Plan"
+                {!managingPlan && !clientAiPlan && clientCustomPlans.length === 0 && (
+                  <p className="diet-manage__empty">No plans yet for this client.</p>
+                )}
+
+                <div className="diet-manage__actions">
+                  {managingPlan && (
+                    <>
+                      <button
+                        type="button"
+                        className="diet-btn diet-btn--primary"
+                        onClick={isAiPlan(managingPlan) ? startEditAi : startEditCustom}
+                      >
+                        ✏️ Edit Plan
+                      </button>
+                      <button
+                        type="button"
+                        className="diet-btn diet-btn--danger"
+                        onClick={() => handleDeletePlan(managingPlan)}
+                      >
+                        🗑 Delete Plan
+                      </button>
+                    </>
                   )}
-                </button>
+                  <button type="button" className="diet-btn diet-btn--ghost" onClick={startCreateCustom}>
+                    ＋ New Custom Plan
+                  </button>
+                </div>
               </div>
-            </form>
+            )}
+
+            {!loadingClientPlans && modalPhase === "edit-ai" && (
+              <form className="diet-form" onSubmit={handleUpdateAiPlan}>
+                <p className="diet-form__hint">Edit the client&apos;s AI-generated weekly meals.</p>
+                <div className="diet-ai-edit-grid">
+                  {DAYS_ORDER.map((day) => (
+                    <div key={day} className="diet-ai-edit-day">
+                      <h4>{DAY_LABELS[day]}</h4>
+                      {MEAL_KEYS.map((meal) => (
+                        <label key={meal} className="diet-ai-edit-meal">
+                          <span>{meal}</span>
+                          <textarea
+                            className="diet-form__textarea diet-form__textarea--sm"
+                            rows={2}
+                            value={weekScheduleEdit[day]?.[meal] || ""}
+                            onChange={(e) => updateWeekMeal(day, meal, e.target.value)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+                <div className="diet-form__actions">
+                  <button type="button" className="diet-btn diet-btn--ghost" onClick={() => setModalPhase("manage")}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="diet-btn diet-btn--primary" disabled={submitting}>
+                    {submitting ? "Saving…" : "Save AI Plan"}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {!loadingClientPlans && (modalPhase === "create" || modalPhase === "edit-custom") && (
+              <form
+                className="diet-form"
+                onSubmit={modalPhase === "edit-custom" ? handleUpdateCustomPlan : handleSubmitPlan}
+              >
+                {!selectedClient && modalPhase === "create" && (
+                  <div className="diet-form__group">
+                    <label className="diet-form__label" htmlFor="plan-client-select-create">Client *</label>
+                    <select
+                      id="plan-client-select-create"
+                      className="diet-form__select"
+                      value=""
+                      onChange={async (e) => {
+                        const found = clients.find((c) => c._id === e.target.value);
+                        if (found) setSelectedClient(found);
+                      }}
+                    >
+                      <option value="" disabled>— Select a consumer —</option>
+                      {clients.map((c) => (
+                        <option key={c._id} value={c._id}>{c.full_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="diet-form__group">
+                  <label className="diet-form__label" htmlFor="plan-title">Plan Title *</label>
+                  <input
+                    id="plan-title"
+                    type="text"
+                    className="diet-form__input"
+                    value={formData.title}
+                    onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+                    maxLength={120}
+                    required
+                  />
+                </div>
+
+                <div className="diet-form__group">
+                  <label className="diet-form__label" htmlFor="plan-desc">Description</label>
+                  <textarea
+                    id="plan-desc"
+                    className="diet-form__textarea"
+                    value={formData.description}
+                    onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+                    maxLength={1000}
+                  />
+                </div>
+
+                <div className="diet-form__group">
+                  <label className="diet-form__label">Meals</label>
+                  {meals.map((meal, index) => (
+                    <div key={index} className="diet-meal-row">
+                      <input
+                        type="text"
+                        className="diet-form__input"
+                        placeholder="Meal time"
+                        value={meal.mealTime}
+                        onChange={(e) => updateMeal(index, "mealTime", e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        className="diet-form__input"
+                        placeholder="Food items"
+                        value={meal.foodItems}
+                        onChange={(e) => updateMeal(index, "foodItems", e.target.value)}
+                      />
+                      <button type="button" className="diet-meal-row__remove" onClick={() => removeMeal(index)}>✕</button>
+                    </div>
+                  ))}
+                  <button type="button" className="diet-btn-add-meal" onClick={addMealRow}>＋ Add Meal</button>
+                </div>
+
+                <div className="diet-form__actions">
+                  <button
+                    type="button"
+                    className="diet-btn diet-btn--ghost"
+                    onClick={() => setModalPhase(managingPlan || clientAiPlan || clientCustomPlans.length ? "manage" : "client")}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="diet-btn diet-btn--primary" disabled={submitting}>
+                    {submitting ? "Saving…" : modalPhase === "edit-custom" ? "Save Changes" : "Create Plan"}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

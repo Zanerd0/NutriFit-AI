@@ -90,6 +90,20 @@ const userSchema = new mongoose.Schema({
    */
   subscriptionExpiry: { type: Date, default: null },
 
+  // ── Workout Request (set by Consumer, read by Instructor) ─────────────────
+  /**
+   * workoutRequested — True when the Consumer has sent a "request workout plan"
+   * signal to their connected Instructor. Cleared when the instructor assigns a plan.
+   */
+  workoutRequested:    { type: Boolean, default: false },
+  workoutRequestedAt:  { type: Date,    default: null  },
+  workoutRequestNotes: { type: String,  default: ""   },
+
+  // ── Diet Request (set by Consumer, read by Dietician) ─────────────────────
+  dietPlanRequested:      { type: Boolean, default: false },
+  dietPlanRequestedAt:    { type: Date,    default: null  },
+  dietPlanRequestNotes:   { type: String,  default: ""    },
+
 }, { timestamps: true });
 
 // Hash password before saving to database

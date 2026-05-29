@@ -21,6 +21,89 @@
 const User             = require("../models/User");
 const WorkoutPlan      = require("../models/WorkoutPlan");
 const WorkoutTemplate  = require("../models/WorkoutTemplate");
+const PlanAdherence    = require("../models/PlanAdherence");
+const {
+  formatDateKey,
+  mergeByKey,
+  makeWorkoutItemsFromPlan,
+  getEntryForDate,
+  migrateLegacyBlock,
+} = require("../utils/adherenceHelpers");
+
+/**
+ * sanitisePlanExercises — Normalises exercise payloads for WorkoutPlan documents.
+ * Strips unexpected fields and enforces non-negative numeric values.
+ */
+const sanitisePlanExercises = (exercises = []) =>
+  exercises.map((ex) => {
+    const base = {
+      exerciseName: String(ex.exerciseName || "").trim(),
+      metricType:   ex.metricType || "sets_reps",
+      notes:        String(ex.notes || "").trim().slice(0, 500),
+    };
+
+    const nonNeg = (val, fallback = 0) => {
+      const n = parseFloat(val);
+      if (Number.isNaN(n) || n < 0) return fallback;
+      return n;
+    };
+
+    switch (base.metricType) {
+      case "sets_reps":
+        base.sets = Math.max(0, parseInt(ex.sets, 10) || 0);
+        base.reps = Math.max(0, parseInt(ex.reps, 10) || 0);
+        break;
+      case "sets_time":
+        base.sets         = Math.max(0, parseInt(ex.sets, 10) || 0);
+        base.durationSecs = Math.max(0, parseInt(ex.durationSecs, 10) || 0);
+        break;
+      case "distance":
+        base.distanceValue = Math.max(0, nonNeg(ex.distanceValue, 0));
+        base.distanceUnit  = ["km", "miles", "meters"].includes(ex.distanceUnit)
+          ? ex.distanceUnit
+          : "km";
+        break;
+      case "time":
+        base.timeMinutes = Math.max(0, parseInt(ex.timeMinutes, 10) || 0);
+        break;
+      case "laps":
+        base.laps = Math.max(0, parseInt(ex.laps, 10) || 0);
+        break;
+      case "custom":
+        base.customMetric = String(ex.customMetric || "").trim();
+        break;
+      default:
+        base.sets = Math.max(0, parseInt(ex.sets, 10) || 0);
+        base.reps = Math.max(0, parseInt(ex.reps, 10) || 0);
+    }
+    return base;
+  });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/instructor/pending-requests
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * getPendingWorkoutRequests
+ * @description Returns the list of clients who have set workoutRequested = true
+ * so the dashboard can show a notification badge and highlight those rows.
+ *
+ * Response: Array<{ _id, full_name, email, workoutRequestNotes, workoutRequestedAt }>
+ */
+const getPendingWorkoutRequests = async (req, res) => {
+  try {
+    const requests = await User.find({
+      role:             "Consumer",
+      instructorId:     req.userId,
+      workoutRequested: true,
+    }).select("_id full_name email workoutRequestNotes workoutRequestedAt");
+
+    res.status(200).json(requests);
+  } catch (error) {
+    console.error("getPendingWorkoutRequests error:", error.message);
+    res.status(500).json({ error: "Failed to fetch pending workout requests." });
+  }
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/instructor/clients
@@ -92,17 +175,25 @@ const createWorkoutPlan = async (req, res) => {
       });
     }
 
-    // ── Create Document ───────────────────────────────────────────────────────
+    const sanitisedExercises = sanitisePlanExercises(exercises);
+
     const newPlan = new WorkoutPlan({
       instructorId: req.userId,  // Sourced from verified JWT — tamper-proof
       clientId,
       title,
       description: description || "",
-      exercises:   exercises   || [],
+      exercises:   sanitisedExercises,
     });
 
     // Persist to MongoDB; Mongoose validates exercise sub-documents here
     const savedPlan = await newPlan.save();
+
+    // Clear the workout request flag now that a plan has been assigned
+    await User.findByIdAndUpdate(clientId, {
+      workoutRequested:    false,
+      workoutRequestedAt:  null,
+      workoutRequestNotes: "",
+    });
 
     // 201 Created + the new document
     res.status(201).json({
@@ -148,6 +239,61 @@ const getWorkoutPlans = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // DELETE /api/instructor/plans/:planId
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * updateWorkoutPlan
+ * @description Updates an existing WorkoutPlan owned by the authenticated instructor.
+ *
+ * Expected request body:
+ * { title?: string, description?: string, exercises?: Array<exercise> }
+ */
+const updateWorkoutPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    const { title, description, exercises } = req.body;
+
+    const plan = await WorkoutPlan.findOne({
+      _id:          planId,
+      instructorId: req.userId,
+    });
+
+    if (!plan) {
+      return res.status(404).json({ error: "Plan not found or not authorised to update." });
+    }
+
+    if (title !== undefined) {
+      const trimmed = String(title).trim();
+      if (!trimmed) {
+        return res.status(400).json({ error: "Plan title cannot be empty." });
+      }
+      plan.title = trimmed;
+    }
+
+    if (description !== undefined) {
+      plan.description = String(description || "").trim();
+    }
+
+    if (exercises !== undefined) {
+      if (!Array.isArray(exercises) || exercises.length === 0) {
+        return res.status(400).json({ error: "At least one exercise is required." });
+      }
+      plan.exercises = sanitisePlanExercises(exercises);
+    }
+
+    const savedPlan = await plan.save();
+
+    res.status(200).json({
+      message: "Workout plan updated successfully.",
+      plan:    savedPlan,
+    });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("updateWorkoutPlan error:", error.message);
+    res.status(500).json({ error: "Failed to update workout plan." });
+  }
+};
 
 /**
  * deleteWorkoutPlan
@@ -337,14 +483,7 @@ const assignWorkout = async (req, res) => {
       return res.status(404).json({ error: "Workout template not found." });
     }
 
-    // ── Sanitise exercises ────────────────────────────────────────────────────
-    // Coerce sets/reps to numbers and strip any unexpected fields.
-    const sanitisedExercises = exercises.map((ex) => ({
-      exerciseName: String(ex.exerciseName).trim(),
-      sets:         Math.max(1, parseInt(ex.sets,  10) || 1),
-      reps:         Math.max(1, parseInt(ex.reps,  10) || 1),
-      ...(ex.duration ? { duration: parseInt(ex.duration, 10) } : {}),
-    }));
+    const sanitisedExercises = sanitisePlanExercises(exercises);
 
     // ── Build a descriptive title from the template + client name ────────────
     const title = `${template.name} — ${client.full_name}`;
@@ -364,6 +503,13 @@ const assignWorkout = async (req, res) => {
 
     const savedPlan = await plan.save();
 
+    // Clear the workout request flag now that a plan has been assigned
+    await User.findByIdAndUpdate(clientId, {
+      workoutRequested:    false,
+      workoutRequestedAt:  null,
+      workoutRequestNotes: "",
+    });
+
     res.status(201).json({
       message: `Workout assigned to ${client.full_name} successfully.`,
       plan:    savedPlan,
@@ -378,17 +524,62 @@ const assignWorkout = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/instructor/client-progress/:clientId
+// ─────────────────────────────────────────────────────────────────────────────
+const getClientProgress = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const client = await User.findOne({
+      _id: clientId,
+      role: "Consumer",
+      instructorId: req.userId,
+    }).select("_id full_name email");
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found or not linked to you." });
+    }
+
+    const dateKey = req.query.date || formatDateKey(new Date());
+
+    const [adherence, workoutPlan] = await Promise.all([
+      PlanAdherence.findOne({ userId: clientId }).lean(),
+      WorkoutPlan.findOne({ clientId }).sort({ createdAt: -1 }).lean(),
+    ]);
+
+    let workoutItems = [];
+    if (workoutPlan && adherence?.workout) {
+      const block = migrateLegacyBlock({ ...adherence.workout });
+      const built = makeWorkoutItemsFromPlan(workoutPlan);
+      const entry = getEntryForDate(block, dateKey);
+      workoutItems = mergeByKey(entry?.items, built.items);
+    }
+
+    res.status(200).json({
+      client,
+      date: dateKey,
+      workoutAdherence: { date: dateKey, items: workoutItems },
+    });
+  } catch (error) {
+    console.error("getClientProgress error:", error.message);
+    res.status(500).json({ error: "Failed to fetch client progress." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
 module.exports = {
   getClients,
+  getClientProgress,
   createWorkoutPlan,
   getWorkoutPlans,
+  updateWorkoutPlan,
   deleteWorkoutPlan,
   getTemplates,
   assignWorkout,
   createTemplate,
   updateTemplate,
   deleteTemplate,
+  getPendingWorkoutRequests,
 };

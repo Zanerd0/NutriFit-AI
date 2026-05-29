@@ -40,6 +40,8 @@ const {
   getMyDietPlans,
   getMyWorkoutPlans,
   getMyWorkout,
+  getAdherence,
+  updateAdherence,
   updateProfile,
   completeOnboarding,
   linkProfessional,
@@ -69,6 +71,10 @@ router.get("/workout-plans", verifyToken, isConsumer, getMyWorkoutPlans);
 // Returns the most recently assigned WorkoutPlan for this consumer.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/my-workout", verifyToken, isConsumer, getMyWorkout);
+
+// Adherence checklist for active diet/workout plans
+router.get("/adherence", verifyToken, isConsumer, getAdherence);
+router.patch("/adherence/:type", verifyToken, isConsumer, updateAdherence);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PROFILE UPDATE

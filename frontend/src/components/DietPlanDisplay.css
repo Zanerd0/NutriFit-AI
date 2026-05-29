@@ -752,10 +752,38 @@
 }
 
 /* Action buttons row */
+.dpd-request-notes-wrap {
+  flex: 1 1 100%;
+  width: 100%;
+}
+
+.dpd-request-notes-label {
+  display: block;
+  width: 100%;
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 0.5rem 0 0.35rem;
+}
+
+.dpd-request-notes {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.82rem;
+  resize: vertical;
+  min-height: 52px;
+}
+
 .dpd-dietician-bar__actions {
   display:   flex;
   gap:       0.65rem;
   flex-wrap: wrap;
+  margin-top: 0.5rem;
 }
 
 /* Individual dietician action button */
@@ -905,4 +933,79 @@
   background:    rgba(239, 68, 68, 0.08);
   border:        1px solid rgba(239, 68, 68, 0.2);
   margin-top:    -0.25rem;
+}
+
+/* ── Meal adherence checklist ─────────────────────────────────────────────── */
+.dpd-adherence {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dpd-adherence__title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+.dpd-adherence__sub {
+  margin: 0.3rem 0 0.8rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.dpd-adherence__list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.dpd-adherence-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.dpd-adherence-item__icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dpd-adherence-item--yes {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.dpd-adherence-item--yes .dpd-adherence-item__icon {
+  background: rgba(34, 197, 94, 0.24);
+  color: #4ade80;
+}
+
+.dpd-adherence-item--no .dpd-adherence-item__icon {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.dpd-adherence__empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
 }

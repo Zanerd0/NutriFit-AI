@@ -97,6 +97,7 @@
   display:               grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap:                   1rem;
+  align-items:           start; /* prevent same-row cards stretching in height */
 }
 
 /* ── Exercise card ───────────────────────────────────────────────────────── */
@@ -106,6 +107,7 @@
   flex-direction: column;
   align-items:   center;
   gap:           0.65rem;
+  align-self:    start; /* only this card grows when expanded */
   padding:       1.6rem 1.2rem 1.3rem;
   border-radius: var(--mw-radius);
   background:    var(--mw-surface);
@@ -160,12 +162,24 @@
   margin-top:    0.2rem;
 }
 
-/* Stats row (sets × reps) */
+/* Stats row (sets × reps, sets × time, etc.) */
 .mw-exercise-card__stats {
   display:     flex;
   align-items: center;
   gap:         0.6rem;
   margin-top:  0.15rem;
+}
+
+.mw-exercise-card__stats--single {
+  justify-content: flex-start;
+}
+
+.mw-exercise-card__custom-metric {
+  margin:      0.35rem 0 0;
+  font-size:   0.9rem;
+  font-weight: 600;
+  color:       var(--mw-text);
+  line-height: 1.4;
 }
 
 .mw-exercise-card__sep {
@@ -195,6 +209,77 @@
   color:          var(--mw-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.mw-exercise-card__notes {
+  width:       100%;
+  margin:      0.5rem 0 0;
+  padding:     0.55rem 0.65rem 0.5rem;
+  font-size:   0.78rem;
+  line-height: 1.45;
+  color:       var(--mw-muted);
+  background:  rgba(99, 102, 241, 0.08);
+  border-left: 3px solid rgba(99, 102, 241, 0.45);
+  border-radius: 0 4px 4px 0;
+  text-align:  left;
+
+  border-top:    1px solid rgba(99, 102, 241, 0.16);
+  border-right:  1px solid rgba(99, 102, 241, 0.12);
+  border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+  cursor: pointer;
+
+  /* collapse behaviour */
+  max-height: 3.6em; /* ~2-3 lines depending on font metrics */
+  overflow: hidden;
+  position: relative;
+
+  /* button reset */
+  appearance: none;
+  outline: none;
+  font-family: inherit;
+}
+
+.mw-exercise-card__notes:focus-visible {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.22);
+}
+
+.mw-exercise-card__notes-text {
+  display: block;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere; /* prevents long links/words from spilling out */
+  word-break: break-word;
+  padding-right: 0.25rem;
+}
+
+/* Fade-out overlay when collapsed */
+.mw-exercise-card__notes::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1.9em;
+  background: linear-gradient(to bottom, rgba(30,41,59,0), rgba(30,41,59,0.9));
+  pointer-events: none;
+}
+
+.mw-exercise-card__notes-hint {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(165, 180, 252, 0.95);
+}
+
+.mw-exercise-card__notes--expanded {
+  max-height: 260px;
+  overflow: auto;
+}
+
+.mw-exercise-card__notes--expanded::after {
+  display: none;
 }
 
 /* Duration badge */
@@ -294,6 +379,79 @@
   color:     var(--mw-muted);
   font-size: 0.88rem;
   padding:   1rem 0;
+}
+
+.mw-adherence {
+  margin-top: 0.25rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--mw-border);
+  border-radius: var(--mw-radius);
+  background: var(--mw-surface);
+}
+
+.mw-adherence__title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--mw-text);
+}
+
+.mw-adherence__sub {
+  margin: 0.3rem 0 0.8rem;
+  font-size: 0.78rem;
+  color: var(--mw-muted);
+}
+
+.mw-adherence__list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.mw-adherence-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-align: left;
+  border-radius: var(--mw-radius-sm);
+  border: 1px solid var(--mw-border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--mw-text);
+  padding: 0.5rem 0.65rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.mw-adherence-item__icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.mw-adherence-item--yes {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.mw-adherence-item--yes .mw-adherence-item__icon {
+  background: rgba(34, 197, 94, 0.24);
+  color: #4ade80;
+}
+
+.mw-adherence-item--no .mw-adherence-item__icon {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.mw-adherence__empty {
+  margin: 0;
+  color: var(--mw-muted);
+  font-size: 0.8rem;
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────────── */

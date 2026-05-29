@@ -32,9 +32,59 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
+import { validateWorkoutExercises } from "../utils/workoutExerciseValidation";
 import "./InstructorDashboard.css";
 import ClientList       from "../components/ClientList";
 import TemplateManager  from "../components/TemplateManager";
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * formatExerciseStat — Turns the flexible exercise metric into a human label.
+ * e.g. { metricType: "sets_reps", sets:3, reps:10 } → "3×10"
+ */
+const formatExerciseStat = (ex) => {
+  switch (ex.metricType) {
+    case "sets_time": return `${ex.sets}×${ex.durationSecs}s`;
+    case "distance":  return `${ex.distanceValue} ${ex.distanceUnit}`;
+    case "time":      return `${ex.timeMinutes} min`;
+    case "laps":      return `${ex.laps} laps`;
+    case "custom":    return ex.customMetric || "—";
+    default:          return `${ex.sets ?? "?"}×${ex.reps ?? "?"}`;
+  }
+};
+
+/** getClientId — Normalises populated or raw clientId on a plan. */
+const getClientId = (planOrClient) => {
+  if (!planOrClient) return null;
+  const id = planOrClient.clientId ?? planOrClient._id;
+  return typeof id === "object" ? id._id : id;
+};
+
+/** planExercisesToForm — Maps a saved plan's exercises into builder form state. */
+const planExercisesToForm = (plan) =>
+  (plan?.exercises || []).map((ex) => ({
+    exerciseName:  ex.exerciseName,
+    metricType:    ex.metricType || "sets_reps",
+    sets:          ex.sets,
+    reps:          ex.reps,
+    durationSecs:  ex.durationSecs,
+    distanceValue: ex.distanceValue,
+    distanceUnit:  ex.distanceUnit || "km",
+    timeMinutes:   ex.timeMinutes,
+    laps:          ex.laps,
+    customMetric:  ex.customMetric || "",
+    notes:         ex.notes || "",
+  }));
+
+const BLANK_EXERCISE = {
+  exerciseName: "", metricType: "sets_reps", sets: 3, reps: 10,
+  durationSecs: 30, distanceValue: 1, distanceUnit: "km",
+  timeMinutes: 20, laps: 4, customMetric: "", notes: "",
+};
+
 
 // =============================================================================
 // SUB-COMPONENTS
@@ -107,7 +157,7 @@ const PlanCard = ({ plan, onDelete }) => (
       <div className="inst-plan-card__exercises">
         {plan.exercises.slice(0, 3).map((ex, i) => (
           <span key={i} className="inst-plan-card__exercise-tag">
-            💪 {ex.exerciseName} — {ex.sets}×{ex.reps}
+            💪 {ex.exerciseName} — {formatExerciseStat(ex)}
           </span>
         ))}
         {plan.exercises.length > 3 && (
@@ -139,6 +189,112 @@ const PlanCard = ({ plan, onDelete }) => (
     >
       🗑 Delete
     </button>
+  </div>
+);
+
+
+/**
+ * ModalExerciseMetricFields — Renders the right input fields based on metricType.
+ * Used in both the template-customize phase and the custom plan builder.
+ */
+const ModalExerciseMetricFields = ({ ex, index, onChange }) => {
+  const id = (field) => `mex-${index}-${field}`;
+  switch (ex.metricType) {
+    case "sets_reps":
+    default:
+      return (
+        <>
+          <div className="inst-exercise-row__field">
+            <label className="inst-exercise-row__mini-label" htmlFor={id("sets")}>Sets</label>
+            <input id={id("sets")} type="number" min="0" className="inst-form__input inst-form__input--sm"
+              value={ex.sets ?? ""} onChange={(e) => onChange(index, "sets", e.target.value)} />
+          </div>
+          <div className="inst-exercise-row__field">
+            <label className="inst-exercise-row__mini-label" htmlFor={id("reps")}>Reps</label>
+            <input id={id("reps")} type="number" min="0" className="inst-form__input inst-form__input--sm"
+              value={ex.reps ?? ""} onChange={(e) => onChange(index, "reps", e.target.value)} />
+          </div>
+        </>
+      );
+    case "sets_time":
+      return (
+        <>
+          <div className="inst-exercise-row__field">
+            <label className="inst-exercise-row__mini-label" htmlFor={id("sets")}>Sets</label>
+            <input id={id("sets")} type="number" min="0" className="inst-form__input inst-form__input--sm"
+              value={ex.sets ?? ""} onChange={(e) => onChange(index, "sets", e.target.value)} />
+          </div>
+          <div className="inst-exercise-row__field">
+            <label className="inst-exercise-row__mini-label" htmlFor={id("dur")}>Secs/set</label>
+            <input id={id("dur")} type="number" min="0" className="inst-form__input inst-form__input--sm"
+              value={ex.durationSecs ?? ""} onChange={(e) => onChange(index, "durationSecs", e.target.value)} />
+          </div>
+        </>
+      );
+    case "distance":
+      return (
+        <>
+          <div className="inst-exercise-row__field">
+            <label className="inst-exercise-row__mini-label" htmlFor={id("dist")}>Distance</label>
+            <input id={id("dist")} type="number" min="0" step="0.1" className="inst-form__input inst-form__input--sm"
+              value={ex.distanceValue ?? ""} onChange={(e) => onChange(index, "distanceValue", e.target.value)} />
+          </div>
+          <div className="inst-exercise-row__field">
+            <label className="inst-exercise-row__mini-label" htmlFor={id("unit")}>Unit</label>
+            <select id={id("unit")} className="inst-form__select" style={{ padding: "0.2rem 0.4rem", fontSize: "0.82rem" }}
+              value={ex.distanceUnit || "km"} onChange={(e) => onChange(index, "distanceUnit", e.target.value)}>
+              <option value="km">km</option>
+              <option value="miles">miles</option>
+              <option value="meters">meters</option>
+            </select>
+          </div>
+        </>
+      );
+    case "time":
+      return (
+        <div className="inst-exercise-row__field">
+          <label className="inst-exercise-row__mini-label" htmlFor={id("mins")}>Minutes</label>
+          <input id={id("mins")} type="number" min="0" className="inst-form__input inst-form__input--sm"
+            value={ex.timeMinutes ?? ""} onChange={(e) => onChange(index, "timeMinutes", e.target.value)} />
+        </div>
+      );
+    case "laps":
+      return (
+        <div className="inst-exercise-row__field">
+          <label className="inst-exercise-row__mini-label" htmlFor={id("laps")}>Laps</label>
+          <input id={id("laps")} type="number" min="0" className="inst-form__input inst-form__input--sm"
+            value={ex.laps ?? ""} onChange={(e) => onChange(index, "laps", e.target.value)} />
+        </div>
+      );
+    case "custom":
+      return (
+        <div className="inst-exercise-row__field" style={{ gridColumn: "span 2" }}>
+          <label className="inst-exercise-row__mini-label" htmlFor={id("custom")}>Metric</label>
+          <input id={id("custom")} type="text" className="inst-form__input inst-form__input--sm"
+            placeholder="e.g. 3 rounds of 400m sprint"
+            value={ex.customMetric ?? ""} onChange={(e) => onChange(index, "customMetric", e.target.value)} />
+        </div>
+      );
+  }
+};
+
+/**
+ * ExerciseNotesField — Optional per-exercise notes (cues, warnings, links).
+ */
+const ExerciseNotesField = ({ ex, index, onChange }) => (
+  <div className="inst-exercise-row__notes">
+    <label className="inst-exercise-row__mini-label" htmlFor={`mex-${index}-notes`}>
+      Notes (optional)
+    </label>
+    <textarea
+      id={`mex-${index}-notes`}
+      className="inst-form__textarea inst-form__textarea--sm"
+      placeholder="Form cues, injury warnings, video links…"
+      rows={2}
+      maxLength={500}
+      value={ex.notes ?? ""}
+      onChange={(e) => onChange(index, "notes", e.target.value)}
+    />
   </div>
 );
 
@@ -179,16 +335,17 @@ const InstructorDashboard = () => {
   };
 
   // ── Remote data ───────────────────────────────────────────────────────────
-  const [clients, setClients] = useState([]);
-  const [plans,   setPlans]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState("");
+  const [clients,          setClients]          = useState([]);
+  const [plans,            setPlans]            = useState([]);
+  const [pendingRequests,  setPendingRequests]  = useState([]); // clients who requested a plan
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState("");
 
   // ── Modal state ───────────────────────────────────────────────────────────
   const [showModal,           setShowModal]           = useState(false);
   const [selectedClient,      setSelectedClient]      = useState(null);
   // Template-based assignment flow
-  const [modalPhase,          setModalPhase]          = useState("template"); // "client" | "template" | "customize"
+  const [modalPhase,          setModalPhase]          = useState("template"); // "client" | "template" | "customize" | "custom"
   const [modalTemplates,      setModalTemplates]      = useState([]);
   const [modalSelectedTpl,    setModalSelectedTpl]    = useState(null);
   const [modalExercises,      setModalExercises]      = useState([]);
@@ -196,6 +353,38 @@ const InstructorDashboard = () => {
   const [submitting,          setSubmitting]          = useState(false);
   const [formError,           setFormError]           = useState("");
   const [formSuccess,         setFormSuccess]         = useState("");
+  // Custom plan form state
+  const [customTitle,         setCustomTitle]         = useState("");
+  const [customDescription,   setCustomDescription]   = useState("");
+  const [editingPlanId,       setEditingPlanId]       = useState(null);
+  const [activeManagePlan,    setActiveManagePlan]    = useState(null);
+  const [dataRefreshKey,      setDataRefreshKey]      = useState(0);
+
+  /** getActivePlanForClient — Most recent plan assigned to a client by this instructor. */
+  const getActivePlanForClient = useCallback((clientId) => {
+    if (!clientId) return null;
+    const matches = plans.filter((p) => getClientId(p) === clientId);
+    if (matches.length === 0) return null;
+    return matches.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0];
+  }, [plans]);
+
+  /** syncAfterPlanChange — Clears pending-request badges and refreshes client list. */
+  const syncAfterPlanChange = useCallback((clientId, planUpdate = null) => {
+    if (clientId) {
+      setPendingRequests((prev) => prev.filter((r) => r._id !== clientId));
+      setDataRefreshKey((k) => k + 1);
+    }
+    if (planUpdate) {
+      setPlans((prev) => {
+        const others = prev.filter((p) => p._id !== planUpdate._id);
+        return [planUpdate, ...others];
+      });
+      setActiveManagePlan(planUpdate);
+    }
+  }, []);
+
 
   // ── Data Fetching ─────────────────────────────────────────────────────────
 
@@ -207,13 +396,14 @@ const InstructorDashboard = () => {
     setLoading(true);
     setError("");
     try {
-      // Fire both requests simultaneously — avoids waterfall latency
-      const [clientsRes, plansRes] = await Promise.all([
+      const [clientsRes, plansRes, pendingRes] = await Promise.all([
         axios.get("/instructor/clients"),
         axios.get("/instructor/plans"),
+        axios.get("/instructor/pending-requests"),
       ]);
       setClients(clientsRes.data);
       setPlans(plansRes.data);
+      setPendingRequests(pendingRes.data);
     } catch (err) {
       if (err.response?.status === 403) {
         setError("Access denied. You do not have Instructor privileges.");
@@ -224,6 +414,7 @@ const InstructorDashboard = () => {
       setLoading(false);
     }
   }, []);
+
 
   useEffect(() => {
     fetchAll();
@@ -253,10 +444,20 @@ const InstructorDashboard = () => {
     setModalExercises([]);
     setFormError("");
     setFormSuccess("");
-    setModalPhase(client ? "template" : "client");
+    setEditingPlanId(null);
+    setCustomTitle("");
+    setCustomDescription("");
+
+    const existingPlan = client ? getActivePlanForClient(client._id) : null;
+    if (client && existingPlan) {
+      setActiveManagePlan(existingPlan);
+      setModalPhase("manage");
+    } else {
+      setActiveManagePlan(null);
+      setModalPhase(client ? "template" : "client");
+    }
     setShowModal(true);
 
-    // Pre-fetch templates so the picker is ready immediately
     setModalLoadingTpl(true);
     try {
       const res = await axios.get("/instructor/templates");
@@ -276,7 +477,12 @@ const InstructorDashboard = () => {
     setModalPhase("template");
     setFormError("");
     setFormSuccess("");
+    setCustomTitle("");
+    setCustomDescription("");
+    setEditingPlanId(null);
+    setActiveManagePlan(null);
   };
+
 
   /** handleModalTemplateSelect — Load template exercises into editable state. */
   const handleModalTemplateSelect = (template) => {
@@ -284,22 +490,66 @@ const InstructorDashboard = () => {
     setModalExercises(
       template.exercises.map((ex) => ({
         exerciseName: ex.exerciseName,
-        sets:         ex.baseSets,
-        reps:         ex.baseReps,
+        metricType:   ex.metricType || "sets_reps",
+        sets:          ex.baseSets,
+        reps:          ex.baseReps,
+        durationSecs:  ex.baseDurationSecs,
+        distanceValue: ex.baseDistanceValue,
+        distanceUnit:  ex.baseDistanceUnit || "km",
+        timeMinutes:   ex.baseTimeMinutes,
+        laps:          ex.baseLaps,
+        customMetric:  ex.baseCustomMetric || "",
+        notes:         "",
       }))
     );
     setModalPhase("customize");
     setFormError("");
   };
 
-  /** handleModalExerciseChange — Inline edit of sets/reps in the customise phase. */
+
+  /** handleModalExerciseChange — Inline edit of any metric field in the customise phase. */
   const handleModalExerciseChange = (index, field, value) => {
     setModalExercises((prev) =>
       prev.map((ex, i) => (i === index ? { ...ex, [field]: value } : ex))
     );
   };
 
+  /** addCustomExercise — Add a blank exercise row in custom plan mode */
+  const addCustomExercise = () => {
+    setModalExercises((prev) => [...prev, { ...BLANK_EXERCISE }]);
+  };
+
+  /** startEditPlan — Loads the active plan into the builder for editing. */
+  const startEditPlan = (plan) => {
+    setEditingPlanId(plan._id);
+    setCustomTitle(plan.title || "");
+    setCustomDescription(plan.description || "");
+    setModalExercises(planExercisesToForm(plan));
+    setModalPhase("edit");
+    setFormError("");
+    setFormSuccess("");
+  };
+
+  /** switchToNewPlan — From manage view, open template/custom picker. */
+  const switchToNewPlan = () => {
+    setActiveManagePlan(null);
+    setEditingPlanId(null);
+    setModalExercises([]);
+    setModalSelectedTpl(null);
+    setCustomTitle("");
+    setCustomDescription("");
+    setModalPhase("template");
+    setFormError("");
+    setFormSuccess("");
+  };
+
+  /** removeCustomExercise — Remove an exercise row */
+  const removeCustomExercise = (index) => {
+    setModalExercises((prev) => prev.filter((_, i) => i !== index));
+  };
+
   /**
+
    * handleSubmitPlan — POSTs the template-based assignment to the backend.
    * Refreshes the plans list and auto-closes the modal after success.
    */
@@ -307,6 +557,12 @@ const InstructorDashboard = () => {
     setFormError("");
     setFormSuccess("");
     if (!selectedClient || !modalSelectedTpl) return;
+
+    const validation = validateWorkoutExercises(modalExercises, { requireNames: false });
+    if (!validation.valid) {
+      setFormError(validation.error);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -316,19 +572,107 @@ const InstructorDashboard = () => {
         exercises:  modalExercises,
       });
 
+      syncAfterPlanChange(selectedClient._id, res.data.plan);
+      await fetchAll();
+      setActiveManagePlan(res.data.plan);
+      setModalPhase("manage");
       setFormSuccess(res.data.message || "Workout assigned successfully! 🎉");
-
-      // Refresh plans list
-      const plansRes = await axios.get("/instructor/plans");
-      setPlans(plansRes.data);
-
-      setTimeout(closeModal, 1500);
     } catch (err) {
       setFormError(err.response?.data?.error || "Failed to assign plan. Try again.");
     } finally {
       setSubmitting(false);
     }
   };
+
+  /**
+   * handleSubmitCustomPlan — POSTs a fully custom workout plan (no template).
+   */
+  const handleSubmitCustomPlan = async () => {
+    setFormError("");
+    setFormSuccess("");
+    if (!selectedClient) return;
+    if (!customTitle.trim()) { setFormError("Plan title is required."); return; }
+
+    const validation = validateWorkoutExercises(modalExercises);
+    if (!validation.valid) {
+      setFormError(validation.error);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await axios.post("/instructor/plans", {
+        clientId:    selectedClient._id,
+        title:       customTitle.trim(),
+        description: customDescription.trim(),
+        exercises:   modalExercises,
+      });
+
+      syncAfterPlanChange(selectedClient._id, res.data.plan);
+      await fetchAll();
+      setActiveManagePlan(res.data.plan);
+      setEditingPlanId(null);
+      setModalPhase("manage");
+      setFormSuccess(res.data.message || "Custom plan created! 🎉");
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to create plan. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /**
+   * handleUpdatePlan — PUTs changes to an existing custom plan.
+   */
+  const handleUpdatePlan = async () => {
+    setFormError("");
+    setFormSuccess("");
+    if (!editingPlanId) return;
+    if (!customTitle.trim()) { setFormError("Plan title is required."); return; }
+
+    const validation = validateWorkoutExercises(modalExercises);
+    if (!validation.valid) {
+      setFormError(validation.error);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await axios.put(`/instructor/plans/${editingPlanId}`, {
+        title:       customTitle.trim(),
+        description: customDescription.trim(),
+        exercises:   modalExercises,
+      });
+
+      syncAfterPlanChange(getClientId(res.data.plan), res.data.plan);
+      await fetchAll();
+      setEditingPlanId(null);
+      setModalPhase("manage");
+      setFormSuccess(res.data.message || "Plan updated successfully! 🎉");
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to update plan. Try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /**
+   * handleDeleteActivePlan — Deletes the client's active plan from manage view.
+   */
+  const handleDeleteActivePlan = async (planId) => {
+    if (!window.confirm("Delete this workout plan? This cannot be undone.")) return;
+    setFormError("");
+    try {
+      await axios.delete(`/instructor/plans/${planId}`);
+      setPlans((prev) => prev.filter((p) => p._id !== planId));
+      setActiveManagePlan(null);
+      setEditingPlanId(null);
+      switchToNewPlan();
+    } catch (err) {
+      setFormError(err.response?.data?.error || "Failed to delete plan.");
+    }
+  };
+
 
   /**
    * handleDeletePlan — Sends DELETE request then removes the plan from local state.
@@ -339,6 +683,9 @@ const InstructorDashboard = () => {
     try {
       await axios.delete(`/instructor/plans/${planId}`);
       setPlans((prev) => prev.filter((p) => p._id !== planId));
+      if (activeManagePlan?._id === planId) {
+        setActiveManagePlan(null);
+      }
     } catch (err) {
       console.error("Delete plan failed:", err.response?.data?.error || err.message);
     }
@@ -419,7 +766,7 @@ const InstructorDashboard = () => {
         <button
           id="create-plan-btn"
           className="inst-btn inst-btn--primary"
-          onClick={() => setShowModal(true)}
+          onClick={() => openModalForClient()}
         >
           ＋ New Plan
         </button>
@@ -429,6 +776,7 @@ const InstructorDashboard = () => {
       <ClientList
         variant="instructor"
         onSelectClient={openModalForClient}
+        refreshTrigger={dataRefreshKey}
       />
     </section>
   );
@@ -445,7 +793,7 @@ const InstructorDashboard = () => {
         <button
           id="create-plan-from-plans-btn"
           className="inst-btn inst-btn--primary"
-          onClick={() => setShowModal(true)}
+          onClick={() => openModalForClient()}
           disabled={clients.length === 0}
         >
           ＋ New Plan
@@ -479,10 +827,11 @@ const InstructorDashboard = () => {
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
     { id: "overview",   label: "Overview",       icon: "📊" },
-    { id: "clients",    label: "Clients",        icon: "👥" },
+    { id: "clients",    label: "Clients",        icon: "👥", badge: pendingRequests.length },
     { id: "plans",      label: "Workout Plans",  icon: "📋" },
     { id: "templates",  label: "Templates",      icon: "📐" },
   ];
+
 
   // ── Main Render ───────────────────────────────────────────────────────────
   return (
@@ -506,9 +855,15 @@ const InstructorDashboard = () => {
             >
               <span className="inst-nav-link__icon">{item.icon}</span>
               <span>{item.label}</span>
+              {item.badge > 0 && (
+                <span className="inst-nav-badge" aria-label={`${item.badge} pending requests`}>
+                  {item.badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
+
 
         <div className="inst-sidebar__footer">
           <div className="inst-sidebar__user">
@@ -597,7 +952,13 @@ const InstructorDashboard = () => {
           {activeTab === "plans"     && renderPlans()}
           {/* Templates tab — full CRUD for templates + assign to client */}
           {activeTab === "templates" && (
-            <TemplateManager clients={clients} onPlanCreated={fetchAll} />
+            <TemplateManager
+              clients={clients}
+              onPlanCreated={() => {
+                fetchAll();
+                setDataRefreshKey((k) => k + 1);
+              }}
+            />
           )}
         </div>
       </main>
@@ -615,8 +976,11 @@ const InstructorDashboard = () => {
             <div className="inst-modal__header">
               <h2 className="inst-modal__title" id="inst-modal-title">
                 {modalPhase === "client"    && "Select a Client"}
-                {modalPhase === "template"  && "Choose a Template"}
+                {modalPhase === "manage"    && "Manage Client Plan"}
+                {modalPhase === "template"  && "Choose a Template or Custom Plan"}
                 {modalPhase === "customize" && "Customise & Assign"}
+                {modalPhase === "custom"    && "Build a Custom Plan"}
+                {modalPhase === "edit"      && "Edit Workout Plan"}
               </h2>
               <button className="inst-modal__close" onClick={closeModal} aria-label="Close modal">✕</button>
             </div>
@@ -652,24 +1016,126 @@ const InstructorDashboard = () => {
               </div>
             )}
 
+            {/* ── Manage active plan ── */}
+            {modalPhase === "manage" && activeManagePlan && (
+              <div className="inst-manage-plan" style={{ paddingTop: "0.75rem" }}>
+                <div className="inst-context-chip" style={{ marginBottom: "1rem" }}>
+                  Active plan for <strong>{selectedClient?.full_name}</strong>
+                  <button
+                    className="inst-btn inst-btn--ghost"
+                    style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
+                    onClick={() => setModalPhase("client")}
+                  >
+                    ↩ Change client
+                  </button>
+                </div>
+
+                <div className="inst-manage-plan__header">
+                  <h3 className="inst-manage-plan__title">{activeManagePlan.title}</h3>
+                  {activeManagePlan.description && (
+                    <p className="inst-manage-plan__desc">{activeManagePlan.description}</p>
+                  )}
+                  <p className="inst-manage-plan__meta">
+                    Created{" "}
+                    {new Date(activeManagePlan.createdAt).toLocaleDateString("en-US", {
+                      year: "numeric", month: "short", day: "numeric",
+                    })}
+                    {" · "}
+                    {activeManagePlan.exercises?.length ?? 0} exercise
+                    {(activeManagePlan.exercises?.length ?? 0) !== 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                <ul className="inst-manage-plan__exercises">
+                  {activeManagePlan.exercises?.map((ex, i) => (
+                    <li key={ex._id || i} className="inst-manage-plan__exercise">
+                      <span className="inst-manage-plan__exercise-num">{i + 1}</span>
+                      <div className="inst-manage-plan__exercise-body">
+                        <strong>{ex.exerciseName}</strong>
+                        <span className="inst-manage-plan__exercise-stat">
+                          {formatExerciseStat(ex)}
+                        </span>
+                        {ex.notes && (
+                          <p className="inst-manage-plan__exercise-notes">{ex.notes}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="inst-manage-plan__actions">
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn--danger"
+                    id="delete-active-plan-btn"
+                    onClick={() => handleDeleteActivePlan(activeManagePlan._id)}
+                  >
+                    🗑 Delete Plan
+                  </button>
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn--primary"
+                    id="edit-active-plan-btn"
+                    onClick={() => startEditPlan(activeManagePlan)}
+                  >
+                    ✏️ Edit Plan
+                  </button>
+                  <button
+                    type="button"
+                    className="inst-btn inst-btn--ghost"
+                    onClick={switchToNewPlan}
+                  >
+                    ＋ Replace with New Plan
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* ── Phase 2: template picker ── */}
             {modalPhase === "template" && (
               <div style={{ paddingTop: "0.75rem" }}>
-                {selectedClient && (
-                  <div className="inst-context-chip">
-                    Assigning to: <strong>{selectedClient.full_name}</strong>
-                    {selectedClient.primary_goal && <span style={{ color: "var(--inst-text-muted)" }}>&nbsp;· {selectedClient.primary_goal}</span>}
-                    <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
-                      onClick={() => setModalPhase("client")}>↩ Change</button>
-                  </div>
-                )}
-                <p className="inst-form__label" style={{ marginTop: "1rem" }}>Select a template:</p>
+                {selectedClient && (() => {
+                  // Check if this client has a pending workout request
+                  const req = pendingRequests.find((r) => r._id === selectedClient._id);
+                  return (
+                    <>
+                      <div className="inst-context-chip">
+                        Assigning to: <strong>{selectedClient.full_name}</strong>
+                        {selectedClient.primary_goal && <span style={{ color: "var(--inst-text-muted)" }}>&nbsp;· {selectedClient.primary_goal}</span>}
+                        <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
+                          onClick={() => setModalPhase("client")}>↩ Change</button>
+                      </div>
+                      {req && (
+                        <div className="inst-request-banner" style={{ marginTop: "0.75rem" }}>
+                          <span className="inst-request-banner__icon">📋</span>
+                          <div>
+                            <span className="inst-request-banner__title">Client Requested a Workout Plan</span>
+                            {req.workoutRequestNotes && (
+                              <p className="inst-request-banner__notes">&ldquo;{req.workoutRequestNotes}&rdquo;</p>
+                            )}
+                            <span className="inst-request-banner__date">
+                              Requested {new Date(req.workoutRequestedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+                <p className="inst-form__label" style={{ marginTop: "1rem" }}>Pick a template to start from:</p>
                 {modalLoadingTpl ? (
                   <div className="inst-loading"><div className="inst-spinner" /><p>Loading templates…</p></div>
-                ) : modalTemplates.length === 0 ? (
-                  <p style={{ color: "var(--inst-text-muted)", fontSize: "0.88rem" }}>No templates found. Create one in the Templates tab.</p>
                 ) : (
                   <div className="inst-tpl-picker-grid">
+                    {/* Custom plan option */}
+                    <div id="modal-tpl-custom" className="inst-tpl-picker-card inst-tpl-picker-card--custom"
+                      role="button" tabIndex={0}
+                      onClick={() => { setModalPhase("custom"); setModalSelectedTpl(null); setModalExercises([]); }}
+                      onKeyDown={(e) => e.key === "Enter" && (setModalPhase("custom"), setModalSelectedTpl(null), setModalExercises([]))}>
+                      <span className="inst-tpl-picker-card__badge" style={{ background: "rgba(6,182,212,0.2)", color: "#67e8f9" }}>Custom</span>
+                      <strong className="inst-tpl-picker-card__name">✏️ Build from Scratch</strong>
+                      <span className="inst-tpl-picker-card__count">Create a fully custom plan</span>
+                    </div>
                     {modalTemplates.map((t) => (
                       <div key={t._id} id={`modal-tpl-${t._id}`} className="inst-tpl-picker-card"
                         role="button" tabIndex={0}
@@ -680,12 +1146,15 @@ const InstructorDashboard = () => {
                         <span className="inst-tpl-picker-card__count">{t.exercises.length} exercises</span>
                       </div>
                     ))}
+                    {modalTemplates.length === 0 && (
+                      <p style={{ color: "var(--inst-text-muted)", fontSize: "0.88rem", gridColumn: "1/-1" }}>No templates yet. You can still build a custom plan above!</p>
+                    )}
                   </div>
                 )}
               </div>
             )}
 
-            {/* ── Phase 3: customise + assign ── */}
+            {/* ── Phase 3: customise template ── */}
             {modalPhase === "customize" && (
               <div style={{ paddingTop: "0.75rem" }}>
                 <div className="inst-context-chip" style={{ marginBottom: "1rem" }}>
@@ -694,23 +1163,13 @@ const InstructorDashboard = () => {
                   <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
                     onClick={() => { setModalPhase("template"); setModalSelectedTpl(null); }}>↩ Back</button>
                 </div>
-                <p className="inst-form__label">Customise sets & reps:</p>
+                <p className="inst-form__label">Customise exercises:</p>
                 <div className="inst-exercises-list" style={{ marginBottom: "1.25rem" }}>
                   {modalExercises.map((ex, i) => (
-                    <div key={i} id={`modal-ex-${i}`} className="inst-exercise-row inst-exercise-row--compact">
+                    <div key={i} id={`modal-ex-${i}`} className="inst-exercise-row inst-exercise-row--stacked">
                       <span className="inst-exercise-row__name-label">{ex.exerciseName}</span>
-                      <div className="inst-exercise-row__field">
-                        <label className="inst-exercise-row__mini-label" htmlFor={`mex-sets-${i}`}>Sets</label>
-                        <input id={`mex-sets-${i}`} type="number" min="1"
-                          className="inst-form__input inst-form__input--sm"
-                          value={ex.sets} onChange={(e) => handleModalExerciseChange(i, "sets", e.target.value)} />
-                      </div>
-                      <div className="inst-exercise-row__field">
-                        <label className="inst-exercise-row__mini-label" htmlFor={`mex-reps-${i}`}>Reps</label>
-                        <input id={`mex-reps-${i}`} type="number" min="1"
-                          className="inst-form__input inst-form__input--sm"
-                          value={ex.reps} onChange={(e) => handleModalExerciseChange(i, "reps", e.target.value)} />
-                      </div>
+                      <ModalExerciseMetricFields ex={ex} index={i} onChange={handleModalExerciseChange} />
+                      <ExerciseNotesField ex={ex} index={i} onChange={handleModalExerciseChange} />
                     </div>
                   ))}
                 </div>
@@ -724,6 +1183,93 @@ const InstructorDashboard = () => {
               </div>
             )}
 
+            {/* ── Phase 4: custom plan builder / edit ── */}
+            {(modalPhase === "custom" || modalPhase === "edit") && (
+              <div style={{ paddingTop: "0.75rem" }}>
+                <div className="inst-context-chip" style={{ marginBottom: "1rem" }}>
+                  <span>
+                    {modalPhase === "edit" ? "Editing plan for" : "Custom plan for"}{" "}
+                    <strong>{selectedClient?.full_name}</strong>
+                  </span>
+                  <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
+                    onClick={() => {
+                      if (modalPhase === "edit" && activeManagePlan) {
+                        setEditingPlanId(null);
+                        setModalPhase("manage");
+                      } else {
+                        setModalPhase("template");
+                      }
+                    }}>
+                    ↩ Back
+                  </button>
+                </div>
+
+                {/* Plan title + description */}
+                <div className="inst-form__group" style={{ marginBottom: "0.85rem" }}>
+                  <label className="inst-form__label" htmlFor="custom-plan-title">Plan Title *</label>
+                  <input id="custom-plan-title" type="text" className="inst-form__input"
+                    placeholder="e.g. 4-Week Cardio Progression"
+                    value={customTitle} onChange={(e) => setCustomTitle(e.target.value)} maxLength={120} />
+                </div>
+                <div className="inst-form__group" style={{ marginBottom: "1rem" }}>
+                  <label className="inst-form__label" htmlFor="custom-plan-desc">Description / Notes (optional)</label>
+                  <textarea id="custom-plan-desc" className="inst-form__textarea"
+                    placeholder="Goals, focus areas, coaching cues…"
+                    rows={2} value={customDescription}
+                    onChange={(e) => setCustomDescription(e.target.value)} maxLength={1000} />
+                </div>
+
+                {/* Exercise list */}
+                <p className="inst-form__label" style={{ marginBottom: "0.5rem" }}>Exercises</p>
+                <div className="inst-exercises-list" style={{ marginBottom: "0.85rem" }}>
+                  {modalExercises.map((ex, i) => (
+                    <div key={i} id={`custom-ex-${i}`} className="inst-exercise-row inst-exercise-row--custom">
+                      <div className="inst-exercise-row__top-row">
+                        <input type="text" placeholder="Exercise name" className="inst-form__input"
+                          style={{ flex: 1 }}
+                          value={ex.exerciseName}
+                          onChange={(e) => handleModalExerciseChange(i, "exerciseName", e.target.value)} />
+                        <select className="inst-form__select" style={{ width: "140px" }}
+                          value={ex.metricType}
+                          onChange={(e) => handleModalExerciseChange(i, "metricType", e.target.value)}>
+                          <option value="sets_reps">Sets × Reps</option>
+                          <option value="sets_time">Sets × Duration</option>
+                          <option value="distance">Distance</option>
+                          <option value="time">Time (mins)</option>
+                          <option value="laps">Laps</option>
+                          <option value="custom">Custom</option>
+                        </select>
+                        <button className="inst-exercise-row__remove"
+                          onClick={() => removeCustomExercise(i)} aria-label="Remove">✕</button>
+                      </div>
+                      <ModalExerciseMetricFields ex={ex} index={i} onChange={handleModalExerciseChange} />
+                      <ExerciseNotesField ex={ex} index={i} onChange={handleModalExerciseChange} />
+                    </div>
+                  ))}
+                </div>
+                <button className="inst-btn inst-btn--ghost" style={{ marginBottom: "1.25rem", width: "100%" }}
+                  onClick={addCustomExercise} type="button" id="add-custom-ex-btn">
+                  ＋ Add Exercise
+                </button>
+
+                <div className="inst-form__actions">
+                  <button className="inst-btn inst-btn--ghost" onClick={closeModal} id="cancel-custom-btn">Cancel</button>
+                  <button
+                    className="inst-btn inst-btn--primary"
+                    onClick={modalPhase === "edit" ? handleUpdatePlan : handleSubmitCustomPlan}
+                    disabled={submitting}
+                    id={modalPhase === "edit" ? "submit-edit-btn" : "submit-custom-btn"}
+                  >
+                    {submitting ? (
+                      <><span className="inst-spinner-sm" /> {modalPhase === "edit" ? "Saving…" : "Creating…"}</>
+                    ) : (
+                      modalPhase === "edit" ? "✔ Save Changes" : "✔ Create Plan"
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
@@ -732,3 +1278,4 @@ const InstructorDashboard = () => {
 };
 
 export default InstructorDashboard;
+

@@ -14,6 +14,41 @@
 
 const User     = require("../models/User");
 const DietPlan = require("../models/DietPlan");
+const DailyLog = require("../models/DailyLog");
+const PlanAdherence = require("../models/PlanAdherence");
+const {
+  formatDateKey,
+  mergeByKey,
+  makeDietItemsFromPlan,
+  getEntryForDate,
+  migrateLegacyBlock,
+} = require("../utils/adherenceHelpers");
+
+const DAYS = [
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+];
+
+const isAiPlan = (plan) =>
+  !!plan &&
+  (plan.planType === "ai" ||
+    (!!plan?.weekSchedule && typeof plan.weekSchedule === "object" && !plan?.title));
+
+const getPlanClientId = (plan) => plan?.clientId || plan?.consumerId;
+
+const assertLinkedClient = async (dieticianId, clientId) =>
+  User.findOne({ _id: clientId, role: "Consumer", dieticianId });
+
+const clearClientDietRequest = async (clientId) => {
+  await User.findByIdAndUpdate(clientId, {
+    dietPlanRequested: false,
+    dietPlanRequestedAt: null,
+    dietPlanRequestNotes: "",
+  });
+  await DietPlan.updateMany(
+    { consumerId: clientId, sentToDietician: true },
+    { $set: { sentToDietician: false, sentToDieticianAt: null } }
+  );
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/dietician/clients
@@ -44,6 +79,38 @@ const getClients = async (req, res) => {
   } catch (error) {
     console.error("getClients error:", error.message);
     res.status(500).json({ error: "Failed to fetch client list." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/dietician/pending-requests
+// ─────────────────────────────────────────────────────────────────────────────
+const getPendingDietRequests = async (req, res) => {
+  try {
+    const requests = await User.find({
+      role: "Consumer",
+      dieticianId: req.userId,
+      dietPlanRequested: true,
+    }).select("_id full_name email dietPlanRequestNotes dietPlanRequestedAt");
+
+    const enriched = await Promise.all(
+      requests.map(async (client) => {
+        const aiSent = await DietPlan.findOne({
+          consumerId: client._id,
+          status: "Active",
+          sentToDietician: true,
+        }).select("_id sentToDieticianAt");
+        return {
+          ...client.toObject(),
+          aiPlanSentForReview: !!aiSent,
+        };
+      })
+    );
+
+    res.status(200).json(enriched);
+  } catch (error) {
+    console.error("getPendingDietRequests error:", error.message);
+    res.status(500).json({ error: "Failed to fetch pending diet requests." });
   }
 };
 
@@ -88,16 +155,26 @@ const createDietPlan = async (req, res) => {
     }
 
     // ── Create Document ──────────────────────────────────────────────────────
+    const linked = await assertLinkedClient(req.userId, clientId);
+    if (!linked) {
+      return res.status(403).json({ error: "Client is not linked to you." });
+    }
+
     const newPlan = new DietPlan({
-      dieticianId: req.userId,   // Sourced from the verified JWT — tamper-proof
+      planType:    "custom",
+      dieticianId: req.userId,
       clientId,
+      consumerId:  clientId,
       title,
       description: description || "",
       meals:       meals       || [],
+      status:      "Active",
     });
 
     // Persist to MongoDB; Mongoose will validate sub-documents (meals) here too
     const savedPlan = await newPlan.save();
+
+    await clearClientDietRequest(clientId);
 
     // ── Response ─────────────────────────────────────────────────────────────
     // 201 Created + the newly created plan document
@@ -112,6 +189,186 @@ const createDietPlan = async (req, res) => {
     }
     console.error("createDietPlan error:", error.message);
     res.status(500).json({ error: "Failed to create diet plan." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/dietician/client-progress/:clientId
+// ─────────────────────────────────────────────────────────────────────────────
+const getClientProgress = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const client = await User.findOne({
+      _id: clientId,
+      role: "Consumer",
+      dieticianId: req.userId,
+    }).select("_id full_name email");
+
+    if (!client) {
+      return res.status(404).json({ error: "Client not found or not linked to you." });
+    }
+
+    const dateKey = req.query.date || formatDateKey(new Date());
+
+    const [weightLogs, mealLogs, adherence, dietPlan] = await Promise.all([
+      DailyLog.find({ userId: clientId, weight: { $ne: null } }, { date: 1, weight: 1 })
+        .sort({ date: 1 })
+        .lean(),
+      DailyLog.find({ userId: clientId, meals: { $exists: true, $ne: [] } }, { date: 1, meals: 1 })
+        .sort({ date: -1 })
+        .limit(30)
+        .lean(),
+      PlanAdherence.findOne({ userId: clientId }).lean(),
+      DietPlan.findOne({ consumerId: clientId, status: "Active" }).sort({ createdAt: -1 }).lean(),
+    ]);
+
+    const meals = mealLogs.flatMap((log) =>
+      (log.meals || []).map((m) => ({
+        date: log.date,
+        foodItem: m.foodItem,
+        estimatedCalories: m.estimatedCalories,
+      }))
+    );
+
+    let dietItems = [];
+    if (dietPlan && adherence?.diet) {
+      const block = migrateLegacyBlock({ ...adherence.diet });
+      const built = makeDietItemsFromPlan(dietPlan, dateKey);
+      const entry = getEntryForDate(block, dateKey);
+      dietItems = mergeByKey(entry?.items, built.items);
+    }
+
+    res.status(200).json({
+      client,
+      date: dateKey,
+      weightLogs,
+      meals,
+      dietAdherence: { date: dateKey, items: dietItems },
+      workoutAdherence: adherence?.workout || { items: [] },
+    });
+  } catch (error) {
+    console.error("getClientProgress error:", error.message);
+    res.status(500).json({ error: "Failed to fetch client progress." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/dietician/clients/:clientId/plans
+// ─────────────────────────────────────────────────────────────────────────────
+const getClientPlans = async (req, res) => {
+  try {
+    const { clientId } = req.params;
+    const client = await assertLinkedClient(req.userId, clientId);
+    if (!client) {
+      return res.status(404).json({ error: "Client not found or not linked to you." });
+    }
+
+    const [aiPlan, customPlans] = await Promise.all([
+      DietPlan.findOne({
+        consumerId: clientId,
+        status: "Active",
+        weekSchedule: { $exists: true, $ne: null },
+      }).sort({ createdAt: -1 }),
+      DietPlan.find({
+        clientId,
+        dieticianId: req.userId,
+        planType: "custom",
+      }).sort({ createdAt: -1 }),
+    ]);
+
+    res.status(200).json({
+      client: {
+        _id: client._id,
+        full_name: client.full_name,
+        email: client.email,
+      },
+      aiPlan: aiPlan || null,
+      customPlans,
+    });
+  } catch (error) {
+    console.error("getClientPlans error:", error.message);
+    res.status(500).json({ error: "Failed to fetch client plans." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PUT /api/dietician/plans/:planId
+// ─────────────────────────────────────────────────────────────────────────────
+const updateDietPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    const { title, description, meals, weekSchedule } = req.body;
+
+    const plan = await DietPlan.findById(planId);
+    if (!plan) return res.status(404).json({ error: "Plan not found." });
+
+    const clientId = getPlanClientId(plan);
+    const client = await assertLinkedClient(req.userId, clientId);
+    if (!client) {
+      return res.status(403).json({ error: "You cannot edit this plan." });
+    }
+
+    if (isAiPlan(plan)) {
+      if (weekSchedule && typeof weekSchedule === "object") {
+        for (const day of DAYS) {
+          if (!weekSchedule[day]) {
+            return res.status(400).json({ error: `Missing schedule for ${day}.` });
+          }
+        }
+        plan.weekSchedule = weekSchedule;
+      }
+      plan.sentToDietician = false;
+      plan.sentToDieticianAt = null;
+    } else {
+      if (!title?.trim()) {
+        return res.status(400).json({ error: "Plan title is required." });
+      }
+      plan.title = title.trim();
+      plan.description = description?.trim() || "";
+      plan.meals = Array.isArray(meals) ? meals : [];
+    }
+
+    const saved = await plan.save();
+    await clearClientDietRequest(clientId);
+
+    res.status(200).json({
+      message: "Diet plan updated successfully.",
+      plan: saved,
+    });
+  } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ error: error.message });
+    }
+    console.error("updateDietPlan error:", error.message);
+    res.status(500).json({ error: "Failed to update diet plan." });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/dietician/plans/:planId
+// ─────────────────────────────────────────────────────────────────────────────
+const deleteDietPlan = async (req, res) => {
+  try {
+    const { planId } = req.params;
+    const plan = await DietPlan.findById(planId);
+    if (!plan) return res.status(404).json({ error: "Plan not found." });
+
+    const clientId = getPlanClientId(plan);
+    const client = await assertLinkedClient(req.userId, clientId);
+    if (!client) {
+      return res.status(403).json({ error: "You cannot delete this plan." });
+    }
+
+    if (!isAiPlan(plan) && String(plan.dieticianId) !== String(req.userId)) {
+      return res.status(403).json({ error: "You can only delete your own custom plans." });
+    }
+
+    await DietPlan.findByIdAndDelete(planId);
+
+    res.status(200).json({ message: "Diet plan deleted successfully." });
+  } catch (error) {
+    console.error("deleteDietPlan error:", error.message);
+    res.status(500).json({ error: "Failed to delete diet plan." });
   }
 };
 
@@ -147,4 +404,13 @@ const getDietPlans = async (req, res) => {
 // Exports
 // ─────────────────────────────────────────────────────────────────────────────
 
-module.exports = { getClients, createDietPlan, getDietPlans };
+module.exports = {
+  getClients,
+  getPendingDietRequests,
+  getClientPlans,
+  getClientProgress,
+  createDietPlan,
+  updateDietPlan,
+  deleteDietPlan,
+  getDietPlans,
+};

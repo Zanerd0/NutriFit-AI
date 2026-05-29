@@ -23,6 +23,28 @@ import "./TemplateManager.css";
 // ─── Goal tag options used in create / edit forms ─────────────────────────────
 const GOAL_OPTIONS = ["Weight Loss", "Muscle Gain", "Cardio", "Endurance", "Flexibility", "General Fitness"];
 
+const METRIC_OPTIONS = [
+  { value: "sets_reps",  label: "Sets × Reps"    },
+  { value: "sets_time",  label: "Sets × Duration" },
+  { value: "distance",   label: "Distance"       },
+  { value: "time",       label: "Time (mins)"    },
+  { value: "laps",       label: "Laps"           },
+  { value: "custom",     label: "Custom"         },
+];
+
+// Helper: produce a short readable stat string for the template card preview
+const formatTemplateStat = (ex) => {
+  switch (ex.metricType) {
+    case "sets_time": return `${ex.baseSets ?? "?"}×${ex.baseDurationSecs ?? "?"}s`;
+    case "distance":  return `${ex.baseDistanceValue ?? "?"}${ex.baseDistanceUnit || "km"}`;
+    case "time":      return `${ex.baseTimeMinutes ?? "?"} min`;
+    case "laps":      return `${ex.baseLaps ?? "?"} laps`;
+    case "custom":    return ex.baseCustomMetric || "—";
+    default:          return `${ex.baseSets ?? "?"}×${ex.baseReps ?? "?"}`;
+  }
+};
+
+
 // ─── Accent colours per goal tag ─────────────────────────────────────────────
 const GOAL_COLOUR = {
   "Weight Loss":     "#22c55e",
@@ -39,28 +61,96 @@ const GOAL_COLOUR = {
 
 /**
  * ExerciseEditorRow — One editable row inside a template form.
+ * Supports flexible metric types: sets×reps, sets×time, distance, time, laps, custom.
  */
 const ExerciseEditorRow = ({ ex, index, onChange, onRemove }) => (
   <div className="tm-ex-row" id={`tm-ex-row-${index}`}>
+    {/* Exercise name */}
     <input
       type="text" placeholder="Exercise name" className="tm-ex-row__name"
       value={ex.exerciseName}
       onChange={(e) => onChange(index, "exerciseName", e.target.value)}
       aria-label={`Exercise ${index + 1} name`}
     />
-    <div className="tm-ex-row__num-group">
-      <label className="tm-ex-row__mini-label" htmlFor={`tm-sets-${index}`}>Sets</label>
-      <input id={`tm-sets-${index}`} type="number" min="1" className="tm-ex-row__num"
-        value={ex.baseSets} onChange={(e) => onChange(index, "baseSets", e.target.value)} />
-    </div>
-    <div className="tm-ex-row__num-group">
-      <label className="tm-ex-row__mini-label" htmlFor={`tm-reps-${index}`}>Reps</label>
-      <input id={`tm-reps-${index}`} type="number" min="1" className="tm-ex-row__num"
-        value={ex.baseReps} onChange={(e) => onChange(index, "baseReps", e.target.value)} />
-    </div>
+    {/* Metric type selector */}
+    <select className="tm-ex-row__metric-select" value={ex.metricType || "sets_reps"}
+      onChange={(e) => onChange(index, "metricType", e.target.value)}
+      aria-label={`Exercise ${index + 1} metric type`}>
+      {METRIC_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+    {/* Metric value fields — vary by type */}
+    {(!ex.metricType || ex.metricType === "sets_reps") && (
+      <>
+        <div className="tm-ex-row__num-group">
+          <label className="tm-ex-row__mini-label" htmlFor={`tm-sets-${index}`}>Sets</label>
+          <input id={`tm-sets-${index}`} type="number" min="1" className="tm-ex-row__num"
+            value={ex.baseSets ?? ""} onChange={(e) => onChange(index, "baseSets", e.target.value)} />
+        </div>
+        <div className="tm-ex-row__num-group">
+          <label className="tm-ex-row__mini-label" htmlFor={`tm-reps-${index}`}>Reps</label>
+          <input id={`tm-reps-${index}`} type="number" min="1" className="tm-ex-row__num"
+            value={ex.baseReps ?? ""} onChange={(e) => onChange(index, "baseReps", e.target.value)} />
+        </div>
+      </>
+    )}
+    {ex.metricType === "sets_time" && (
+      <>
+        <div className="tm-ex-row__num-group">
+          <label className="tm-ex-row__mini-label" htmlFor={`tm-sets-${index}`}>Sets</label>
+          <input id={`tm-sets-${index}`} type="number" min="1" className="tm-ex-row__num"
+            value={ex.baseSets ?? ""} onChange={(e) => onChange(index, "baseSets", e.target.value)} />
+        </div>
+        <div className="tm-ex-row__num-group">
+          <label className="tm-ex-row__mini-label" htmlFor={`tm-dur-${index}`}>Secs</label>
+          <input id={`tm-dur-${index}`} type="number" min="1" className="tm-ex-row__num"
+            value={ex.baseDurationSecs ?? ""} onChange={(e) => onChange(index, "baseDurationSecs", e.target.value)} />
+        </div>
+      </>
+    )}
+    {ex.metricType === "distance" && (
+      <>
+        <div className="tm-ex-row__num-group">
+          <label className="tm-ex-row__mini-label" htmlFor={`tm-dist-${index}`}>Dist</label>
+          <input id={`tm-dist-${index}`} type="number" min="0" step="0.1" className="tm-ex-row__num"
+            value={ex.baseDistanceValue ?? ""} onChange={(e) => onChange(index, "baseDistanceValue", e.target.value)} />
+        </div>
+        <div className="tm-ex-row__num-group">
+          <label className="tm-ex-row__mini-label" htmlFor={`tm-unit-${index}`}>Unit</label>
+          <select id={`tm-unit-${index}`} className="tm-ex-row__num" style={{ fontSize: "0.78rem" }}
+            value={ex.baseDistanceUnit || "km"} onChange={(e) => onChange(index, "baseDistanceUnit", e.target.value)}>
+            <option value="km">km</option>
+            <option value="miles">mi</option>
+            <option value="meters">m</option>
+          </select>
+        </div>
+      </>
+    )}
+    {ex.metricType === "time" && (
+      <div className="tm-ex-row__num-group">
+        <label className="tm-ex-row__mini-label" htmlFor={`tm-time-${index}`}>Mins</label>
+        <input id={`tm-time-${index}`} type="number" min="1" className="tm-ex-row__num"
+          value={ex.baseTimeMinutes ?? ""} onChange={(e) => onChange(index, "baseTimeMinutes", e.target.value)} />
+      </div>
+    )}
+    {ex.metricType === "laps" && (
+      <div className="tm-ex-row__num-group">
+        <label className="tm-ex-row__mini-label" htmlFor={`tm-laps-${index}`}>Laps</label>
+        <input id={`tm-laps-${index}`} type="number" min="1" className="tm-ex-row__num"
+          value={ex.baseLaps ?? ""} onChange={(e) => onChange(index, "baseLaps", e.target.value)} />
+      </div>
+    )}
+    {ex.metricType === "custom" && (
+      <div className="tm-ex-row__num-group" style={{ flex: 1 }}>
+        <label className="tm-ex-row__mini-label" htmlFor={`tm-custom-${index}`}>Value</label>
+        <input id={`tm-custom-${index}`} type="text" className="tm-ex-row__num"
+          placeholder="e.g. 400m sprint"
+          value={ex.baseCustomMetric ?? ""} onChange={(e) => onChange(index, "baseCustomMetric", e.target.value)} />
+      </div>
+    )}
     <button className="tm-ex-row__remove" onClick={() => onRemove(index)} aria-label={`Remove exercise ${index + 1}`}>✕</button>
   </div>
 );
+
 
 /**
  * TemplateForm — Shared create / edit form.
@@ -74,16 +164,29 @@ const TemplateForm = ({ initial = {}, onSave, onCancel, isEditing }) => {
   const [goalTag,   setGoalTag]   = useState(initial.goal_tag  ?? "");
   const [exercises, setExercises] = useState(
     initial.exercises?.map((ex) => ({
-      exerciseName: ex.exerciseName,
-      baseSets:     ex.baseSets ?? ex.sets ?? 3,
-      baseReps:     ex.baseReps ?? ex.reps ?? 10,
+      exerciseName:      ex.exerciseName,
+      metricType:        ex.metricType || "sets_reps",
+      baseSets:          ex.baseSets          ?? null,
+      baseReps:          ex.baseReps          ?? null,
+      baseDurationSecs:  ex.baseDurationSecs  ?? null,
+      baseDistanceValue: ex.baseDistanceValue ?? null,
+      baseDistanceUnit:  ex.baseDistanceUnit  || "km",
+      baseTimeMinutes:   ex.baseTimeMinutes   ?? null,
+      baseLaps:          ex.baseLaps          ?? null,
+      baseCustomMetric:  ex.baseCustomMetric  || "",
     })) ?? []
   );
   const [saving,    setSaving]    = useState(false);
   const [error,     setError]     = useState("");
 
   const addRow = () =>
-    setExercises((prev) => [...prev, { exerciseName: "", baseSets: 3, baseReps: 10 }]);
+    setExercises((prev) => [...prev, {
+      exerciseName: "", metricType: "sets_reps",
+      baseSets: 3, baseReps: 10,
+      baseDurationSecs: 30, baseDistanceValue: 1, baseDistanceUnit: "km",
+      baseTimeMinutes: 20, baseLaps: 4, baseCustomMetric: "",
+    }]);
+
 
   const updateRow = (i, field, val) =>
     setExercises((prev) => prev.map((ex, idx) => idx === i ? { ...ex, [field]: val } : ex));
@@ -166,9 +269,16 @@ const AssignModal = ({ template, clients, onClose, onAssigned }) => {
   const [clientId,   setClientId]   = useState("");
   const [exercises,  setExercises]  = useState(
     template.exercises.map((ex) => ({
-      exerciseName: ex.exerciseName,
-      sets:         ex.baseSets,
-      reps:         ex.baseReps,
+      exerciseName:  ex.exerciseName,
+      metricType:    ex.metricType || "sets_reps",
+      sets:          ex.baseSets,
+      reps:          ex.baseReps,
+      durationSecs:  ex.baseDurationSecs,
+      distanceValue: ex.baseDistanceValue,
+      distanceUnit:  ex.baseDistanceUnit || "km",
+      timeMinutes:   ex.baseTimeMinutes,
+      laps:          ex.baseLaps,
+      customMetric:  ex.baseCustomMetric || "",
     }))
   );
   const [submitting, setSubmitting] = useState(false);
@@ -245,21 +355,73 @@ const AssignModal = ({ template, clients, onClose, onAssigned }) => {
             </p>
             <div className="tm-ex-list" style={{ marginBottom: "1rem" }}>
               {exercises.map((ex, i) => (
-                <div key={i} className="tm-ex-row tm-ex-row--compact" id={`assign-ex-${i}`}>
-                  <span className="tm-ex-row__name-ro">{ex.exerciseName}</span>
-                  <div className="tm-ex-row__num-group">
-                    <label className="tm-ex-row__mini-label" htmlFor={`aex-sets-${i}`}>Sets</label>
-                    <input id={`aex-sets-${i}`} type="number" min="1" className="tm-ex-row__num"
-                      value={ex.sets} onChange={(e) => changeEx(i, "sets", e.target.value)} />
-                  </div>
-                  <div className="tm-ex-row__num-group">
-                    <label className="tm-ex-row__mini-label" htmlFor={`aex-reps-${i}`}>Reps</label>
-                    <input id={`aex-reps-${i}`} type="number" min="1" className="tm-ex-row__num"
-                      value={ex.reps} onChange={(e) => changeEx(i, "reps", e.target.value)} />
-                  </div>
+                <div key={i} className="tm-ex-row" id={`assign-ex-${i}`}
+                  style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <span className="tm-ex-row__name-ro" style={{ flex: "1 0 140px" }}>{ex.exerciseName}</span>
+                  <span style={{ fontSize: "0.72rem", color: "var(--tm-muted)", background: "rgba(99,102,241,0.1)", padding: "0.15rem 0.4rem", borderRadius: "4px" }}>
+                    {ex.metricType?.replace("_", "×") || "sets×reps"}
+                  </span>
+                  {/* Show editable fields based on metricType */}
+                  {(!ex.metricType || ex.metricType === "sets_reps") && (
+                    <>
+                      <div className="tm-ex-row__num-group">
+                        <label className="tm-ex-row__mini-label" htmlFor={`aex-sets-${i}`}>Sets</label>
+                        <input id={`aex-sets-${i}`} type="number" min="1" className="tm-ex-row__num"
+                          value={ex.sets ?? ""} onChange={(e) => changeEx(i, "sets", e.target.value)} />
+                      </div>
+                      <div className="tm-ex-row__num-group">
+                        <label className="tm-ex-row__mini-label" htmlFor={`aex-reps-${i}`}>Reps</label>
+                        <input id={`aex-reps-${i}`} type="number" min="1" className="tm-ex-row__num"
+                          value={ex.reps ?? ""} onChange={(e) => changeEx(i, "reps", e.target.value)} />
+                      </div>
+                    </>
+                  )}
+                  {ex.metricType === "sets_time" && (
+                    <>
+                      <div className="tm-ex-row__num-group">
+                        <label className="tm-ex-row__mini-label">Sets</label>
+                        <input type="number" min="1" className="tm-ex-row__num"
+                          value={ex.sets ?? ""} onChange={(e) => changeEx(i, "sets", e.target.value)} />
+                      </div>
+                      <div className="tm-ex-row__num-group">
+                        <label className="tm-ex-row__mini-label">Secs</label>
+                        <input type="number" min="1" className="tm-ex-row__num"
+                          value={ex.durationSecs ?? ""} onChange={(e) => changeEx(i, "durationSecs", e.target.value)} />
+                      </div>
+                    </>
+                  )}
+                  {ex.metricType === "distance" && (
+                    <div className="tm-ex-row__num-group">
+                      <label className="tm-ex-row__mini-label">Distance ({ex.distanceUnit || "km"})</label>
+                      <input type="number" min="0" step="0.1" className="tm-ex-row__num"
+                        value={ex.distanceValue ?? ""} onChange={(e) => changeEx(i, "distanceValue", e.target.value)} />
+                    </div>
+                  )}
+                  {ex.metricType === "time" && (
+                    <div className="tm-ex-row__num-group">
+                      <label className="tm-ex-row__mini-label">Mins</label>
+                      <input type="number" min="1" className="tm-ex-row__num"
+                        value={ex.timeMinutes ?? ""} onChange={(e) => changeEx(i, "timeMinutes", e.target.value)} />
+                    </div>
+                  )}
+                  {ex.metricType === "laps" && (
+                    <div className="tm-ex-row__num-group">
+                      <label className="tm-ex-row__mini-label">Laps</label>
+                      <input type="number" min="1" className="tm-ex-row__num"
+                        value={ex.laps ?? ""} onChange={(e) => changeEx(i, "laps", e.target.value)} />
+                    </div>
+                  )}
+                  {ex.metricType === "custom" && (
+                    <div className="tm-ex-row__num-group" style={{ flex: 1 }}>
+                      <label className="tm-ex-row__mini-label">Value</label>
+                      <input type="text" className="tm-ex-row__num"
+                        value={ex.customMetric ?? ""} onChange={(e) => changeEx(i, "customMetric", e.target.value)} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
+
             <div className="tm-form__actions">
               <button className="tm-btn tm-btn--ghost" onClick={() => setPhase("client")}>← Back</button>
               <button className="tm-btn tm-btn--primary" onClick={handleAssign}
@@ -412,7 +574,7 @@ const TemplateManager = ({ clients, onPlanCreated }) => {
                         <li key={i} className="tm-card__ex-item">
                           <span className="tm-card__ex-dot">💪</span>
                           <span className="tm-card__ex-name">{ex.exerciseName}</span>
-                          <span className="tm-card__ex-stat">{ex.baseSets}×{ex.baseReps}</span>
+                          <span className="tm-card__ex-stat">{formatTemplateStat(ex)}</span>
                         </li>
                       ))}
                       {t.exercises.length > 4 && (
@@ -421,6 +583,7 @@ const TemplateManager = ({ clients, onPlanCreated }) => {
                         </li>
                       )}
                     </ul>
+
 
                     {/* Assign CTA */}
                     <button className="tm-card__assign-btn" id={`assign-tpl-${t._id}`}

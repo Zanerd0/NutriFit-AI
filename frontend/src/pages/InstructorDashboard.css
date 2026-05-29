@@ -122,6 +122,30 @@
   text-align: center;
 }
 
+/* ── Sidebar notification badge (e.g. pending workout requests) ── */
+.inst-nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 99px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  line-height: 1;
+  animation: instBadgePop 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes instBadgePop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+
 .inst-sidebar__footer {
   border-top: 1px solid var(--inst-border);
   padding-top: 1rem;
@@ -478,6 +502,12 @@
     opacity: 1;
   }
 }
+
+@keyframes instFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
 
 .inst-modal__header {
   display: flex;
@@ -974,14 +1004,26 @@
   color:     var(--inst-text-muted);
 }
 
-/* Compact exercise row for the customize phase (name label + sets/reps) */
+/* Compact exercise row for the customize phase (name label + variable metric fields) */
 .inst-exercise-row--compact {
-  grid-template-columns: 1fr 80px 80px;
-  padding:              0.65rem 0.75rem;
-  border-radius:        var(--inst-radius-sm);
-  background:           var(--inst-surface);
-  border:               1px solid var(--inst-border);
+  display:       flex;
+  flex-wrap:     wrap;
+  align-items:   center;
+  gap:           0.5rem;
+  padding:       0.65rem 0.75rem;
+  border-radius: var(--inst-radius-sm);
+  background:    var(--inst-surface);
+  border:        1px solid var(--inst-border);
 }
+
+.inst-exercise-row--compact .inst-exercise-row__name-label {
+  flex: 1 0 120px; /* takes available space but won't shrink below 120px */
+}
+
+.inst-exercise-row--compact .inst-exercise-row__field {
+  min-width: 60px;
+}
+
 
 .inst-exercise-row__name-label {
   font-size:   0.88rem;
@@ -1135,3 +1177,223 @@
   color: var(--inst-accent) !important;
   background: rgba(99, 102, 241, 0.1) !important;
 }
+
+/* =============================================================================
+   CLIENT WORKOUT REQUEST BANNER (shown inside the manage-plan modal)
+   ============================================================================= */
+.inst-request-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--inst-radius-sm);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  animation: instFadeIn 0.2s ease;
+}
+
+.inst-request-banner__icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.inst-request-banner__title {
+  display: block;
+  font-size: 0.83rem;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 0.25rem;
+}
+
+.inst-request-banner__notes {
+  font-size: 0.82rem;
+  color: var(--inst-text);
+  margin: 0 0 0.35rem;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.inst-request-banner__date {
+  font-size: 0.72rem;
+  color: var(--inst-text-muted);
+}
+
+/* =============================================================================
+   CUSTOM PLAN EXERCISE ROW
+   ============================================================================= */
+.inst-exercise-row--custom {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem;
+  border-radius: var(--inst-radius-sm);
+  background: var(--inst-surface);
+  border: 1px solid var(--inst-border);
+}
+
+.inst-exercise-row__top-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Metric input sub-row (appears below the top row in compact mode) */
+.inst-exercise-row--custom .inst-exercise-row__field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inst-exercise-row--custom .inst-exercise-row__mini-label {
+  min-width: 50px;
+}
+
+/* remove button inside custom exercise row */
+.inst-exercise-row__remove {
+  background: none;
+  border: 1px solid var(--inst-border);
+  border-radius: var(--inst-radius-sm);
+  color: var(--inst-text-muted);
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  font-size: 0.82rem;
+  transition: var(--inst-transition);
+  flex-shrink: 0;
+}
+
+.inst-exercise-row__remove:hover {
+  border-color: var(--inst-danger);
+  color: var(--inst-danger);
+  background: rgba(248, 81, 73, 0.08);
+}
+
+/* Template-picker card — custom variant (Build from Scratch) */
+.inst-tpl-picker-card--custom {
+  border-style: dashed;
+  border-color: rgba(6, 182, 212, 0.35);
+  background: rgba(6, 182, 212, 0.03);
+}
+.inst-tpl-picker-card--custom:hover {
+  border-color: #06b6d4;
+  background: rgba(6, 182, 212, 0.07);
+}
+
+/* ── Danger button ───────────────────────────────────────────────────────── */
+.inst-btn--danger {
+  background:    rgba(248, 81, 73, 0.12);
+  border:        1px solid rgba(248, 81, 73, 0.35);
+  color:         var(--inst-danger, #f85149);
+}
+
+.inst-btn--danger:hover:not(:disabled) {
+  background: rgba(248, 81, 73, 0.22);
+  border-color: var(--inst-danger, #f85149);
+}
+
+/* ── Exercise notes in builder ─────────────────────────────────────────────── */
+.inst-exercise-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.inst-exercise-row__notes {
+  width: 100%;
+}
+
+.inst-form__textarea--sm {
+  min-height: 3.2rem;
+  font-size:  0.82rem;
+  padding:    0.4rem 0.55rem;
+}
+
+/* ── Manage active plan view ───────────────────────────────────────────────── */
+.inst-manage-plan__header {
+  margin-bottom: 1rem;
+}
+
+.inst-manage-plan__title {
+  margin:      0 0 0.35rem;
+  font-size:   1.1rem;
+  font-weight: 700;
+  color:       var(--inst-text);
+}
+
+.inst-manage-plan__desc {
+  margin:     0 0 0.35rem;
+  font-size:  0.88rem;
+  color:      var(--inst-text-muted);
+  line-height: 1.45;
+}
+
+.inst-manage-plan__meta {
+  margin:    0;
+  font-size: 0.78rem;
+  color:     var(--inst-text-muted);
+}
+
+.inst-manage-plan__exercises {
+  list-style: none;
+  margin:     0 0 1.25rem;
+  padding:    0;
+  display:    flex;
+  flex-direction: column;
+  gap:        0.55rem;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.inst-manage-plan__exercise {
+  display:     flex;
+  gap:         0.65rem;
+  align-items: flex-start;
+  padding:     0.65rem 0.75rem;
+  border-radius: var(--inst-radius-sm);
+  background:  var(--inst-surface-2, rgba(255,255,255,0.03));
+  border:      1px solid var(--inst-border);
+}
+
+.inst-manage-plan__exercise-num {
+  flex-shrink: 0;
+  width:       1.5rem;
+  height:      1.5rem;
+  display:     flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background:  rgba(99, 102, 241, 0.15);
+  color:       var(--inst-accent);
+  font-size:   0.72rem;
+  font-weight: 700;
+}
+
+.inst-manage-plan__exercise-body {
+  display:        flex;
+  flex-direction: column;
+  gap:            0.2rem;
+  min-width:      0;
+}
+
+.inst-manage-plan__exercise-stat {
+  font-size:   0.8rem;
+  color:       var(--inst-accent);
+  font-weight: 600;
+}
+
+.inst-manage-plan__exercise-notes {
+  margin:      0.25rem 0 0;
+  font-size:   0.78rem;
+  color:       var(--inst-text-muted);
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.inst-manage-plan__actions {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       0.6rem;
+}
+

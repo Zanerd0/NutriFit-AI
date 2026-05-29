@@ -19,9 +19,10 @@
  *   connectedDieticianName  {string}   — (Optional) Display name of the connected dietician.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { generatePDF } from "../utils/generatePDF";
+import AdherenceChecklist from "./AdherenceChecklist";
 import "./DietPlanDisplay.css";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -328,8 +329,8 @@ const DietPlanDisplay = ({
   const [sendingToDiet,  setSendingToDiet]  = useState(false);
   const [sendDietStatus, setSendDietStatus] = useState({ type: "", text: "" });
   const [requestingPlan, setRequestingPlan] = useState(false);
+  const [requestNotes,   setRequestNotes]   = useState("");
   const [requestStatus,  setRequestStatus]  = useState({ type: "", text: "" });
-
   const hasExistingPlan = !!(weekSchedule && Object.keys(weekSchedule).length > 0);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -371,11 +372,15 @@ const DietPlanDisplay = ({
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
-        body: JSON.stringify({ consumerId: consumer?._id }),
+        body: JSON.stringify({
+          consumerId: consumer?._id,
+          notes:      requestNotes.trim(),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || data.error || `Error ${res.status}`);
       setRequestStatus({ type: "success", text: data.message || "Request sent to your dietician!" });
+      setRequestNotes("");
     } catch (err) {
       setRequestStatus({ type: "error", text: err.message || "Failed to send request." });
     } finally {
@@ -550,6 +555,22 @@ const DietPlanDisplay = ({
               </button>
             )}
 
+            <div className="dpd-request-notes-wrap">
+              <label className="dpd-request-notes-label" htmlFor="dpd-request-notes">
+                Notes for your dietician (optional)
+              </label>
+              <textarea
+                id="dpd-request-notes"
+                className="dpd-request-notes"
+                placeholder="Goals, allergies, preferences…"
+                value={requestNotes}
+                onChange={(e) => setRequestNotes(e.target.value)}
+                maxLength={500}
+                rows={2}
+                disabled={requestingPlan || sendingToDiet}
+              />
+            </div>
+
             {/* Request dietician to build a custom plan */}
             <button
               id="dpd-request-diet-btn"
@@ -653,6 +674,14 @@ const DietPlanDisplay = ({
               />
             ))}
           </div>
+
+          <AdherenceChecklist
+            type="diet"
+            planId={planData?._id}
+            enabled={hasExistingPlan && !!planData?._id}
+            title="Meal Checklist (for your dietician)"
+            subtitle="Tap the date to pick a day, then mark each meal as followed or skipped."
+          />
 
           {/* Disclaimer */}
           <p className="dpd-disclaimer">

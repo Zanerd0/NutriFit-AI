@@ -15,50 +15,139 @@
 
 import { useState } from "react";
 import { generatePDF } from "../utils/generatePDF";
+import AdherenceChecklist from "./AdherenceChecklist";
 import "./MyWorkout.css";
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * formatExerciseMetric — Human-readable target for an exercise based on metricType.
+ */
+const formatExerciseMetric = (ex) => {
+  const type = ex.metricType || "sets_reps";
+  switch (type) {
+    case "sets_time":
+      return {
+        primary:   ex.sets ?? "—",
+        primaryLabel: "Sets",
+        sep:       "×",
+        secondary: ex.durationSecs ?? "—",
+        secondaryLabel: "Sec",
+      };
+    case "distance":
+      return {
+        single:    ex.distanceValue ?? "—",
+        singleLabel: ex.distanceUnit || "km",
+      };
+    case "time":
+      return {
+        single:    ex.timeMinutes ?? "—",
+        singleLabel: "Minutes",
+      };
+    case "laps":
+      return {
+        single:    ex.laps ?? "—",
+        singleLabel: "Laps",
+      };
+    case "custom":
+      return { custom: ex.customMetric || "—" };
+    default:
+      return {
+        primary:   ex.sets ?? "—",
+        primaryLabel: "Sets",
+        sep:       "×",
+        secondary: ex.reps ?? "—",
+        secondaryLabel: "Reps",
+      };
+  }
+};
 
 // =============================================================================
 // SUB-COMPONENTS
 // =============================================================================
 
 /**
+ * ExerciseMetricDisplay — Renders the correct stat block for the exercise metric type.
+ */
+const ExerciseMetricDisplay = ({ exercise }) => {
+  const metric = formatExerciseMetric(exercise);
+
+  if (metric.custom !== undefined) {
+    return (
+      <p className="mw-exercise-card__custom-metric">{metric.custom}</p>
+    );
+  }
+
+  if (metric.single !== undefined) {
+    return (
+      <div className="mw-exercise-card__stats mw-exercise-card__stats--single">
+        <div className="mw-exercise-stat">
+          <span className="mw-exercise-stat__value">{metric.single}</span>
+          <span className="mw-exercise-stat__label">{metric.singleLabel}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mw-exercise-card__stats">
+      <div className="mw-exercise-stat">
+        <span className="mw-exercise-stat__value">{metric.primary}</span>
+        <span className="mw-exercise-stat__label">{metric.primaryLabel}</span>
+      </div>
+      <span className="mw-exercise-card__sep">{metric.sep}</span>
+      <div className="mw-exercise-stat">
+        <span className="mw-exercise-stat__value">{metric.secondary}</span>
+        <span className="mw-exercise-stat__label">{metric.secondaryLabel}</span>
+      </div>
+    </div>
+  );
+};
+
+/**
  * ExerciseCard — Displays one exercise from the workout plan.
  *
  * Renders the exercise name, a muscle-group chip (when present),
- * a sets × reps stat block, and an optional duration badge.
+ * and the metric block matching the instructor-assigned metricType.
  */
-const ExerciseCard = ({ exercise, index }) => (
-  <div className="mw-exercise-card" id={`exercise-card-${index}`}>
-    {/* Exercise number badge */}
-    <span className="mw-exercise-card__num">{index + 1}</span>
+const ExerciseCard = ({ exercise, index }) => {
+  const [notesExpanded, setNotesExpanded] = useState(false);
+  const hasNotes = Boolean(String(exercise.notes || "").trim());
 
-    {/* Exercise name */}
-    <h3 className="mw-exercise-card__name">{exercise.exerciseName}</h3>
+  return (
+    <div className="mw-exercise-card" id={`exercise-card-${index}`}>
+      {/* Exercise number badge */}
+      <span className="mw-exercise-card__num">{index + 1}</span>
 
-    {/* Muscle group chip (optional) */}
-    {exercise.muscleGroup && (
-      <span className="mw-exercise-card__muscle">{exercise.muscleGroup}</span>
-    )}
+      {/* Exercise name */}
+      <h3 className="mw-exercise-card__name">{exercise.exerciseName}</h3>
 
-    {/* Sets × Reps stat block */}
-    <div className="mw-exercise-card__stats">
-      <div className="mw-exercise-stat">
-        <span className="mw-exercise-stat__value">{exercise.sets ?? "—"}</span>
-        <span className="mw-exercise-stat__label">Sets</span>
-      </div>
-      <span className="mw-exercise-card__sep">×</span>
-      <div className="mw-exercise-stat">
-        <span className="mw-exercise-stat__value">{exercise.reps ?? "—"}</span>
-        <span className="mw-exercise-stat__label">Reps</span>
-      </div>
+      {/* Muscle group chip (optional) */}
+      {exercise.muscleGroup && (
+        <span className="mw-exercise-card__muscle">{exercise.muscleGroup}</span>
+      )}
+
+      <ExerciseMetricDisplay exercise={exercise} />
+
+      {hasNotes && (
+        <button
+          type="button"
+          className={`mw-exercise-card__notes${notesExpanded ? " mw-exercise-card__notes--expanded" : ""}`}
+          onClick={() => setNotesExpanded((v) => !v)}
+          aria-expanded={notesExpanded}
+          title={notesExpanded ? "Click to collapse notes" : "Click to expand notes"}
+        >
+          <span className="mw-exercise-card__notes-text">{exercise.notes}</span>
+          {!notesExpanded && (
+            <span className="mw-exercise-card__notes-hint">Show more</span>
+          )}
+        </button>
+      )}
     </div>
-
-    {/* Optional duration badge */}
-    {exercise.duration && (
-      <span className="mw-exercise-card__duration">⏱ {exercise.duration}s</span>
-    )}
-  </div>
-);
+  );
+};
 
 // =============================================================================
 // INSTRUCTOR REQUEST PANEL
@@ -167,7 +256,6 @@ const MyWorkout = ({
   // ── PDF download state ────────────────────────────────────────────────────
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError,   setPdfError]   = useState("");
-
   /**
    * handleDownloadPDF — Generates a WorkoutPlan PDF and triggers a browser
    * download. generatePDF auto-detects the plan type from the data shape.
@@ -315,11 +403,21 @@ const MyWorkout = ({
 
       {/* ── Exercise grid ── */}
       {workoutPlan.exercises?.length > 0 ? (
-        <div className="mw-exercises-grid">
-          {workoutPlan.exercises.map((ex, i) => (
-            <ExerciseCard key={ex._id || i} exercise={ex} index={i} />
-          ))}
-        </div>
+        <>
+          <div className="mw-exercises-grid">
+            {workoutPlan.exercises.map((ex, i) => (
+              <ExerciseCard key={ex._id || i} exercise={ex} index={i} />
+            ))}
+          </div>
+
+          <AdherenceChecklist
+            type="workout"
+            planId={workoutPlan?._id}
+            enabled={!!workoutPlan?._id}
+            title="Workout Checklist (for your instructor)"
+            subtitle="Tap the date to pick a day, then mark each exercise done or skipped."
+          />
+        </>
       ) : (
         <div className="mw-no-exercises">
           <p>This plan has no exercises defined yet.</p>

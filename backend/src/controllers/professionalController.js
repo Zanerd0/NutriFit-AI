@@ -10,8 +10,12 @@
  *   requestDietician     — POST /api/professionals/request-dietician      → Diet plan review request
  */
 
-const User     = require("../models/User");
-const DailyLog = require("../models/DailyLog");
+const User          = require("../models/User");
+const DailyLog      = require("../models/DailyLog");
+const DietPlan      = require("../models/DietPlan");
+const WorkoutPlan   = require("../models/WorkoutPlan");
+const PlanAdherence = require("../models/PlanAdherence");
+const { computeTwoDayAdherenceFlag } = require("../utils/adherenceHelpers");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/professionals/status
@@ -101,10 +105,33 @@ const getMyClients = async (req, res) => {
     }
 
     const clients = await User.find(filter).select(
-      "_id full_name email primary_goal"
+      "_id full_name email primary_goal workoutRequested workoutRequestNotes dietPlanRequested dietPlanRequestNotes"
     );
 
+    const clientIds = clients.map((c) => c._id);
     const threshold = new Date(Date.now() - 72 * 60 * 60 * 1000);
+
+    const [adherences, activeDietPlans, workoutPlans] = await Promise.all([
+      PlanAdherence.find({ userId: { $in: clientIds } }).lean(),
+      role === "Dietician"
+        ? DietPlan.find({ consumerId: { $in: clientIds }, status: "Active" }).lean()
+        : Promise.resolve([]),
+      role === "Instructor"
+        ? WorkoutPlan.find({ clientId: { $in: clientIds } }).sort({ createdAt: -1 }).lean()
+        : Promise.resolve([]),
+    ]);
+
+    const adherenceByUser = new Map(adherences.map((a) => [String(a.userId), a]));
+    const dietPlanByUser = new Map();
+    for (const plan of activeDietPlans) {
+      const key = String(plan.consumerId);
+      if (!dietPlanByUser.has(key)) dietPlanByUser.set(key, plan);
+    }
+    const workoutPlanByUser = new Map();
+    for (const plan of workoutPlans) {
+      const key = String(plan.clientId);
+      if (!workoutPlanByUser.has(key)) workoutPlanByUser.set(key, plan);
+    }
 
     const clientsWithCompliance = await Promise.all(
       clients.map(async (client) => {
@@ -113,12 +140,41 @@ const getMyClients = async (req, res) => {
           createdAt: { $gte: threshold },
         }).select("_id");
 
+        const adherence = adherenceByUser.get(String(client._id));
+        const adherenceType = role === "Dietician" ? "diet" : "workout";
+        const plan =
+          role === "Dietician"
+            ? dietPlanByUser.get(String(client._id))
+            : workoutPlanByUser.get(String(client._id));
+
+        const adherenceFlag = computeTwoDayAdherenceFlag(
+          adherence?.[adherenceType],
+          adherenceType,
+          plan
+        );
+
+        let aiPlanSentForReview = false;
+        if (role === "Dietician" && client.dietPlanRequested) {
+          const aiSent = await DietPlan.findOne({
+            consumerId: client._id,
+            status: "Active",
+            sentToDietician: true,
+          }).select("_id");
+          aiPlanSentForReview = !!aiSent;
+        }
+
         return {
-          _id:           client._id,
-          full_name:     client.full_name,
-          email:         client.email,
-          primary_goal:  client.primary_goal,
-          hasRecentLogs: recentLog !== null,
+          _id:                  client._id,
+          full_name:            client.full_name,
+          email:                client.email,
+          primary_goal:         client.primary_goal,
+          hasRecentLogs:        recentLog !== null,
+          workoutRequested:     client.workoutRequested || false,
+          workoutRequestNotes:  client.workoutRequestNotes || "",
+          dietPlanRequested:    client.dietPlanRequested || false,
+          dietPlanRequestNotes: client.dietPlanRequestNotes || "",
+          aiPlanSentForReview,
+          adherenceFlag,
         };
       })
     );

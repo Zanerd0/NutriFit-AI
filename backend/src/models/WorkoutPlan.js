@@ -25,7 +25,7 @@ const exerciseSchema = new mongoose.Schema(
   {
     /**
      * exerciseName - The name of the movement.
-     * Example: "Barbell Back Squat", "Push-Up", "Plank"
+     * Example: "Barbell Back Squat", "Push-Up", "Plank", "Running"
      */
     exerciseName: {
       type: String,
@@ -34,36 +34,51 @@ const exerciseSchema = new mongoose.Schema(
     },
 
     /**
-     * sets - Number of working sets to perform.
-     * Example: 3
+     * metricType - Describes what unit/format the activity uses.
+     * "sets_reps"  : classic sets × reps (e.g. 3 sets × 10 reps)
+     * "sets_time"  : sets × duration in seconds (e.g. 3 × 60s plank)
+     * "distance"   : a single distance value (e.g. 5 km run)
+     * "time"       : a single total duration in minutes (e.g. 30 min jog)
+     * "laps"       : a number of laps (e.g. 10 pool laps)
+     * "custom"     : instructor writes whatever they want in `customMetric`
      */
-    sets: {
-      type: Number,
-      required: [true, "Number of sets is required."],
-      min: [1, "Sets must be at least 1."],
+    metricType: {
+      type: String,
+      enum: ["sets_reps", "sets_time", "distance", "time", "laps", "custom"],
+      default: "sets_reps",
     },
 
-    /**
-     * reps - Number of repetitions per set.
-     * Example: 10
-     */
-    reps: {
-      type: Number,
-      required: [true, "Number of reps is required."],
-      min: [1, "Reps must be at least 1."],
-    },
+    // ── Sets × Reps fields (metricType: "sets_reps") ────────────────────────────────
+    sets: { type: Number, default: null },
+    reps: { type: Number, default: null },
+
+    // ── Sets × Time fields (metricType: "sets_time") ───────────────────────────────
+    durationSecs: { type: Number, default: null }, // seconds per set
+
+    // ── Distance (metricType: "distance") ───────────────────────────────────────────
+    distanceValue: { type: Number, default: null },
+    distanceUnit:  { type: String, default: "km", enum: ["km", "miles", "meters"] },
+
+    // ── Time (metricType: "time") ────────────────────────────────────────────────────
+    timeMinutes: { type: Number, default: null },
+
+    // ── Laps (metricType: "laps") ─────────────────────────────────────────────────────
+    laps: { type: Number, default: null },
+
+    // ── Custom (metricType: "custom") ──────────────────────────────────────────────────
+    customMetric: { type: String, default: "" }, // e.g. "3 rounds of 400m sprint"
 
     /**
-     * duration - Optional time-based hold/work duration in seconds.
-     * Used for timed exercises like planks, rests, or cardio intervals.
-     * Example: 60 (seconds)
+     * notes - Optional instructor notes per exercise (form cues, warnings, video links).
      */
-    duration: {
-      type: Number,
-      default: null,
+    notes: {
+      type: String,
+      trim: true,
+      maxlength: [500, "Exercise notes cannot exceed 500 characters."],
+      default: "",
     },
   },
-  { _id: true } // Each exercise gets its own sub-document _id for future CRUD ops
+  { _id: true }
 );
 
 // ─── Workout Plan Schema ──────────────────────────────────────────────────────

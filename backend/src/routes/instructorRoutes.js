@@ -36,14 +36,17 @@ const isInstructor = require("../middleware/isInstructor");
 // ── Controller ──────────────────────────────────────────────────────────────
 const {
   getClients,
+  getClientProgress,
   createWorkoutPlan,
   getWorkoutPlans,
+  updateWorkoutPlan,
   deleteWorkoutPlan,
   getTemplates,
   assignWorkout,
   createTemplate,
   updateTemplate,
   deleteTemplate,
+  getPendingWorkoutRequests,
 } = require("../controllers/instructorController");
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -53,14 +56,19 @@ const {
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/clients", verifyToken, isInstructor, getClients);
 
+// GET /api/instructor/pending-requests — Clients who have requested a workout plan
+router.get("/pending-requests", verifyToken, isInstructor, getPendingWorkoutRequests);
+router.get("/client-progress/:clientId", verifyToken, isInstructor, getClientProgress);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // WORKOUT PLAN ROUTES
 // GET  /api/instructor/plans → All plans created by the logged-in instructor
 // POST /api/instructor/plans → Create a new workout plan for a specific consumer
 // ─────────────────────────────────────────────────────────────────────────────
-router.get("/plans",           verifyToken, isInstructor, getWorkoutPlans);
-router.post("/plans",          verifyToken, isInstructor, createWorkoutPlan);
-router.delete("/plans/:planId",verifyToken, isInstructor, deleteWorkoutPlan);
+router.get("/plans",            verifyToken, isInstructor, getWorkoutPlans);
+router.post("/plans",           verifyToken, isInstructor, createWorkoutPlan);
+router.put("/plans/:planId",    verifyToken, isInstructor, updateWorkoutPlan);
+router.delete("/plans/:planId", verifyToken, isInstructor, deleteWorkoutPlan);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // WORKOUT TEMPLATE ROUTES

@@ -267,6 +267,7 @@ const generateAIPlan = async (req, res) => {
 
     console.log("[dietPlanController] 💾 Saving new diet plan to database...");
     const newPlan = await DietPlan.create({
+      planType: "ai",
       consumerId,
       status: "Active",
       weekSchedule,
@@ -385,11 +386,16 @@ const sendPlanToDietician = async (req, res) => {
       });
     }
 
-    // Mark as sent
-    plan.sentToDietician       = true;
-    plan.sentToDieticianAt     = new Date();
-    plan.reviewRequestedBy     = consumerId;
+    plan.sentToDietician      = true;
+    plan.sentToDieticianAt    = new Date();
+    plan.reviewRequestedBy    = consumerId;
     await plan.save();
+
+    await User.findByIdAndUpdate(consumerId, {
+      dietPlanRequested:    true,
+      dietPlanRequestedAt:  new Date(),
+      dietPlanRequestNotes: "Sent AI diet plan for your review.",
+    });
 
     console.log(`[sendPlanToDietician] Consumer ${consumerId} sent plan ${plan._id} to dietician ${consumer.dieticianId}`);
 

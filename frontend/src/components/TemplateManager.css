@@ -281,16 +281,35 @@
 }
 
 .tm-ex-row {
-  display:       grid;
-  /* Tighter fixed columns so the row always fits inside the card content area */
-  grid-template-columns: 1fr 58px 58px 26px;
+  display:       flex;
   align-items:   center;
-  gap:           0.4rem;
-  padding:       0.6rem 0.7rem;
+  flex-wrap:     wrap;
+  gap:           0.5rem;
+  padding:       0.65rem 0.75rem;
   border-radius: var(--tm-radius-sm);
   background:    var(--tm-surface-2);
   border:        1px solid var(--tm-border);
 }
+
+/* Metric type dropdown */
+.tm-ex-row__metric-select {
+  padding:       0.28rem 0.5rem;
+  border-radius: var(--tm-radius-sm);
+  border:        1px solid var(--tm-border);
+  background:    var(--tm-surface);
+  color:         var(--tm-text);
+  font-size:     0.78rem;
+  font-weight:   600;
+  appearance:    none;
+  cursor:        pointer;
+  min-width:     110px;
+}
+
+.tm-ex-row__metric-select:focus {
+  outline:      none;
+  border-color: var(--tm-primary);
+}
+
 
 .tm-ex-row--compact {
   grid-template-columns: 1fr 80px 80px;

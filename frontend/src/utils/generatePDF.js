@@ -289,22 +289,23 @@ function buildWorkoutPDF(doc, planData) {
     curY += 6;
   }
 
-  // ── FLATTEN: Extract only primitive strings; explicitly drop duration ─────
-  //
-  // Rules applied per exercise:
-  //   1. exerciseName → String, truncated to 50 chars
-  //   2. sets         → String(number) or "—"
-  //   3. reps         → String(number) or "—"
-  //   4. duration     → EXCLUDED (per spec)
-  //   5. Any nested object / array → EXCLUDED (never passed to autoTable)
-  //
+  // ── FLATTEN: Extract only primitive strings ─────────────────────────────────
+  const formatWorkoutTarget = (ex) => {
+    switch (ex?.metricType) {
+      case "sets_time": return `${str(ex.sets)} × ${str(ex.durationSecs)}s`;
+      case "distance":  return `${str(ex.distanceValue)} ${ex.distanceUnit || "km"}`;
+      case "time":      return `${str(ex.timeMinutes)} min`;
+      case "laps":      return `${str(ex.laps)} laps`;
+      case "custom":    return trunc(str(ex.customMetric), 40);
+      default:          return `${str(ex?.sets)} × ${str(ex?.reps)}`;
+    }
+  };
+
   const tableRows = (Array.isArray(exercises) ? exercises : []).map((ex, idx) => {
-    const num  = String(idx + 1);                    // sequential row #
-    const name = trunc(str(ex?.exerciseName), 50);   // exercise name, safe string
-    const sets = str(ex?.sets);                      // sets — primitive only
-    const reps = str(ex?.reps);                      // reps — primitive only
-    // duration intentionally omitted
-    return [num, name, sets, reps];
+    const num    = String(idx + 1);
+    const name   = trunc(str(ex?.exerciseName), 50);
+    const target = formatWorkoutTarget(ex);
+    return [num, name, target];
   });
 
   if (tableRows.length === 0) {
@@ -318,7 +319,7 @@ function buildWorkoutPDF(doc, planData) {
   // ── Single compact summary table ─────────────────────────────────────────
   autoTable(doc, {
     startY: curY,
-    head:   [["#", "Exercise", "Sets", "Reps"]],
+    head:   [["#", "Exercise", "Target"]],
     body:   tableRows,
 
     // ── Compact sizing ──────────────────────────────────────────────────────
@@ -345,8 +346,7 @@ function buildWorkoutPDF(doc, planData) {
     columnStyles: {
       0: { cellWidth: 10,  halign: "center", fontStyle: "bold", textColor: C.success },
       1: { cellWidth: "auto"                                                          },
-      2: { cellWidth: 18,  halign: "center"                                          },
-      3: { cellWidth: 18,  halign: "center"                                          },
+      2: { cellWidth: 36,  halign: "center"                                          },
     },
     didDrawPage: (data) => {
       if (data.pageNumber > 1) {
