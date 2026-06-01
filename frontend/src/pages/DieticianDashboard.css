@@ -493,6 +493,37 @@
   max-width: 160px;
 }
 
+.diet-client-card__meta,
+.diet-client-card__prefs {
+  font-size: 0.68rem;
+  color: var(--diet-text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.diet-client-card__prefs {
+  color: #a5b4fc;
+}
+
+.diet-client-profile-banner {
+  margin: 0 1.25rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.diet-client-profile-banner p {
+  margin: 0.15rem 0;
+}
+
+.diet-client-profile-banner__muted {
+  color: var(--diet-text-muted);
+  font-style: italic;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    CREATE PLAN FORM / MODAL OVERLAY
    ═══════════════════════════════════════════════════════════════════════════════ */

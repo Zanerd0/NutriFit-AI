@@ -159,7 +159,6 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
         {/* Sticky modal header — never scrolls away */}
         <div className="dpd-gen-modal__header">
           <div className="dpd-gen-modal__title-row">
-            <span className="dpd-gen-modal__icon" aria-hidden="true">🧠</span>
             <h3 className="dpd-gen-modal__title">
               {hasExistingPlan ? "Regenerate AI Diet Plan" : "Generate AI Diet Plan"}
             </h3>
@@ -454,7 +453,6 @@ const DietPlanDisplay = ({
           onClick={() => setShowForm(true)}
           disabled={showForm}
         >
-          <span aria-hidden="true">🧠</span>
           {hasExistingPlan ? "Regenerate AI Plan" : "Generate New AI Diet Plan"}
         </button>
 
@@ -511,7 +509,7 @@ const DietPlanDisplay = ({
             {deletingPlan ? (
               <><span className="dpd-delete-btn__spinner" aria-hidden="true" />Deleting…</>
             ) : (
-              <><span aria-hidden="true">🗑️</span> Delete Plan</>
+              <>Delete Plan</>
             )}
           </button>
         )}
@@ -524,7 +522,6 @@ const DietPlanDisplay = ({
       {dieticianId && (
         <div className="dpd-dietician-bar">
           <div className="dpd-dietician-bar__header">
-            <span className="dpd-dietician-bar__icon" aria-hidden="true">🥗</span>
             <div>
               <p className="dpd-dietician-bar__title">Connected Dietician</p>
               <p className="dpd-dietician-bar__name">{connectedDieticianName || "Your Dietician"}</p>
@@ -548,7 +545,6 @@ const DietPlanDisplay = ({
                   </>
                 ) : (
                   <>
-                    <span aria-hidden="true">📤</span>
                     Send Plan to Dietician
                   </>
                 )}
@@ -586,7 +582,6 @@ const DietPlanDisplay = ({
                 </>
               ) : (
                 <>
-                  <span aria-hidden="true">📋</span>
                   Request Plan from Dietician
                 </>
               )}
@@ -623,7 +618,6 @@ const DietPlanDisplay = ({
       {/* ── Empty state — no plan generated yet ── */}
       {!hasExistingPlan && (
         <div className="dpd-empty">
-          <div className="dpd-empty__icon">🥗</div>
           <p className="dpd-empty__text">No AI diet plan generated yet.</p>
           <p className="dpd-empty__sub">
             Click "Generate New AI Diet Plan" above to create your personalised
@@ -638,7 +632,6 @@ const DietPlanDisplay = ({
           {/* Plan header */}
           <div className="dpd-header">
             <div className="dpd-header__left">
-              <span className="dpd-header__icon" aria-hidden="true">🤖</span>
               <div>
                 <h2 className="dpd-header__title">Your AI-Generated Diet Plan</h2>
                 {generatedAt && (

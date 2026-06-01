@@ -1,0 +1,286 @@
+/* =============================================================================
+   MealScanner.css
+   Styles for the AI Meal Scanner component.
+   Uses Flexbox only — no utility frameworks.
+   ============================================================================= */
+
+.ms-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  animation: ms-slide-in 0.35s ease both;
+}
+
+@keyframes ms-slide-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.ms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.875rem 1.125rem;
+  background: linear-gradient(135deg, #14532d 0%, var(--color-surface-2) 100%);
+  border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+  flex-shrink: 0;
+}
+
+.ms-header__left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ms-header__icon {
+  width: 2.2rem;
+  height: 2.2rem;
+  background: rgba(34, 197, 94, 0.15);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.ms-header__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.ms-header__subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.ms-header__badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  white-space: nowrap;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────────── */
+
+.ms-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+}
+
+.ms-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Upload zone ────────────────────────────────────────────────────────────── */
+
+.ms-upload-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 220px;
+  padding: 2rem 1.5rem;
+  border: 2px dashed rgba(34, 197, 94, 0.35);
+  border-radius: var(--radius);
+  background: rgba(34, 197, 94, 0.04);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.ms-upload-zone:hover {
+  border-color: rgba(34, 197, 94, 0.6);
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.ms-upload-zone__icon {
+  font-size: 2.5rem;
+}
+
+.ms-upload-zone__title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.ms-upload-zone__hint {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.ms-upload-zone__cta {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #22c55e;
+}
+
+/* ── Preview ────────────────────────────────────────────────────────────────── */
+
+.ms-preview {
+  width: 100%;
+  max-width: 420px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.ms-preview__image {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+}
+
+/* ── Loading ────────────────────────────────────────────────────────────────── */
+
+.ms-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
+}
+
+.ms-spinner {
+  width: 1.4rem;
+  height: 1.4rem;
+  border: 3px solid rgba(34, 197, 94, 0.2);
+  border-top-color: #22c55e;
+  border-radius: 50%;
+  animation: ms-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ms-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Result ─────────────────────────────────────────────────────────────────── */
+
+.ms-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 1.5rem 2.5rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(34, 197, 94, 0.04) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 320px;
+}
+
+.ms-result__label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ms-result__value {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #22c55e;
+}
+
+.ms-result__unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.ms-result__disclaimer {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--color-text-muted);
+  text-align: center;
+  max-width: 280px;
+}
+
+/* ── Error ──────────────────────────────────────────────────────────────────── */
+
+.ms-error {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius);
+  color: #fca5a5;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+/* ── Actions ──────────────────────────────────────────────────────────────────── */
+
+.ms-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.ms-btn {
+  padding: 0.65rem 1.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.15s;
+}
+
+.ms-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ms-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.ms-btn--primary {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.ms-btn--secondary {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.ms-btn--secondary:hover {
+  background: var(--color-surface-2);
+}

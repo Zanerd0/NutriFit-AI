@@ -178,7 +178,13 @@
   padding-left: 1.5rem;
 }
 
-.tm-card__ex-dot  { font-size: 0.75rem; }
+.tm-card__ex-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--inst-accent, #8b5cf6);
+  flex-shrink: 0;
+}
 .tm-card__ex-name { flex: 1; color: var(--tm-text); }
 .tm-card__ex-stat {
   font-size:   0.75rem;

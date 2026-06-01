@@ -324,6 +324,24 @@
   opacity: 0.5;
 }
 
+.cl-diet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.cl-diet-tag {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  color: #c7d2fe;
+  white-space: nowrap;
+}
+
 /* ── Compliance badge ────────────────────────────────────────────────────────── */
 .cl-badge {
   display: inline-flex;

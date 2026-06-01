@@ -51,9 +51,8 @@ const StatusMessage = ({ status }) => {
 };
 
 /** FeatureBullet — a single feature highlight. */
-const FeatureBullet = ({ icon, text }) => (
+const FeatureBullet = ({ text }) => (
   <li className="ph-feature-item">
-    <span className="ph-feature-item__icon" aria-hidden="true">{icon}</span>
     <span>{text}</span>
   </li>
 );
@@ -179,7 +178,6 @@ const ConnectOptions = ({ type, consumer, onConnected }) => {
       {/* ── Card A: Connect by Code ── */}
       <div className="ph-connect-card ph-connect-card--code">
         <div className="ph-connect-card__header">
-          <span className="ph-connect-card__icon" aria-hidden="true">🔗</span>
           <div>
             <p className="ph-connect-card__title">Connect with a Code</p>
             <p className="ph-connect-card__sub">Use your {type.toLowerCase()}&apos;s unique code</p>
@@ -215,15 +213,12 @@ const ConnectOptions = ({ type, consumer, onConnected }) => {
                   Connecting…
                 </>
               ) : (
-                <>
-                  <span aria-hidden="true">🔗</span>
-                  Connect
-                </>
+                "Connect"
               )}
             </button>
           </div>
           <p className="ph-code-hint">
-            💡 Ask your {type.toLowerCase()} to share their code from their dashboard.
+            Ask your {type.toLowerCase()} to share their code from their dashboard.
           </p>
           {codeStatus.text && <StatusMessage status={codeStatus} />}
         </form>
@@ -239,7 +234,6 @@ const ConnectOptions = ({ type, consumer, onConnected }) => {
       {/* ── Card B: Random Match ── */}
       <div className="ph-connect-card ph-connect-card--random">
         <div className="ph-connect-card__header">
-          <span className="ph-connect-card__icon" aria-hidden="true">🎲</span>
           <div>
             <p className="ph-connect-card__title">Match me Randomly</p>
             <p className="ph-connect-card__sub">We&apos;ll find a verified {type.toLowerCase()} for you</p>
@@ -262,10 +256,7 @@ const ConnectOptions = ({ type, consumer, onConnected }) => {
               Finding a match…
             </>
           ) : (
-            <>
-              <span aria-hidden="true">🎲</span>
-              Find me a {type}
-            </>
+            `Find me a ${type}`
           )}
         </button>
         {randStatus.text && <StatusMessage status={randStatus} />}
@@ -327,9 +318,6 @@ const DietaryReviewPanel = ({
     <div className="ph-panel ph-panel--diet" id="ph-panel-diet">
       {/* Panel header */}
       <div className="ph-panel__header">
-        <div className="ph-panel__icon-wrap ph-panel__icon-wrap--diet">
-          <span className="ph-panel__icon" aria-hidden="true">🥗</span>
-        </div>
         <div>
           <h2 className="ph-panel__title">Dietary Review</h2>
           <p className="ph-panel__subtitle">By a Licensed Dietician</p>
@@ -346,10 +334,10 @@ const DietaryReviewPanel = ({
 
       {/* Feature bullets */}
       <ul className="ph-feature-list" aria-label="What's included">
-        <FeatureBullet icon="🔬" text="Macro & micro-nutrient analysis" />
-        <FeatureBullet icon="💊" text="Allergy & medical condition cross-check" />
-        <FeatureBullet icon="✏️" text="Personalised plan refinement notes" />
-        <FeatureBullet icon="📤" text="Send your AI plan for review (from Diet Plans tab)" />
+        <FeatureBullet text="Macro & micro-nutrient analysis" />
+        <FeatureBullet text="Allergy & medical condition cross-check" />
+        <FeatureBullet text="Personalised plan refinement notes" />
+        <FeatureBullet text="Send your AI plan for review (from Diet Plans tab)" />
       </ul>
 
       {/* ── Connection-state-aware CTA ─────────────────────────────────────── */}
@@ -437,9 +425,6 @@ const FitnessPlanPanel = ({
     <div className="ph-panel ph-panel--workout" id="ph-panel-workout">
       {/* Panel header */}
       <div className="ph-panel__header">
-        <div className="ph-panel__icon-wrap ph-panel__icon-wrap--workout">
-          <span className="ph-panel__icon" aria-hidden="true">🏋️</span>
-        </div>
         <div>
           <h2 className="ph-panel__title">Custom Workout Plan</h2>
           <p className="ph-panel__subtitle">By a Certified Instructor</p>
@@ -449,7 +434,6 @@ const FitnessPlanPanel = ({
 
       {/* Human-built callout */}
       <div className="ph-callout ph-callout--human" role="note">
-        <span className="ph-callout__icon" aria-hidden="true">👤</span>
         <div>
           <strong>100% Human-Designed</strong>
           <p>
@@ -470,10 +454,10 @@ const FitnessPlanPanel = ({
 
       {/* Feature bullets */}
       <ul className="ph-feature-list" aria-label="What's included">
-        <FeatureBullet icon="🎯" text="Goal-specific programme design (bulk / cut / endurance)" />
-        <FeatureBullet icon="🏠" text="Home or gym equipment options" />
-        <FeatureBullet icon="📊" text="Progressive overload scheduling" />
-        <FeatureBullet icon="💬" text="Direct feedback loop with your instructor" />
+        <FeatureBullet text="Goal-specific programme design (bulk / cut / endurance)" />
+        <FeatureBullet text="Home or gym equipment options" />
+        <FeatureBullet text="Progressive overload scheduling" />
+        <FeatureBullet text="Direct feedback loop with your instructor" />
       </ul>
 
       {/* ── Connection-state-aware CTA ─────────────────────────────────────── */}
@@ -633,10 +617,10 @@ const ProfessionalHub = ({ consumer, isPremium, onConsumerChange }) => {
 
           {/* What's included */}
           <ul className="ph-paywall__features" aria-label="Premium features included">
-            <li><span aria-hidden="true">🥗</span> Connect with a Licensed Dietician</li>
-            <li><span aria-hidden="true">🏋️</span> Connect with a Certified Instructor</li>
-            <li><span aria-hidden="true">📤</span> Send AI diet plans directly to your dietician</li>
-            <li><span aria-hidden="true">⚡</span> Priority response within 24–48 hours</li>
+            <li>Connect with a Licensed Dietician</li>
+            <li>Connect with a Certified Instructor</li>
+            <li>Send AI diet plans directly to your dietician</li>
+            <li>Priority response within 24–48 hours</li>
           </ul>
 
           {upgradeError && (

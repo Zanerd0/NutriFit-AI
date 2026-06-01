@@ -282,7 +282,6 @@ const AssignWorkout = ({ clients }) => {
           {clients.length === 0 ? (
             /* No linked clients yet */
             <div className="aw-empty">
-              <span className="aw-empty__icon">👥</span>
               <p className="aw-empty__text">
                 You have no linked clients yet. Clients appear here once they
                 connect with you from their dashboard.
@@ -331,7 +330,6 @@ const AssignWorkout = ({ clients }) => {
             </div>
           ) : templates.length === 0 ? (
             <div className="aw-empty">
-              <span className="aw-empty__icon">📋</span>
               <p className="aw-empty__text">No templates found.</p>
             </div>
           ) : (

@@ -73,9 +73,8 @@ const emptyWeekSchedule = () =>
  * @param {string}  icon   - Emoji icon
  * @param {string}  accent - CSS color for the radial glow
  */
-const StatCard = ({ label, value, icon, accent }) => (
+const StatCard = ({ label, value, accent }) => (
   <div className="diet-stat-card" style={{ "--accent": accent }}>
-    <div className="diet-stat-card__icon">{icon}</div>
     <div>
       <span className="diet-stat-card__value">{value ?? "—"}</span>
       <span className="diet-stat-card__label">{label}</span>
@@ -107,6 +106,17 @@ const ClientCard = ({ client, isSelected, onSelect }) => (
     <div>
       <div className="diet-client-card__name">{client.full_name}</div>
       <div className="diet-client-card__email">{client.email}</div>
+      {client.primary_goal && (
+        <div className="diet-client-card__meta">Goal: {client.primary_goal}</div>
+      )}
+      {Array.isArray(client.dietary_preferences) &&
+        client.dietary_preferences.filter((p) => p && p !== "None").length > 0 && (
+          <div className="diet-client-card__prefs">
+            {client.dietary_preferences
+              .filter((p) => p && p !== "None")
+              .join(" · ")}
+          </div>
+        )}
     </div>
   </div>
 );
@@ -143,7 +153,7 @@ const PlanCard = ({ plan }) => (
       <div className="diet-plan-card__meals">
         {plan.meals.slice(0, 3).map((m, i) => (
           <span key={i} className="diet-plan-card__meal-tag">
-            🍽 {m.mealTime}
+            {m.mealTime}
           </span>
         ))}
         {plan.meals.length > 3 && (
@@ -240,21 +250,42 @@ const DieticianDashboard = () => {
     setLoading(true);
     setError("");
     try {
-      // Fire both requests simultaneously — avoids waterfall latency
-      const [clientsRes, plansRes, pendingRes] = await Promise.all([
+      const [clientsRes, plansRes, pendingRes] = await Promise.allSettled([
         axios.get("/dietician/clients"),
         axios.get("/dietician/plans"),
         axios.get("/dietician/pending-requests"),
       ]);
-      setClients(clientsRes.data);
-      setPlans(plansRes.data);
-      setPendingRequests(pendingRes.data);
-    } catch (err) {
-      if (err.response?.status === 403) {
+
+      const firstError = [clientsRes, plansRes, pendingRes].find(
+        (r) => r.status === "rejected"
+      );
+      if (firstError?.reason?.response?.status === 403) {
         setError("Access denied. You do not have Dietician privileges.");
-      } else {
-        setError(err.response?.data?.error || "Failed to load dashboard data.");
+        return;
       }
+
+      if (clientsRes.status === "fulfilled") {
+        setClients(clientsRes.value.data);
+      }
+      if (plansRes.status === "fulfilled") {
+        setPlans(plansRes.value.data);
+      }
+      if (pendingRes.status === "fulfilled") {
+        setPendingRequests(pendingRes.value.data);
+      }
+
+      if (
+        clientsRes.status === "rejected" &&
+        plansRes.status === "rejected" &&
+        pendingRes.status === "rejected"
+      ) {
+        setError(
+          firstError.reason?.response?.data?.error ||
+            "Failed to load dashboard data."
+        );
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to load dashboard data.");
     } finally {
       setLoading(false);
     }
@@ -588,19 +619,16 @@ const DieticianDashboard = () => {
           <StatCard
             label="Total Clients"
             value={clients.length}
-            icon="👤"
             accent="#22c55e"
           />
           <StatCard
             label="Diet Plans Created"
             value={plans.length}
-            icon="📋"
             accent="#06b6d4"
           />
           <StatCard
             label="Total Meals Planned"
             value={plans.reduce((acc, p) => acc + (p.meals?.length ?? 0), 0)}
-            icon="🍽️"
             accent="#f59e0b"
           />
         </div>
@@ -688,7 +716,6 @@ const DieticianDashboard = () => {
         <div className="diet-error-banner" role="alert">{error}</div>
       ) : plans.length === 0 ? (
         <div className="diet-empty">
-          <div className="diet-empty__icon">📋</div>
           <p className="diet-empty__text">
             No diet plans yet. Go to the Clients tab and click a client to create one.
           </p>
@@ -705,9 +732,9 @@ const DieticianDashboard = () => {
 
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
-    { id: "overview", label: "Overview",    icon: "📊" },
-    { id: "clients",  label: "Clients",     icon: "👥", badge: pendingRequests.length },
-    { id: "plans",    label: "Diet Plans",  icon: "📋" },
+    { id: "overview", label: "Overview" },
+    { id: "clients",  label: "Clients", badge: pendingRequests.length },
+    { id: "plans",    label: "Diet Plans" },
   ];
 
   // ── Main Render ───────────────────────────────────────────────────────────
@@ -733,7 +760,6 @@ const DieticianDashboard = () => {
               onClick={() => setActiveTab(item.id)}
               aria-current={activeTab === item.id ? "page" : undefined}
             >
-              <span className="diet-nav-link__icon">{item.icon}</span>
               <span>{item.label}</span>
               {item.badge > 0 && (
                 <span className="diet-nav-badge" aria-label={`${item.badge} pending requests`}>
@@ -774,7 +800,6 @@ const DieticianDashboard = () => {
                   onClick={() => setShowCodePopup(false)}
                   aria-label="Close"
                 >✕</button>
-                <div className="diet-code-popup__icon" aria-hidden="true">🔗</div>
                 <p className="diet-code-popup__title">Your Connection Code</p>
                 <p className="diet-code-popup__hint">
                   Share this code with your consumers so they can connect with you in the Professional Hub.
@@ -804,7 +829,7 @@ const DieticianDashboard = () => {
             onClick={handleLogout}
             aria-label="Log out of dietician panel"
           >
-            ⏻ Logout
+            Logout
           </button>
         </div>
       </aside>
@@ -816,7 +841,6 @@ const DieticianDashboard = () => {
         <header className="diet-topbar">
           <div>
             <h1 className="diet-topbar__title">
-              {navItems.find((n) => n.id === activeTab)?.icon}{" "}
               {navItems.find((n) => n.id === activeTab)?.label}
             </h1>
             <p className="diet-topbar__date">
@@ -825,7 +849,7 @@ const DieticianDashboard = () => {
               })}
             </p>
           </div>
-          <div className="diet-topbar__badge">🥗 Dietician</div>
+          <div className="diet-topbar__badge">Dietician</div>
         </header>
 
         {/* Dynamic section based on activeTab */}
@@ -861,12 +885,28 @@ const DieticianDashboard = () => {
             {formError && <div className="diet-error-banner" role="alert">{formError}</div>}
             {formSuccess && <div className="diet-success-banner" role="status">{formSuccess}</div>}
 
+            {selectedClient && (
+              <div className="diet-client-profile-banner">
+                {selectedClient.primary_goal && (
+                  <p><strong>Goal:</strong> {selectedClient.primary_goal}</p>
+                )}
+                {Array.isArray(selectedClient.dietary_preferences) &&
+                  selectedClient.dietary_preferences.filter((p) => p && p !== "None").length > 0 ? (
+                  <p>
+                    <strong>Dietary preferences:</strong>{" "}
+                    {selectedClient.dietary_preferences.filter((p) => p && p !== "None").join(", ")}
+                  </p>
+                ) : (
+                  <p className="diet-client-profile-banner__muted">No dietary preferences on file.</p>
+                )}
+              </div>
+            )}
+
             {selectedClient && (() => {
               const req = pendingRequests.find((r) => r._id === selectedClient._id);
               if (!req) return null;
               return (
                 <div className="diet-request-banner">
-                  <span className="diet-request-banner__icon">📋</span>
                   <div>
                     <span className="diet-request-banner__title">
                       {req.aiPlanSentForReview

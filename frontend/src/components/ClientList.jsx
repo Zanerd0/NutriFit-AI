@@ -52,9 +52,13 @@ const AdherenceFlag = ({ status }) => {
   );
 };
 
+const formatDietaryPreferences = (prefs) => {
+  if (!Array.isArray(prefs) || prefs.length === 0) return [];
+  return prefs.filter((p) => p && p !== "None");
+};
+
 const EmptyState = () => (
   <div className="cl-empty" role="status">
-    <div className="cl-empty__icon">👥</div>
     <h3 className="cl-empty__title">No Linked Clients Yet</h3>
     <p className="cl-empty__text">
       Clients will appear here once they connect with you from their Consumer
@@ -111,7 +115,6 @@ const ClientList = ({ onSelectClient, variant = "dietician", refreshTrigger = 0 
   if (error) {
     return (
       <div className="cl-error" role="alert">
-        <span className="cl-error__icon">⚠️</span>
         <p>{error}</p>
       </div>
     );
@@ -149,6 +152,9 @@ const ClientList = ({ onSelectClient, variant = "dietician", refreshTrigger = 0 
             <tr>
               <th scope="col" className="cl-th cl-th--name">Client Name</th>
               <th scope="col" className="cl-th cl-th--goal">Primary Goal</th>
+              {variant === "dietician" && (
+                <th scope="col" className="cl-th cl-th--diet">Dietary Preferences</th>
+              )}
               <th scope="col" className="cl-th cl-th--status">Compliance Status</th>
               <th scope="col" className="cl-th cl-th--actions">Actions</th>
             </tr>
@@ -196,6 +202,20 @@ const ClientList = ({ onSelectClient, variant = "dietician", refreshTrigger = 0 
                     )}
                   </td>
 
+                  {variant === "dietician" && (
+                    <td className="cl-td cl-td--diet">
+                      {formatDietaryPreferences(client.dietary_preferences).length > 0 ? (
+                        <div className="cl-diet-tags">
+                          {formatDietaryPreferences(client.dietary_preferences).map((pref) => (
+                            <span key={pref} className="cl-diet-tag">{pref}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="cl-goal-none">—</span>
+                      )}
+                    </td>
+                  )}
+
                   <td className="cl-td cl-td--status">
                     <ComplianceBadge active={client.hasRecentLogs} />
                   </td>
@@ -215,7 +235,7 @@ const ClientList = ({ onSelectClient, variant = "dietician", refreshTrigger = 0 
                             onClick={() => openProgress(client, "weight")}
                             aria-label={`Weight graph for ${client.full_name}`}
                           >
-                            📈 Weight Graph
+                            Weight Graph
                           </button>
                           <button
                             type="button"
@@ -223,7 +243,7 @@ const ClientList = ({ onSelectClient, variant = "dietician", refreshTrigger = 0 
                             onClick={() => openProgress(client, "meals")}
                             aria-label={`Meals list for ${client.full_name}`}
                           >
-                            🍽 Meals List
+                            Meals List
                           </button>
                         </div>
                       )}

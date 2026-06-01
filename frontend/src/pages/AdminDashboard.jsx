@@ -39,9 +39,8 @@ import "./AdminDashboard.css";
  * @param {string} props.icon   - An emoji or icon character
  * @param {string} props.accent - A CSS color string for the glow accent
  */
-const StatCard = ({ label, value, icon, accent }) => (
+const StatCard = ({ label, value, accent }) => (
   <div className="stat-card" style={{ "--accent": accent }}>
-    <div className="stat-card__icon">{icon}</div>
     <div className="stat-card__body">
       <span className="stat-card__value">{value ?? "—"}</span>
       <span className="stat-card__label">{label}</span>
@@ -172,12 +171,12 @@ const AdminDashboard = () => {
         <div className="error-banner" role="alert">{error}</div>
       ) : (
         <div className="stats-grid">
-          <StatCard label="Total Users"      value={stats?.totalUsers}      icon="👥" accent="#6c63ff" />
-          <StatCard label="Consumers"        value={stats?.totalConsumers}  icon="🧑‍🍳" accent="#10b981" />
-          <StatCard label="Dieticians"       value={stats?.totalDieticians} icon="🥗" accent="#f59e0b" />
-          <StatCard label="Instructors"      value={stats?.totalInstructors}icon="🏋️" accent="#3b82f6" />
-          <StatCard label="Admins"           value={stats?.totalAdmins}     icon="🛡️" accent="#ff4d6d" />
-          <StatCard label="Premium Members"  value={stats?.totalPremium}    icon="⭐" accent="#f59e0b" />
+          <StatCard label="Total Users"      value={stats?.totalUsers}      accent="#6c63ff" />
+          <StatCard label="Consumers"        value={stats?.totalConsumers}  accent="#10b981" />
+          <StatCard label="Dieticians"       value={stats?.totalDieticians} accent="#f59e0b" />
+          <StatCard label="Instructors"      value={stats?.totalInstructors}accent="#3b82f6" />
+          <StatCard label="Admins"           value={stats?.totalAdmins}     accent="#ff4d6d" />
+          <StatCard label="Premium Members"  value={stats?.totalPremium}    accent="#f59e0b" />
         </div>
       )}
     </section>
@@ -253,7 +252,7 @@ const AdminDashboard = () => {
                     <td>
                       {user.role === "Consumer" ? (
                         user.isPremium ? (
-                          <span className="badge badge--premium">⭐ Premium</span>
+                          <span className="badge badge--premium">Premium</span>
                         ) : (
                           <span className="badge badge--free">Free</span>
                         )
@@ -298,8 +297,8 @@ const AdminDashboard = () => {
 
   // ── Sidebar Navigation Config ───────────────────────────────────────────
   const navItems = [
-    { id: "overview",        label: "Overview",         icon: "📊" },
-    { id: "user-management", label: "User Management",  icon: "👥" },
+    { id: "overview",        label: "Overview" },
+    { id: "user-management", label: "User Management" },
   ];
 
   // ── Main Render ─────────────────────────────────────────────────────────
@@ -328,7 +327,6 @@ const AdminDashboard = () => {
               onClick={() => setActiveTab(item.id)}
               aria-current={activeTab === item.id ? "page" : undefined}
             >
-              <span className="sidebar-link__icon">{item.icon}</span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -351,7 +349,7 @@ const AdminDashboard = () => {
             onClick={handleLogout}
             aria-label="Log out of admin panel"
           >
-            ⏻ Logout
+            Logout
           </button>
         </div>
       </aside>
@@ -363,7 +361,6 @@ const AdminDashboard = () => {
         <header className="admin-topbar">
           <div>
             <h1 className="topbar-title">
-              {navItems.find((n) => n.id === activeTab)?.icon}{" "}
               {navItems.find((n) => n.id === activeTab)?.label}
             </h1>
             <p className="topbar-date">
@@ -373,7 +370,7 @@ const AdminDashboard = () => {
             </p>
           </div>
           <div className="topbar-badge">
-            🛡 Admin
+            Admin
           </div>
         </header>
 

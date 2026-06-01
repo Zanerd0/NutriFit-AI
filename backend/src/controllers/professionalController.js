@@ -4,7 +4,6 @@
  * assignment endpoints.
  *
  * Controller Functions:
- *   getProfessionals     — GET  /api/professionals                        → All Dieticians + Instructors
  *   getMyClients         — GET  /api/professional/clients                 → Linked clients + compliance
  *   requestInstructor    — POST /api/professionals/request-instructor     → Random instructor assignment
  *   requestDietician     — POST /api/professionals/request-dietician      → Diet plan review request
@@ -16,6 +15,11 @@ const DietPlan      = require("../models/DietPlan");
 const WorkoutPlan   = require("../models/WorkoutPlan");
 const PlanAdherence = require("../models/PlanAdherence");
 const { computeTwoDayAdherenceFlag } = require("../utils/adherenceHelpers");
+const {
+  sanitizeConsumerProfessionalLinks,
+  findDieticianConsumerIds,
+  findInstructorConsumerIds,
+} = require("../utils/userRelationships");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/professionals/status
@@ -35,51 +39,38 @@ const { computeTwoDayAdherenceFlag } = require("../utils/adherenceHelpers");
  */
 const getConnectionStatus = async (req, res) => {
   try {
-    // req.userId is set by verifyToken; isConsumer has validated the role.
-    const consumer = await User.findById(req.userId)
-      .select("dieticianId instructorId")
-      .populate("dieticianId",  "full_name")
-      .populate("instructorId", "full_name");
+    let consumer = await User.findById(req.userId).select(
+      "role dieticianId instructorId dietPlanRequested dietPlanRequestedAt dietPlanRequestNotes workoutRequested workoutRequestedAt workoutRequestNotes"
+    );
 
     if (!consumer) {
       return res.status(404).json({ error: "Consumer not found." });
     }
 
+    consumer = await sanitizeConsumerProfessionalLinks(consumer);
+
+    const [dietician, instructor] = await Promise.all([
+      consumer.dieticianId
+        ? User.findOne({ _id: consumer.dieticianId, role: "Dietician" }).select("full_name")
+        : null,
+      consumer.instructorId
+        ? User.findOne({ _id: consumer.instructorId, role: "Instructor" }).select("full_name")
+        : null,
+    ]);
+
     return res.status(200).json({
       dietician: {
-        status: consumer.dieticianId  ? "connected" : "none",
-        name:   consumer.dieticianId?.full_name  ?? "",
+        status: dietician ? "connected" : "none",
+        name:   dietician?.full_name ?? "",
       },
       instructor: {
-        status: consumer.instructorId ? "connected" : "none",
-        name:   consumer.instructorId?.full_name ?? "",
+        status: instructor ? "connected" : "none",
+        name:   instructor?.full_name ?? "",
       },
     });
   } catch (error) {
     console.error("getConnectionStatus error:", error.message);
     return res.status(500).json({ error: "Failed to fetch connection status." });
-  }
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/professionals
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * getProfessionals
- * @description Returns all registered Dieticians and Instructors.
- * Sensitive fields (password, __v) are excluded via .select() projection.
- */
-const getProfessionals = async (req, res) => {
-  try {
-    const professionals = await User.find({
-      role: { $in: ["Dietician", "Instructor"] },
-    }).select("-password -__v");
-
-    res.status(200).json(professionals);
-  } catch (error) {
-    console.error("getProfessionals error:", error.message);
-    res.status(500).json({ error: "Failed to fetch professionals list." });
   }
 };
 
@@ -95,20 +86,25 @@ const getProfessionals = async (req, res) => {
 const getMyClients = async (req, res) => {
   try {
     const role           = req.user.role;
-    const professionalId = req.user._id;
+    const professionalId = req.userId;
 
-    let filter = { role: "Consumer" };
-    if (role === "Dietician") {
-      filter.dieticianId = professionalId;
-    } else {
-      filter.instructorId = professionalId;
+    let clientIds =
+      role === "Dietician"
+        ? await findDieticianConsumerIds(professionalId)
+        : await findInstructorConsumerIds(professionalId);
+
+    if (clientIds.length === 0) {
+      return res.status(200).json([]);
     }
 
-    const clients = await User.find(filter).select(
-      "_id full_name email primary_goal workoutRequested workoutRequestNotes dietPlanRequested dietPlanRequestNotes"
+    const clients = await User.find({
+      _id: { $in: clientIds },
+      role: "Consumer",
+    }).select(
+      "_id full_name email primary_goal dietary_preferences workoutRequested workoutRequestNotes dietPlanRequested dietPlanRequestNotes"
     );
 
-    const clientIds = clients.map((c) => c._id);
+    clientIds = clients.map((c) => c._id);
     const threshold = new Date(Date.now() - 72 * 60 * 60 * 1000);
 
     const [adherences, activeDietPlans, workoutPlans] = await Promise.all([
@@ -168,6 +164,7 @@ const getMyClients = async (req, res) => {
           full_name:            client.full_name,
           email:                client.email,
           primary_goal:         client.primary_goal,
+          dietary_preferences:  client.dietary_preferences || [],
           hasRecentLogs:        recentLog !== null,
           workoutRequested:     client.workoutRequested || false,
           workoutRequestNotes:  client.workoutRequestNotes || "",
@@ -505,7 +502,6 @@ const requestWorkout = async (req, res) => {
 
 module.exports = {
   getConnectionStatus,
-  getProfessionals,
   getMyClients,
   requestInstructor,
   requestDietician,

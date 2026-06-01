@@ -93,9 +93,8 @@ const BLANK_EXERCISE = {
 /**
  * StatCard — A single metric tile in the overview strip.
  */
-const StatCard = ({ label, value, icon, accent }) => (
+const StatCard = ({ label, value, accent }) => (
   <div className="inst-stat-card" style={{ "--accent": accent }}>
-    <div className="inst-stat-card__icon">{icon}</div>
     <div>
       <span className="inst-stat-card__value">{value ?? "—"}</span>
       <span className="inst-stat-card__label">{label}</span>
@@ -157,7 +156,7 @@ const PlanCard = ({ plan, onDelete }) => (
       <div className="inst-plan-card__exercises">
         {plan.exercises.slice(0, 3).map((ex, i) => (
           <span key={i} className="inst-plan-card__exercise-tag">
-            💪 {ex.exerciseName} — {formatExerciseStat(ex)}
+            {ex.exerciseName} — {formatExerciseStat(ex)}
           </span>
         ))}
         {plan.exercises.length > 3 && (
@@ -396,20 +395,42 @@ const InstructorDashboard = () => {
     setLoading(true);
     setError("");
     try {
-      const [clientsRes, plansRes, pendingRes] = await Promise.all([
+      const [clientsRes, plansRes, pendingRes] = await Promise.allSettled([
         axios.get("/instructor/clients"),
         axios.get("/instructor/plans"),
         axios.get("/instructor/pending-requests"),
       ]);
-      setClients(clientsRes.data);
-      setPlans(plansRes.data);
-      setPendingRequests(pendingRes.data);
-    } catch (err) {
-      if (err.response?.status === 403) {
+
+      const firstError = [clientsRes, plansRes, pendingRes].find(
+        (r) => r.status === "rejected"
+      );
+      if (firstError?.reason?.response?.status === 403) {
         setError("Access denied. You do not have Instructor privileges.");
-      } else {
-        setError(err.response?.data?.error || "Failed to load dashboard data.");
+        return;
       }
+
+      if (clientsRes.status === "fulfilled") {
+        setClients(clientsRes.value.data);
+      }
+      if (plansRes.status === "fulfilled") {
+        setPlans(plansRes.value.data);
+      }
+      if (pendingRes.status === "fulfilled") {
+        setPendingRequests(pendingRes.value.data);
+      }
+
+      if (
+        clientsRes.status === "rejected" &&
+        plansRes.status === "rejected" &&
+        pendingRes.status === "rejected"
+      ) {
+        setError(
+          firstError.reason?.response?.data?.error ||
+            "Failed to load dashboard data."
+        );
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to load dashboard data.");
     } finally {
       setLoading(false);
     }
@@ -716,13 +737,11 @@ const InstructorDashboard = () => {
           <StatCard
             label="Total Clients"
             value={clients.length}
-            icon="👤"
             accent="#6366f1"
           />
           <StatCard
             label="Workout Plans Created"
             value={plans.length}
-            icon="📋"
             accent="#8b5cf6"
           />
         </div>
@@ -809,7 +828,6 @@ const InstructorDashboard = () => {
         <div className="inst-error-banner" role="alert">{error}</div>
       ) : plans.length === 0 ? (
         <div className="inst-empty">
-          <div className="inst-empty__icon">📋</div>
           <p className="inst-empty__text">
             No workout plans yet. Go to the Clients tab and click a client to create one.
           </p>
@@ -826,10 +844,10 @@ const InstructorDashboard = () => {
 
   // ── Sidebar nav config ────────────────────────────────────────────────────
   const navItems = [
-    { id: "overview",   label: "Overview",       icon: "📊" },
-    { id: "clients",    label: "Clients",        icon: "👥", badge: pendingRequests.length },
-    { id: "plans",      label: "Workout Plans",  icon: "📋" },
-    { id: "templates",  label: "Templates",      icon: "📐" },
+    { id: "overview",   label: "Overview" },
+    { id: "clients",    label: "Clients", badge: pendingRequests.length },
+    { id: "plans",      label: "Workout Plans" },
+    { id: "templates",  label: "Templates" },
   ];
 
 
@@ -853,7 +871,6 @@ const InstructorDashboard = () => {
               onClick={() => setActiveTab(item.id)}
               aria-current={activeTab === item.id ? "page" : undefined}
             >
-              <span className="inst-nav-link__icon">{item.icon}</span>
               <span>{item.label}</span>
               {item.badge > 0 && (
                 <span className="inst-nav-badge" aria-label={`${item.badge} pending requests`}>
@@ -894,7 +911,6 @@ const InstructorDashboard = () => {
                   onClick={() => setShowCodePopup(false)}
                   aria-label="Close"
                 >✕</button>
-                <div className="inst-code-popup__icon" aria-hidden="true">🔗</div>
                 <p className="inst-code-popup__title">Your Connection Code</p>
                 <p className="inst-code-popup__hint">
                   Share this code with your consumers so they can connect with you in the Professional Hub.
@@ -924,7 +940,7 @@ const InstructorDashboard = () => {
             onClick={handleLogout}
             aria-label="Log out of instructor panel"
           >
-            ⏻ Logout
+            Logout
           </button>
         </div>
       </aside>
@@ -934,7 +950,6 @@ const InstructorDashboard = () => {
         <header className="inst-topbar">
           <div>
             <h1 className="inst-topbar__title">
-              {navItems.find((n) => n.id === activeTab)?.icon}{" "}
               {navItems.find((n) => n.id === activeTab)?.label}
             </h1>
             <p className="inst-topbar__date">
@@ -943,7 +958,7 @@ const InstructorDashboard = () => {
               })}
             </p>
           </div>
-          <div className="inst-topbar__badge">🏋️ Instructor</div>
+          <div className="inst-topbar__badge">Instructor</div>
         </header>
 
         <div className="inst-content">
@@ -1107,7 +1122,6 @@ const InstructorDashboard = () => {
                       </div>
                       {req && (
                         <div className="inst-request-banner" style={{ marginTop: "0.75rem" }}>
-                          <span className="inst-request-banner__icon">📋</span>
                           <div>
                             <span className="inst-request-banner__title">Client Requested a Workout Plan</span>
                             {req.workoutRequestNotes && (

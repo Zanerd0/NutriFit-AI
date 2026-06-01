@@ -14,6 +14,7 @@
  */
 
 const User = require("../models/User");
+const { cleanupDeletedUser } = require("../utils/userRelationships");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET  /api/admin/users
@@ -121,6 +122,8 @@ exports.deleteUser = async (req, res) => {
     if (!deletedUser) {
       return res.status(404).json({ error: "User not found." });
     }
+
+    await cleanupDeletedUser(deletedUser);
 
     // Return success confirmation with minimal details about the deleted user
     res.status(200).json({

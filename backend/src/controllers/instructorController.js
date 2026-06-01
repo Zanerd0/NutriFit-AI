@@ -29,6 +29,7 @@ const {
   getEntryForDate,
   migrateLegacyBlock,
 } = require("../utils/adherenceHelpers");
+const { findInstructorConsumerIds } = require("../utils/userRelationships");
 
 /**
  * sanitisePlanExercises — Normalises exercise payloads for WorkoutPlan documents.
@@ -122,11 +123,15 @@ const getPendingWorkoutRequests = async (req, res) => {
  */
 const getClients = async (req, res) => {
   try {
-    // Filter: Consumer users whose instructorId matches the logged-in instructor
-    // Projection: exclude the hashed password — never send it to the client
+    const clientIds = await findInstructorConsumerIds(req.userId);
+
+    if (clientIds.length === 0) {
+      return res.status(200).json([]);
+    }
+
     const clients = await User.find({
-      role:         "Consumer",
-      instructorId: req.userId,  // Only this instructor's linked clients
+      _id: { $in: clientIds },
+      role: "Consumer",
     }).select("-password -__v");
 
     res.status(200).json(clients);

@@ -313,6 +313,10 @@
   flex-shrink: 0;
 }
 
+.con-topbar__hub-icon {
+  color: var(--con-accent);
+}
+
 .con-topbar__title {
   font-size: 1.25rem;
   font-weight: 700;
@@ -640,9 +644,12 @@
 }
 
 .con-plan-card__item-dot {
-  font-size: 0.85rem;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--con-accent);
   flex-shrink: 0;
-  margin-top: 1px;
+  margin-top: 6px;
 }
 
 .con-plan-card__item-body { flex: 1; }

@@ -24,7 +24,6 @@
  *   POST  /api/consumer/log-progress             → logProgress
  *   PATCH /api/consumer/profile                  → updateProfile
  *   PUT   /api/consumer/onboarding               → completeOnboarding
- *   PUT   /api/consumer/link-professional        → linkProfessional
  *   PUT   /api/consumer/disconnect-professional  → disconnectProfessional
  */
 
@@ -44,7 +43,6 @@ const {
   updateAdherence,
   updateProfile,
   completeOnboarding,
-  linkProfessional,
   disconnectProfessional,
   getMyProfile,
   logProgress,
@@ -93,14 +91,6 @@ router.patch("/profile", verifyToken, isConsumer, updateProfile);
 // onboarding fields, not a partial update.
 // ─────────────────────────────────────────────────────────────────────────────
 router.put("/onboarding", verifyToken, isConsumer, completeOnboarding);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// LINK PROFESSIONAL
-// PUT /api/consumer/link-professional
-// Saves a Dietician's or Instructor's ObjectId into the consumer's document.
-// Body: { professionalId: string, professionalRole: "Dietician"|"Instructor" }
-// ─────────────────────────────────────────────────────────────────────────────
-router.put("/link-professional", verifyToken, isConsumer, linkProfessional);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DISCONNECT PROFESSIONAL

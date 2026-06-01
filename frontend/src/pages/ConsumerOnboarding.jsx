@@ -28,13 +28,11 @@ const GOAL_OPTIONS = [
 
 const DIET_OPTIONS = [
   { value: "None",        label: "🍽️  No Preference" },
-  { value: "Keto",        label: "🥑  Keto" },
-  { value: "Vegan",       label: "🌱  Vegan" },
   { value: "Vegetarian",  label: "🥦  Vegetarian" },
-  { value: "Paleo",       label: "🍖  Paleo" },
-  { value: "Gluten-Free", label: "🌾  Gluten-Free" },
+  { value: "Vegan",       label: "🌱  Vegan" },
+  { value: "Keto",        label: "🥑  Keto" },
   { value: "Halal",       label: "☪️  Halal" },
-  { value: "Intermittent Fasting", label: "⏱️  Intermittent Fasting" },
+  { value: "Gluten-Free", label: "🌾  Gluten-Free" },
 ];
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -128,7 +126,7 @@ const ConsumerOnboarding = () => {
       <div className="onboarding-card">
         {/* Header */}
         <div className="onboarding-header">
-          <div className="onboarding-logo">🥗</div>
+          <div className="onboarding-logo">NutriFit AI</div>
           <h1 className="onboarding-title">Let's Build Your Profile</h1>
           <p className="onboarding-subtitle">
             Tell us about yourself so our AI can craft a personalised plan just for you.

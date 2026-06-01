@@ -12,6 +12,7 @@ const consumerRoutes   = require("./src/routes/consumerRoutes");   // Load Consu
 const professionalRoutes = require("./src/routes/professionalRoutes"); // Load Professionals directory routes
 const dietPlanRoutes     = require("./src/routes/dietPlanRoutes");     // Load AI Diet Plan (RAG) routes
 const chatRoutes         = require("./src/routes/chatRoutes");         // Load Free Tier AI Chat routes
+const visionRoutes       = require("./src/routes/visionRoutes");       // Load AI Meal Scanner (Vision) routes
 const stripeRoutes       = require("./src/routes/stripeRoutes");       // Load Stripe payment routes
 const seedWorkoutTemplates = require("./src/utils/seedTemplates"); // Auto-seed default workout templates
 
@@ -60,6 +61,8 @@ app.use("/api/professional", professionalRoutes);
 app.use("/api/diet-plan",  dietPlanRoutes);
 // Mount Free Tier AI Chat route — POST /api/chat/send
 app.use("/api/chat",       chatRoutes);
+// Mount AI Meal Scanner route — POST /api/vision/scan
+app.use("/api/vision",     visionRoutes);
 
 // A simple test route to verify the server is up
 app.get("/", (req, res) => {

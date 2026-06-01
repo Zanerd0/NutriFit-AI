@@ -23,6 +23,7 @@ const {
   getEntryForDate,
   migrateLegacyBlock,
 } = require("../utils/adherenceHelpers");
+const { findDieticianConsumerIds } = require("../utils/userRelationships");
 
 const DAYS = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
@@ -67,14 +68,18 @@ const clearClientDietRequest = async (clientId) => {
  */
 const getClients = async (req, res) => {
   try {
-    // Filter: Consumer users whose dieticianId matches the logged-in dietician
-    // Projection: exclude the hashed password — never send it to the client
+    const dieticianId = req.userId;
+    const clientIds = await findDieticianConsumerIds(dieticianId);
+
+    if (clientIds.length === 0) {
+      return res.status(200).json([]);
+    }
+
     const clients = await User.find({
-      role:        "Consumer",
-      dieticianId: req.userId,   // Only this dietician's linked clients
+      _id: { $in: clientIds },
+      role: "Consumer",
     }).select("-password -__v");
 
-    // Return the array (empty when no consumers have linked to this dietician yet)
     res.status(200).json(clients);
   } catch (error) {
     console.error("getClients error:", error.message);

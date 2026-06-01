@@ -4,7 +4,6 @@
  * Premium Professional Hub assignment endpoints.
  *
  * Security:
- *   GET  /                          — verifyToken only (any authenticated user can browse)
  *   GET  /clients                   — verifyToken + isProfessional (Dietician | Instructor)
  *   POST /request-instructor        — verifyToken + isConsumer (Consumer triggering assignment)
  *   POST /request-dietician         — verifyToken + isConsumer
@@ -15,7 +14,6 @@
  *   /api/professional   → professional-only endpoints (same router, singular path)
  *
  * Full Route Map:
- *   GET  /api/professionals                        → getProfessionals
  *   GET  /api/professional/clients                 → getMyClients
  *   POST /api/professionals/request-instructor     → requestInstructor
  *   POST /api/professionals/request-dietician      → requestDietician
@@ -33,7 +31,6 @@ const isConsumer     = require("../middleware/isConsumer");
 // ── Controller ────────────────────────────────────────────────────────────────
 const {
   getConnectionStatus,
-  getProfessionals,
   getMyClients,
   requestInstructor,
   requestDietician,
@@ -47,12 +44,6 @@ const {
 // Consumer — returns connection status for dietician + instructor.
 // ─────────────────────────────────────────────────────────────────────────────
 router.get("/status", verifyToken, isConsumer, getConnectionStatus);
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GET /api/professionals
-// Public directory — any authenticated user may browse professionals.
-// ─────────────────────────────────────────────────────────────────────────────
-router.get("/", verifyToken, getProfessionals);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/professional/clients

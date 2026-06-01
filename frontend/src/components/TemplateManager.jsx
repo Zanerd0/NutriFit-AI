@@ -527,7 +527,6 @@ const TemplateManager = ({ clients, onPlanCreated }) => {
         <div className="tm-loading"><div className="tm-spinner" /><p>Loading templates…</p></div>
       ) : templates.length === 0 && !showCreate ? (
         <div className="tm-empty">
-          <div className="tm-empty__icon">📐</div>
           <p className="tm-empty__text">No templates yet. Create your first one above!</p>
         </div>
       ) : (
@@ -572,7 +571,7 @@ const TemplateManager = ({ clients, onPlanCreated }) => {
                     <ul className="tm-card__ex-list">
                       {t.exercises.slice(0, 4).map((ex, i) => (
                         <li key={i} className="tm-card__ex-item">
-                          <span className="tm-card__ex-dot">💪</span>
+                          <span className="tm-card__ex-dot" aria-hidden="true" />
                           <span className="tm-card__ex-name">{ex.exerciseName}</span>
                           <span className="tm-card__ex-stat">{formatTemplateStat(ex)}</span>
                         </li>
@@ -590,7 +589,7 @@ const TemplateManager = ({ clients, onPlanCreated }) => {
                       onClick={() => setAssigningTpl(t)}
                       disabled={clients.length === 0}
                       title={clients.length === 0 ? "No linked clients" : "Assign to a client"}>
-                      🏋️ Assign to Client
+                      Assign to Client
                     </button>
                   </>
                 )}

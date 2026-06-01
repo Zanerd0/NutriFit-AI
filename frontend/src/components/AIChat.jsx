@@ -38,7 +38,7 @@ const getConsumerId = () => {
 
 const INITIAL_MESSAGE = {
   role: "assistant",
-  text: "👋 Hi! I'm your NutriFit AI Advisor. Ask me anything about your diet plan, nutrition, or healthy eating habits!",
+  text: "Hi! I'm your NutriFit AI Advisor. Ask me anything about your diet plan, nutrition, or healthy eating habits!",
 };
 
 // ─── Sub-Components ───────────────────────────────────────────────────────────
@@ -61,15 +61,9 @@ const MessageBubble = ({ message }) => {
   const isUser = message.role === "user";
   return (
     <div className={`aic-message ${isUser ? "aic-message--user" : "aic-message--ai"}`}>
-      {!isUser && (
-        <div className="aic-avatar" aria-hidden="true">🤖</div>
-      )}
       <div className={`aic-bubble ${isUser ? "aic-bubble--user" : "aic-bubble--ai"}`}>
         {message.text}
       </div>
-      {isUser && (
-        <div className="aic-avatar aic-avatar--user" aria-hidden="true">👤</div>
-      )}
     </div>
   );
 };
@@ -147,7 +141,7 @@ const AIChat = () => {
         ...prev,
         {
           role: "assistant",
-          text: "⚠️ I'm having trouble connecting right now. The AI chat backend is being set up — please try again shortly!",
+          text: "I'm having trouble connecting right now. The AI chat backend is being set up — please try again shortly!",
         },
       ]);
     } finally {
@@ -173,7 +167,6 @@ const AIChat = () => {
       {/* ── Header ── */}
       <div className="aic-header">
         <div className="aic-header__left">
-          <div className="aic-header__avatar" aria-hidden="true">🤖</div>
           <div>
             <p className="aic-header__name">NutriFit AI Advisor</p>
             <p className="aic-header__status">
@@ -205,7 +198,7 @@ const AIChat = () => {
 
       {/* ── Free Tier Notice ── */}
       <div className="aic-tier-notice">
-        🎉 Free Tier: AI nutrition chat included. PDF exports &amp; human dietician chat are premium.
+        Free Tier: AI nutrition chat included. PDF exports and human dietician chat are premium.
       </div>
 
       {/* ── Input Area ── */}

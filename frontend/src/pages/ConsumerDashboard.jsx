@@ -25,6 +25,7 @@ import DailyLogForm                          from "../components/DailyLogForm";
 import ProgressCharts                        from "../components/ProgressCharts";
 import DietPlanDisplay                       from "../components/DietPlanDisplay";
 import AIChat                                from "../components/AIChat";
+import MealScanner                           from "../components/MealScanner";
 import "./ConsumerDashboard.css";
 
 // =============================================================================
@@ -60,7 +61,7 @@ const DietPlanCard = ({ plan }) => (
       <div className="con-plan-card__items">
         {plan.meals.map((meal, i) => (
           <div key={i} className="con-plan-card__item">
-            <span className="con-plan-card__item-dot">🍽</span>
+            <span className="con-plan-card__item-dot" aria-hidden="true" />
             <div className="con-plan-card__item-body">
               <span className="con-plan-card__item-title">{meal.mealTime}</span>
               <span className="con-plan-card__item-sub">{meal.foodItems}</span>
@@ -290,11 +291,18 @@ const ConsumerDashboard = () => {
       const fresh = res.data.user;
       setConsumer(fresh);
       localStorage.setItem("user", JSON.stringify(fresh));
+      return fresh;
     } catch (err) {
-      // Non-critical: fall back gracefully to whatever is in localStorage
       console.warn("Could not refresh consumer from server:", err.message);
+      return null;
     }
   }, []);
+
+  /** Re-sync profile and plan data after connect/disconnect in Professional Hub. */
+  const handleProfessionalLinkChange = useCallback(async () => {
+    await refreshConsumer();
+    await fetchPlans();
+  }, [refreshConsumer, fetchPlans]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -531,7 +539,6 @@ const ConsumerDashboard = () => {
   const renderDietPlans = () => (
     <div className="con-section" id="section-diet">
       <div className="con-section__header">
-        <span className="con-section__icon">🥗</span>
         <h2 className="con-section__title">My Diet Plans</h2>
         <span className="con-section__count">{dietPlans.length} assigned plan{dietPlans.length !== 1 ? "s" : ""}</span>
       </div>
@@ -557,7 +564,6 @@ const ConsumerDashboard = () => {
         <div className="con-error-banner" role="alert">{error}</div>
       ) : dietPlans.length === 0 ? (
         <div className="con-empty">
-          <div className="con-empty__icon">🥗</div>
           <p className="con-empty__text">No dietician-assigned plans yet. Your dietician will create one for you soon.</p>
         </div>
       ) : (
@@ -574,7 +580,6 @@ const ConsumerDashboard = () => {
   const renderAIAdvisor = () => (
     <div className="con-section" id="section-ai">
       <div className="con-section__header">
-        <span className="con-section__icon">🤖</span>
         <h2 className="con-section__title">NutriFit AI Advisor</h2>
         <span className="con-section__count">Free Tier</span>
       </div>
@@ -582,15 +587,26 @@ const ConsumerDashboard = () => {
     </div>
   );
 
+  const renderMealScanner = () => (
+    <div className="con-section" id="section-scanner">
+      <div className="con-section__header">
+        <h2 className="con-section__title">Meal Scanner</h2>
+        <span className="con-section__count">Computer Vision</span>
+      </div>
+      <MealScanner />
+    </div>
+  );
+
   // ── Sidebar nav config ────────────────────────────────────────────────────
 
   const navItems = [
-    { id: "home",       label: "Home",               icon: "🏠" },
-    { id: "ai",         label: "AI Advisor",         icon: "🤖" },
-    { id: "diet",       label: "Diet Plans",         icon: "🥗" },
-    { id: "my-workout", label: "My Workout",         icon: "💪" },
-    { id: "progress",   label: "My Progress",        icon: "📈" },
-    { id: "hub",        label: "Professional Hub",   icon: "✦"  },
+    { id: "home",       label: "Home" },
+    { id: "ai",         label: "AI Advisor" },
+    { id: "scanner",    label: "Meal Scanner" },
+    { id: "diet",       label: "Diet Plans" },
+    { id: "my-workout", label: "My Workout" },
+    { id: "progress",   label: "My Progress" },
+    { id: "hub",        label: "Professional Hub", icon: "✦" },
   ];
 
 
@@ -601,7 +617,6 @@ const ConsumerDashboard = () => {
       {/* ── Premium Upgrade Toast ── */}
       {upgradeError && (
         <div className="con-upgrade-toast con-upgrade-toast--error" role="alert">
-          <span className="con-upgrade-toast__icon" aria-hidden="true">⚠</span>
           <div>
             <strong>Premium activation pending</strong>
             <p>{upgradeError}</p>
@@ -618,7 +633,6 @@ const ConsumerDashboard = () => {
 
       {upgradeSuccess && (
         <div className="con-upgrade-toast" role="status" aria-live="polite">
-          <span className="con-upgrade-toast__icon" aria-hidden="true">⭐</span>
           <div>
             <strong>Welcome to NutriFit Premium!</strong>
             <p>You now have full access to the Professional Hub and PDF downloads.</p>
@@ -649,7 +663,9 @@ const ConsumerDashboard = () => {
               onClick={() => setActiveTab(item.id)}
               aria-current={activeTab === item.id ? "page" : undefined}
             >
-              <span className="con-nav-link__icon">{item.icon}</span>
+              {item.icon && (
+                <span className="con-nav-link__icon" aria-hidden="true">{item.icon}</span>
+              )}
               <span>{item.label}</span>
             </button>
           ))}
@@ -709,7 +725,7 @@ const ConsumerDashboard = () => {
             onClick={handleLogout}
             aria-label="Log out"
           >
-            ⏻ Logout
+            Logout
           </button>
         </div>
       </aside>
@@ -719,8 +735,17 @@ const ConsumerDashboard = () => {
         <header className="con-topbar">
           <div>
             <h1 className="con-topbar__title">
-              {navItems.find((n) => n.id === activeTab)?.icon}{" "}
-              {navItems.find((n) => n.id === activeTab)?.label}
+              {(() => {
+                const active = navItems.find((n) => n.id === activeTab);
+                return (
+                  <>
+                    {active?.icon && (
+                      <span className="con-topbar__hub-icon" aria-hidden="true">{active.icon} </span>
+                    )}
+                    {active?.label}
+                  </>
+                );
+              })()}
             </h1>
             <p className="con-topbar__date">
               {new Date().toLocaleDateString("en-US", {
@@ -731,10 +756,10 @@ const ConsumerDashboard = () => {
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
             {consumer?.isPremium && (
               <span className="con-premium-badge" aria-label="Premium member">
-                ⭐ Premium
+                Premium
               </span>
             )}
-            <div className="con-topbar__badge">🍊 Consumer</div>
+            <div className="con-topbar__badge">Consumer</div>
           </div>
         </header>
 
@@ -747,7 +772,6 @@ const ConsumerDashboard = () => {
               {/* Progress chart inline on home */}
               <div className="con-section" id="section-home-progress">
                 <div className="con-section__header">
-                  <span className="con-section__icon">📈</span>
                   <h2 className="con-section__title">My Progress</h2>
                   <span className="con-section__count">Weight Tracking</span>
                 </div>
@@ -758,6 +782,7 @@ const ConsumerDashboard = () => {
 
           {/* Individual focused tabs */}
           {activeTab === "ai"       && renderAIAdvisor()}
+          {activeTab === "scanner"  && renderMealScanner()}
           {activeTab === "diet"     && renderDietPlans()}
 
           {/* My Workout — prop-driven; receives the active plan from fetchPlans */}
@@ -783,7 +808,6 @@ const ConsumerDashboard = () => {
             <div className="con-progress-layout" id="section-progress">
               {/* Section heading */}
               <div className="con-section__header con-progress-layout__heading">
-                <span className="con-section__icon">📈</span>
                 <h2 className="con-section__title">My Progress</h2>
                 <span className="con-section__count">Weight Tracking</span>
               </div>
@@ -805,7 +829,7 @@ const ConsumerDashboard = () => {
             <ProfessionalHub
             consumer={consumer}
             isPremium={consumer?.isPremium ?? false}
-            onConsumerChange={refreshConsumer}
+            onConsumerChange={handleProfessionalLinkChange}
           />
           )}
         </div>

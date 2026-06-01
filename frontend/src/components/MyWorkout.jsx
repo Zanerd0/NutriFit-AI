@@ -187,7 +187,6 @@ const InstructorRequestPanel = ({ instructorName, consumer }) => {
   return (
     <div className="mw-instructor-panel" id="mw-instructor-request">
       <div className="mw-instructor-panel__header">
-        <span className="mw-instructor-panel__icon" aria-hidden="true">🏋️</span>
         <div>
           <p className="mw-instructor-panel__label">Connected Instructor</p>
           <p className="mw-instructor-panel__name">{instructorName || "Your Instructor"}</p>
@@ -220,7 +219,7 @@ const InstructorRequestPanel = ({ instructorName, consumer }) => {
             {loading ? (
               <><span className="mw-request-form__spinner" aria-hidden="true" />Sending…</>
             ) : (
-              <><span aria-hidden="true">📋</span> Request Workout Plan</>
+              <>Request Workout Plan</>
             )}
           </button>
         </div>
@@ -291,7 +290,6 @@ const MyWorkout = ({
     return (
       <div className="mw-empty-wrapper" id="my-workout-empty">
         <div className="mw-empty-state">
-          <div className="mw-empty-state__icon">🏋️</div>
           <h2 className="mw-empty-state__title">No Active Workout Assigned</h2>
           <p className="mw-empty-state__text">
             No active workout plan has been assigned yet.
@@ -301,9 +299,7 @@ const MyWorkout = ({
           </p>
           {!instructorId && (
             <div className="mw-empty-state__hint">
-              💡 Use the{" "}
-              <strong>Professional Hub</strong>{" "}
-              tab to connect with a certified instructor.
+              Use the <strong>Professional Hub</strong> tab to connect with a certified instructor.
             </div>
           )}
         </div>
@@ -337,13 +333,12 @@ const MyWorkout = ({
             {/* Assigned by (populated instructorId) */}
             {workoutPlan.instructorId?.full_name && (
               <span className="mw-meta-chip mw-meta-chip--instructor">
-                👤 Assigned by {workoutPlan.instructorId.full_name}
+                Assigned by {workoutPlan.instructorId.full_name}
               </span>
             )}
 
             {/* Creation date */}
             <span className="mw-meta-chip">
-              📅{" "}
               {new Date(workoutPlan.createdAt).toLocaleDateString("en-US", {
                 year: "numeric", month: "long", day: "numeric",
               })}
@@ -351,7 +346,7 @@ const MyWorkout = ({
 
             {/* Exercise count */}
             <span className="mw-meta-chip mw-meta-chip--count">
-              💪 {workoutPlan.exercises?.length ?? 0} exercise
+              {workoutPlan.exercises?.length ?? 0} exercise
               {workoutPlan.exercises?.length !== 1 ? "s" : ""}
             </span>
           </div>
@@ -379,7 +374,6 @@ const MyWorkout = ({
                 </>
               ) : (
                 <>
-                  <span aria-hidden="true">⬇</span>
                   Download Plan
                 </>
               )}
