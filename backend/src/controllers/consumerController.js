@@ -134,7 +134,7 @@ const getAdherence = async (req, res) => {
     const adherence = await PlanAdherence.findOneAndUpdate(
       { userId: req.userId },
       { $setOnInsert: { userId: req.userId } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     );
 
     let changed = false;

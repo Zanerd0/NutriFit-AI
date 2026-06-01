@@ -34,7 +34,7 @@ if (!email) {
           subscriptionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         },
       },
-      { new: true, select: "full_name email isPremium subscriptionExpiry" }
+      { returnDocument: "after", select: "full_name email isPremium subscriptionExpiry" }
     );
 
     if (!user) {

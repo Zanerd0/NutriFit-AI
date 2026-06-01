@@ -1056,6 +1056,20 @@
   color: #a5b4fc;
 }
 
+.con-upgrade-toast--error {
+  background:   linear-gradient(135deg, #2a1010 0%, #1a0c0c 100%);
+  border-color: rgba(239, 68, 68, 0.45);
+  box-shadow:   0 8px 32px rgba(239, 68, 68, 0.25), 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.con-upgrade-toast--error strong {
+  color: #fca5a5;
+}
+
+.con-upgrade-toast--error p {
+  color: #fecaca;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    PAYWALL — UPGRADE TO PREMIUM BUTTON
    ═══════════════════════════════════════════════════════════════════════════════ */

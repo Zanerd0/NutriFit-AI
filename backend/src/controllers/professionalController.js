@@ -238,7 +238,7 @@ const requestInstructor = async (req, res) => {
     await User.findByIdAndUpdate(
       consumerId,
       { instructorId: randomInstructor._id },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     console.log(
@@ -311,7 +311,7 @@ const requestDietician = async (req, res) => {
     await User.findByIdAndUpdate(
       consumerId,
       { dieticianId: randomDietician._id },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     console.log(
@@ -413,7 +413,7 @@ const connectByCode = async (req, res) => {
     await User.findByIdAndUpdate(
       consumerId,
       { [fieldToUpdate]: professional._id },
-      { new: true }
+      { returnDocument: "after" }
     );
 
     console.log(

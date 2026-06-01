@@ -40,12 +40,24 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
  * The consumerId is embedded in the Stripe session metadata so the webhook
  * can look up the correct User document without trusting any client-side data.
  */
+/** Apply premium to a consumer after verified payment. */
+const activatePremium = (consumerId) =>
+  User.findByIdAndUpdate(
+    consumerId,
+    {
+      $set: {
+        isPremium:          true,
+        subscriptionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    },
+    { returnDocument: "after" }
+  ).select("-password -__v");
+
 const createCheckoutSession = async (req, res) => {
   try {
-    const { consumerId } = req.body;
-
+    const consumerId = req.userId?.toString();
     if (!consumerId) {
-      return res.status(400).json({ error: "consumerId is required." });
+      return res.status(401).json({ error: "Authentication required." });
     }
 
     const session = await stripe.checkout.sessions.create({
@@ -73,7 +85,7 @@ const createCheckoutSession = async (req, res) => {
         consumerId,
       },
       // After successful payment Stripe redirects to the dashboard with a flag
-      success_url: "http://localhost:5173/consumer?upgrade=success",
+      success_url: "http://localhost:5173/consumer?upgrade=success&session_id={CHECKOUT_SESSION_ID}",
       // If the user cancels they land back on the dashboard cleanly
       cancel_url:  "http://localhost:5173/consumer",
     });
@@ -139,17 +151,7 @@ const handleWebhook = async (req, res) => {
       }
 
       try {
-        const updatedUser = await User.findByIdAndUpdate(
-          consumerId,
-          {
-            $set: {
-              isPremium:          true,
-              // Monthly subscription — expires 30 days from now
-              subscriptionExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            },
-          },
-          { new: true, select: "full_name email isPremium" }
-        );
+        const updatedUser = await activatePremium(consumerId);
 
         if (!updatedUser) {
           console.warn(`⚠️  No user found for consumerId: ${consumerId}`);
@@ -173,4 +175,45 @@ const handleWebhook = async (req, res) => {
   return res.status(200).json({ received: true });
 };
 
-module.exports = { createCheckoutSession, handleWebhook };
+// ---------------------------------------------------------------------------
+// POST /api/stripe/confirm-checkout
+// ---------------------------------------------------------------------------
+
+/**
+ * confirmCheckout — Called by the frontend after Stripe redirects back.
+ * Retrieves the session from Stripe, verifies payment, and activates premium.
+ * Does not depend on webhook timing (fixes race on localhost / slow webhooks).
+ */
+const confirmCheckout = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId is required." });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (session.payment_status !== "paid") {
+      return res.status(400).json({ error: "Payment has not been completed yet." });
+    }
+
+    const metaConsumerId = session.metadata?.consumerId;
+    const authConsumerId = req.userId?.toString();
+
+    if (!metaConsumerId || metaConsumerId !== authConsumerId) {
+      return res.status(403).json({ error: "Checkout session does not match your account." });
+    }
+
+    const user = await activatePremium(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    return res.status(200).json({ user });
+  } catch (error) {
+    console.error("❌ Stripe confirmCheckout error:", error.message);
+    return res.status(500).json({ error: "Failed to confirm checkout." });
+  }
+};
+
+module.exports = { createCheckoutSession, handleWebhook, confirmCheckout };

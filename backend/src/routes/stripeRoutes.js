@@ -25,6 +25,7 @@ const verifyToken = require("../middleware/verifyToken");
 const {
   createCheckoutSession,
   handleWebhook,
+  confirmCheckout,
 } = require("../controllers/stripeController");
 
 // ---------------------------------------------------------------------------
@@ -54,5 +55,6 @@ router.post(
 // ---------------------------------------------------------------------------
 router.post("/create-checkout-session", express.json(), verifyToken, createCheckoutSession);
 
+router.post("/confirm-checkout", express.json(), verifyToken, confirmCheckout);
 
 module.exports = router;

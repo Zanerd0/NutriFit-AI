@@ -146,6 +146,7 @@ const ConsumerDashboard = () => {
    * payment. Triggers the "Welcome to Premium!" toast banner.
    */
   const [upgradeSuccess, setUpgradeSuccess] = useState(false);
+  const [upgradeError,   setUpgradeError]   = useState("");
 
   /**
    * handleUpgradeClick — Called by the locked 🔒 PDF buttons in DietPlanDisplay
@@ -216,39 +217,66 @@ const ConsumerDashboard = () => {
   }, [fetchPlans]);
 
   /**
-   * upgradeEffect — Fires once when the component mounts (or when the URL
-   * changes). If ?upgrade=success is present in the query string:
-   *   1. Re-fetches the consumer profile from the server — this guarantees
-   *      isPremium reflects the Stripe webhook update without a manual reload.
-   *   2. Cleans the ?upgrade=success param from the URL (replaceState so it
-   *      doesn't create a new history entry).
-   *   3. Shows the "Welcome to Premium!" success toast for 6 seconds.
+   * upgradeEffect — After Stripe redirect (?upgrade=success&session_id=…):
+   * confirms payment with the backend, then syncs consumer state so isPremium
+   * updates immediately (no full page reload).
    */
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get("upgrade") !== "success") return;
 
-    // Strip the query param from the URL immediately
+    const sessionId = params.get("session_id");
     window.history.replaceState({}, "", "/consumer");
 
-    const handleUpgrade = async () => {
-      try {
-        const res = await axios.get("/consumer/me");
-        const fresh = res.data.user;
-        setConsumer(fresh);
-        localStorage.setItem("user", JSON.stringify(fresh));
-      } catch (err) {
-        console.warn("Could not re-fetch consumer after upgrade:", err.message);
-      } finally {
-        // Show the success toast regardless of fetch outcome
-        setUpgradeSuccess(true);
-        setTimeout(() => setUpgradeSuccess(false), 6000);
-      }
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    const applyUser = (user) => {
+      setConsumer(user);
+      localStorage.setItem("user", JSON.stringify(user));
     };
 
-    handleUpgrade();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount — location.search is read synchronously
+    const finalizeUpgrade = async () => {
+      setUpgradeError("");
+      const maxAttempts = sessionId ? 6 : 3;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          if (sessionId) {
+            const confirmRes = await axios.post("/stripe/confirm-checkout", { sessionId });
+            if (confirmRes.data?.user) {
+              applyUser(confirmRes.data.user);
+              if (confirmRes.data.user.isPremium) {
+                setUpgradeSuccess(true);
+                setTimeout(() => setUpgradeSuccess(false), 6000);
+                return;
+              }
+            }
+          }
+
+          const res = await axios.get("/consumer/me");
+          const fresh = res.data.user;
+          applyUser(fresh);
+          if (fresh?.isPremium) {
+            setUpgradeSuccess(true);
+            setTimeout(() => setUpgradeSuccess(false), 6000);
+            return;
+          }
+        } catch (err) {
+          console.warn("Premium activation attempt failed:", err.message);
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await sleep(1200);
+        }
+      }
+
+      setUpgradeError(
+        "Payment received, but Premium could not be activated yet. Please refresh in a moment or contact support."
+      );
+    };
+
+    finalizeUpgrade();
+  }, [location.search]);
 
   /**
    * refreshConsumer — Fetches the full consumer document from the server so
@@ -269,8 +297,10 @@ const ConsumerDashboard = () => {
   }, []);
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get("upgrade") === "success") return;
     refreshConsumer();
-  }, []); // run once on mount
+  }, [refreshConsumer, location.search]);
 
   /**
    * dieticianNameEffect — Fetches the connected dietician's display name
@@ -569,6 +599,23 @@ const ConsumerDashboard = () => {
     <div className="con-layout">
 
       {/* ── Premium Upgrade Toast ── */}
+      {upgradeError && (
+        <div className="con-upgrade-toast con-upgrade-toast--error" role="alert">
+          <span className="con-upgrade-toast__icon" aria-hidden="true">⚠</span>
+          <div>
+            <strong>Premium activation pending</strong>
+            <p>{upgradeError}</p>
+          </div>
+          <button
+            className="con-upgrade-toast__close"
+            aria-label="Dismiss"
+            onClick={() => setUpgradeError("")}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {upgradeSuccess && (
         <div className="con-upgrade-toast" role="status" aria-live="polite">
           <span className="con-upgrade-toast__icon" aria-hidden="true">⭐</span>

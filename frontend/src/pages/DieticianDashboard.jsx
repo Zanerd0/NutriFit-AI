@@ -43,6 +43,11 @@ const DAY_LABELS = {
   friday: "Friday", saturday: "Saturday", sunday: "Sunday",
 };
 const MEAL_KEYS = ["breakfast", "lunch", "dinner"];
+const MEAL_LABELS = {
+  breakfast: "Breakfast",
+  lunch: "Lunch",
+  dinner: "Dinner",
+};
 
 const isAiPlan = (plan) =>
   !!plan?.weekSchedule &&
@@ -222,6 +227,7 @@ const DieticianDashboard = () => {
   const [clientCustomPlans, setClientCustomPlans] = useState([]);
   const [managingPlan,   setManagingPlan]   = useState(null);
   const [weekScheduleEdit, setWeekScheduleEdit] = useState(emptyWeekSchedule());
+  const [activeEditDay, setActiveEditDay] = useState("monday");
   const [loadingClientPlans, setLoadingClientPlans] = useState(false);
 
   // ── Data Fetching ─────────────────────────────────────────────────────────
@@ -369,6 +375,7 @@ const DieticianDashboard = () => {
         return acc;
       }, {})
     );
+    setActiveEditDay("monday");
     setModalPhase("edit-ai");
     setFormError("");
     setFormSuccess("");
@@ -1008,23 +1015,39 @@ const DieticianDashboard = () => {
 
             {!loadingClientPlans && modalPhase === "edit-ai" && (
               <form className="diet-form" onSubmit={handleUpdateAiPlan}>
-                <p className="diet-form__hint">Edit the client&apos;s AI-generated weekly meals.</p>
-                <div className="diet-ai-edit-grid">
+                <p className="diet-form__hint">
+                  Select a day below to edit meals. Only one day is open at a time.
+                </p>
+                <div className="diet-day-tabs" role="tablist" aria-label="Days of the week">
                   {DAYS_ORDER.map((day) => (
-                    <div key={day} className="diet-ai-edit-day">
-                      <h4>{DAY_LABELS[day]}</h4>
-                      {MEAL_KEYS.map((meal) => (
-                        <label key={meal} className="diet-ai-edit-meal">
-                          <span>{meal}</span>
-                          <textarea
-                            className="diet-form__textarea diet-form__textarea--sm"
-                            rows={2}
-                            value={weekScheduleEdit[day]?.[meal] || ""}
-                            onChange={(e) => updateWeekMeal(day, meal, e.target.value)}
-                          />
-                        </label>
-                      ))}
-                    </div>
+                    <button
+                      key={day}
+                      type="button"
+                      role="tab"
+                      aria-selected={activeEditDay === day}
+                      className={`diet-day-tabs__btn${activeEditDay === day ? " diet-day-tabs__btn--active" : ""}`}
+                      onClick={() => setActiveEditDay(day)}
+                    >
+                      {DAY_LABELS[day]}
+                    </button>
+                  ))}
+                </div>
+                <div
+                  className="diet-ai-edit-panel"
+                  role="tabpanel"
+                  aria-label={`${DAY_LABELS[activeEditDay]} meals`}
+                >
+                  <h4 className="diet-ai-edit-panel__title">{DAY_LABELS[activeEditDay]}</h4>
+                  {MEAL_KEYS.map((meal) => (
+                    <label key={meal} className="diet-ai-edit-meal">
+                      <span>{MEAL_LABELS[meal]}</span>
+                      <textarea
+                        className="diet-form__textarea diet-form__textarea--sm"
+                        rows={3}
+                        value={weekScheduleEdit[activeEditDay]?.[meal] || ""}
+                        onChange={(e) => updateWeekMeal(activeEditDay, meal, e.target.value)}
+                      />
+                    </label>
                   ))}
                 </div>
                 <div className="diet-form__actions">

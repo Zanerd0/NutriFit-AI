@@ -32,6 +32,8 @@ exports.signup = async (req, res) => {
       full_name:            user.full_name,
       email:                user.email,
       role:                 user.role,
+      isPremium:            user.isPremium,
+      subscriptionExpiry:   user.subscriptionExpiry,
       // Health metrics — needed by ConsumerRoute onboarding gate
       age:                  user.age,
       weight:               user.weight,
@@ -64,6 +66,8 @@ exports.login = async (req, res) => {
       full_name:            user.full_name,
       email:                user.email,
       role:                 user.role,
+      isPremium:            user.isPremium,
+      subscriptionExpiry:   user.subscriptionExpiry,
       // Health metrics — needed by ConsumerRoute onboarding gate
       age:                  user.age,
       weight:               user.weight,
