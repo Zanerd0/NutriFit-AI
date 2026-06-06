@@ -1,0 +1,40 @@
+/* =============================================================================
+   Topbar.css
+   Shared hamburger trigger for mobile dashboard navigation.
+   ============================================================================= */
+
+.sidebar-hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.sidebar-hamburger:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sidebar-hamburger svg {
+  display: block;
+}
+
+.topbar-leading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .sidebar-hamburger {
+    display: flex;
+  }
+}

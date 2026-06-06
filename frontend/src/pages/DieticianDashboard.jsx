@@ -34,6 +34,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
 import "./DieticianDashboard.css";
 import ClientList from "../components/ClientList";
+import GlobalLayout from "../components/GlobalLayout";
 
 const DAYS_ORDER = [
   "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
@@ -737,128 +738,122 @@ const DieticianDashboard = () => {
     { id: "plans",    label: "Diet Plans" },
   ];
 
+  const activeNav = navItems.find((n) => n.id === activeTab);
+
   // ── Main Render ───────────────────────────────────────────────────────────
   return (
-    <div className="diet-layout">
-
-      {/* ── Sidebar ── */}
-      <aside className="diet-sidebar" aria-label="Dietician navigation">
-
-        {/* Brand */}
-        <div className="diet-sidebar__brand">
-          <span className="diet-brand__name">NutriFit AI</span>
-          <span className="diet-brand__sub">Dietician Portal</span>
+    <GlobalLayout
+      layoutClassName="diet-layout"
+      mainClassName="diet-main"
+      contentClassName="diet-content"
+      mainAriaLabel="Dietician content"
+      sidebarClassName="diet-sidebar"
+      sidebarAriaLabel="Dietician navigation"
+      topbarClassName="diet-topbar"
+      topbarLeading={(
+        <div>
+          <h1 className="diet-topbar__title">{activeNav?.label}</h1>
+          <p className="diet-topbar__date">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+            })}
+          </p>
         </div>
+      )}
+      topbarTrailing={<div className="diet-topbar__badge">Dietician</div>}
+      sidebar={({ closeSidebar }) => (
+        <>
+          <div className="diet-sidebar__brand">
+            <span className="diet-brand__name">NutriFit AI</span>
+            <span className="diet-brand__sub">Dietician Portal</span>
+          </div>
 
-        {/* Navigation links */}
-        <nav className="diet-sidebar__nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              id={`nav-${item.id}`}
-              className={`diet-nav-link ${activeTab === item.id ? "diet-nav-link--active" : ""}`}
-              onClick={() => setActiveTab(item.id)}
-              aria-current={activeTab === item.id ? "page" : undefined}
-            >
-              <span>{item.label}</span>
-              {item.badge > 0 && (
-                <span className="diet-nav-badge" aria-label={`${item.badge} pending requests`}>
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* Footer: user info + logout */}
-        <div className="diet-sidebar__footer">
-          <div className="diet-sidebar__user">
-
-            {/* ── Avatar — clickable for connection code popup ── */}
-            <button
-              ref={avatarBtnRef}
-              className="diet-sidebar__avatar"
-              id="dietician-avatar-btn"
-              aria-label="View your connection code"
-              onClick={handleAvatarClick}
-              style={{ cursor: "pointer", border: "none" }}
-            >
-              {dietician?.full_name?.charAt(0).toUpperCase()}
-            </button>
-
-            {/* Connection code popup — rendered fixed to escape sidebar overflow */}
-            {showCodePopup && (
-              <div
-                className="diet-code-popup"
-                id="dietician-code-popup"
-                role="dialog"
-                aria-label="Your connection code"
-                style={{ bottom: popupPos.bottom, left: popupPos.left }}
+          <nav className="diet-sidebar__nav">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                className={`diet-nav-link ${activeTab === item.id ? "diet-nav-link--active" : ""}`}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  closeSidebar();
+                }}
+                aria-current={activeTab === item.id ? "page" : undefined}
               >
-                <button
-                  className="diet-code-popup__close"
-                  onClick={() => setShowCodePopup(false)}
-                  aria-label="Close"
-                >✕</button>
-                <p className="diet-code-popup__title">Your Connection Code</p>
-                <p className="diet-code-popup__hint">
-                  Share this code with your consumers so they can connect with you in the Professional Hub.
-                </p>
-                <div className="diet-code-popup__code-wrap">
-                  <code className="diet-code-popup__code">{dietician?._id}</code>
+                <span>{item.label}</span>
+                {item.badge > 0 && (
+                  <span className="diet-nav-badge" aria-label={`${item.badge} pending requests`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          <div className="diet-sidebar__footer">
+            <div className="diet-sidebar__user">
+              <button
+                ref={avatarBtnRef}
+                className="diet-sidebar__avatar"
+                id="dietician-avatar-btn"
+                aria-label="View your connection code"
+                onClick={handleAvatarClick}
+                style={{ cursor: "pointer", border: "none" }}
+              >
+                {dietician?.full_name?.charAt(0).toUpperCase()}
+              </button>
+
+              {showCodePopup && (
+                <div
+                  className="diet-code-popup"
+                  id="dietician-code-popup"
+                  role="dialog"
+                  aria-label="Your connection code"
+                  style={{ bottom: popupPos.bottom, left: popupPos.left }}
+                >
                   <button
-                    className={`diet-code-popup__copy ${codeCopied ? "diet-code-popup__copy--done" : ""}`}
-                    id="copy-dietician-code-btn"
-                    onClick={handleCopyCode}
-                    aria-label="Copy code"
-                  >
-                    {codeCopied ? "✔ Copied" : "Copy"}
-                  </button>
+                    className="diet-code-popup__close"
+                    onClick={() => setShowCodePopup(false)}
+                    aria-label="Close"
+                  >✕</button>
+                  <p className="diet-code-popup__title">Your Connection Code</p>
+                  <p className="diet-code-popup__hint">
+                    Share this code with your consumers so they can connect with you in the Professional Hub.
+                  </p>
+                  <div className="diet-code-popup__code-wrap">
+                    <code className="diet-code-popup__code">{dietician?._id}</code>
+                    <button
+                      className={`diet-code-popup__copy ${codeCopied ? "diet-code-popup__copy--done" : ""}`}
+                      id="copy-dietician-code-btn"
+                      onClick={handleCopyCode}
+                      aria-label="Copy code"
+                    >
+                      {codeCopied ? "✔ Copied" : "Copy"}
+                    </button>
+                  </div>
                 </div>
+              )}
+
+              <div>
+                <span className="diet-sidebar__user-name">{dietician?.full_name}</span>
+                <span className="diet-sidebar__user-role">Dietician</span>
               </div>
-            )}
-
-            <div>
-              <span className="diet-sidebar__user-name">{dietician?.full_name}</span>
-              <span className="diet-sidebar__user-role">Dietician</span>
             </div>
+            <button
+              id="dietician-logout-btn"
+              className="diet-btn-logout"
+              onClick={handleLogout}
+              aria-label="Log out of dietician panel"
+            >
+              Logout
+            </button>
           </div>
-          <button
-            id="dietician-logout-btn"
-            className="diet-btn-logout"
-            onClick={handleLogout}
-            aria-label="Log out of dietician panel"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main Content ── */}
-      <main className="diet-main" aria-label="Dietician content">
-
-        {/* Top bar */}
-        <header className="diet-topbar">
-          <div>
-            <h1 className="diet-topbar__title">
-              {navItems.find((n) => n.id === activeTab)?.label}
-            </h1>
-            <p className="diet-topbar__date">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long", year: "numeric", month: "long", day: "numeric",
-              })}
-            </p>
-          </div>
-          <div className="diet-topbar__badge">Dietician</div>
-        </header>
-
-        {/* Dynamic section based on activeTab */}
-        <div className="diet-content">
+        </>
+      )}
+    >
           {activeTab === "overview" && renderOverview()}
           {activeTab === "clients"  && renderClients()}
           {activeTab === "plans"    && renderPlans()}
-        </div>
-      </main>
 
       {/* ── Plan management modal ── */}
       {showModal && (
@@ -1191,7 +1186,7 @@ const DieticianDashboard = () => {
           </div>
         </div>
       )}
-    </div>
+    </GlobalLayout>
   );
 };
 

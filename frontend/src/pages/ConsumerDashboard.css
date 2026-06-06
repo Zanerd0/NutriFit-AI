@@ -976,7 +976,6 @@
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .con-sidebar { display: none; }
   .con-content { padding: 1rem; }
   .con-plans-grid { grid-template-columns: 1fr; }
   .con-profile-form { grid-template-columns: 1fr; }

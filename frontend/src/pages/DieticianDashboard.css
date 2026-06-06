@@ -980,11 +980,6 @@
    RESPONSIVE
    ═══════════════════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .diet-sidebar {
-    display: none;
-  }
-
-  /* collapse on mobile — future: hamburger menu */
   .diet-content {
     padding: 1rem;
   }

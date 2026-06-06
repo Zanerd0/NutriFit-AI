@@ -1,0 +1,32 @@
+/* =============================================================================
+   Sidebar.css
+   Shared off-canvas mobile navigation for all dashboard roles.
+   Desktop: sidebars behave normally within each dashboard's layout CSS.
+   Mobile: fixed panel slides in from the left with a dimmed overlay.
+   ============================================================================= */
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+@media (max-width: 768px) {
+  .app-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 260px;
+    max-width: 85vw;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out;
+    overflow-y: auto;
+  }
+
+  .app-sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+}

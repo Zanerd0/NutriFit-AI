@@ -171,12 +171,15 @@ const createWorkoutPlan = async (req, res) => {
         .json({ error: "clientId and title are required fields." });
     }
 
-    // Verify the target client exists AND is a Consumer.
-    // This prevents plans being accidentally assigned to admins or other instructors.
-    const client = await User.findById(clientId).select("role");
-    if (!client || client.role !== "Consumer") {
+    // Verify the client is a linked Consumer (same rule as assign-workout).
+    const client = await User.findOne({
+      _id:          clientId,
+      role:         "Consumer",
+      instructorId: req.userId,
+    }).select("role full_name");
+    if (!client) {
       return res.status(404).json({
-        error: "Client not found or is not a Consumer.",
+        error: "Client not found or is not linked to your account.",
       });
     }
 

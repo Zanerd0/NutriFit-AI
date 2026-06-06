@@ -26,6 +26,7 @@ import ProgressCharts                        from "../components/ProgressCharts"
 import DietPlanDisplay                       from "../components/DietPlanDisplay";
 import AIChat                                from "../components/AIChat";
 import MealScanner                           from "../components/MealScanner";
+import GlobalLayout                          from "../components/GlobalLayout";
 import "./ConsumerDashboard.css";
 
 // =============================================================================
@@ -610,11 +611,10 @@ const ConsumerDashboard = () => {
   ];
 
 
-  // ── Main Render ───────────────────────────────────────────────────────────
-  return (
-    <div className="con-layout">
+  const activeNav = navItems.find((n) => n.id === activeTab);
 
-      {/* ── Premium Upgrade Toast ── */}
+  const upgradeBanner = (
+    <>
       {upgradeError && (
         <div className="con-upgrade-toast con-upgrade-toast--error" role="alert">
           <div>
@@ -646,124 +646,129 @@ const ConsumerDashboard = () => {
           </button>
         </div>
       )}
+    </>
+  );
 
-      {/* ── Sidebar ── */}
-      <aside className="con-sidebar" aria-label="Consumer navigation">
-        <div className="con-sidebar__brand">
-          <span className="con-brand__name">NutriFit AI</span>
-          <span className="con-brand__sub">My Dashboard</span>
-        </div>
-
-        <nav className="con-sidebar__nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              id={`nav-${item.id}`}
-              className={`con-nav-link ${activeTab === item.id ? "con-nav-link--active" : ""}`}
-              onClick={() => setActiveTab(item.id)}
-              aria-current={activeTab === item.id ? "page" : undefined}
-            >
-              {item.icon && (
-                <span className="con-nav-link__icon" aria-hidden="true">{item.icon}</span>
-              )}
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <div className="con-sidebar__footer">
-          <div className="con-sidebar__user">
-
-            {/* ── Avatar — clickable for premium popup ── */}
-            <div style={{ position: "relative" }}>
-              <button
-                className="con-sidebar__avatar"
-                id="consumer-avatar-btn"
-                aria-label="View account info"
-                onClick={() => setShowPremiumPopup((v) => !v)}
-                style={{ cursor: consumer?.isPremium ? "pointer" : "default", border: "none" }}
-              >
-                {consumer.full_name?.charAt(0).toUpperCase()}
-              </button>
-
-              {/* Premium popup card */}
-              {consumer?.isPremium && showPremiumPopup && (() => {
-                const expiry   = consumer?.subscriptionExpiry ? new Date(consumer.subscriptionExpiry) : null;
-                const now      = new Date();
-                const daysLeft = expiry ? Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))) : null;
-                return (
-                  <div className="con-premium-popup" id="consumer-premium-popup" role="dialog" aria-label="Premium subscription info">
-                    <div className="con-premium-popup__crown" aria-hidden="true">✦</div>
-                    <p className="con-premium-popup__title">NutriFit Premium</p>
-                    <p className="con-premium-popup__status">Active subscription</p>
-                    {daysLeft !== null ? (
-                      <div className="con-premium-popup__renew">
-                        <span className="con-premium-popup__days">{daysLeft}</span>
-                        <span className="con-premium-popup__days-label">day{daysLeft !== 1 ? "s" : ""} until renewal</span>
-                      </div>
-                    ) : (
-                      <p className="con-premium-popup__no-expiry">Renewal date not set</p>
-                    )}
-                    {expiry && (
-                      <p className="con-premium-popup__date">
-                        Renews {expiry.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-
-            <div>
-              <span className="con-sidebar__user-name">{consumer.full_name}</span>
-              <span className="con-sidebar__user-role">Consumer</span>
-            </div>
-          </div>
-          <button
-            id="consumer-logout-btn"
-            className="con-btn-logout"
-            onClick={handleLogout}
-            aria-label="Log out"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main Content ── */}
-      <main className="con-main" aria-label="Consumer content">
-        <header className="con-topbar">
-          <div>
-            <h1 className="con-topbar__title">
-              {(() => {
-                const active = navItems.find((n) => n.id === activeTab);
-                return (
-                  <>
-                    {active?.icon && (
-                      <span className="con-topbar__hub-icon" aria-hidden="true">{active.icon} </span>
-                    )}
-                    {active?.label}
-                  </>
-                );
-              })()}
-            </h1>
-            <p className="con-topbar__date">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long", year: "numeric", month: "long", day: "numeric",
-              })}
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-            {consumer?.isPremium && (
-              <span className="con-premium-badge" aria-label="Premium member">
-                Premium
-              </span>
+  // ── Main Render ───────────────────────────────────────────────────────────
+  return (
+    <GlobalLayout
+      layoutClassName="con-layout"
+      mainClassName="con-main"
+      contentClassName="con-content"
+      mainAriaLabel="Consumer content"
+      sidebarClassName="con-sidebar"
+      sidebarAriaLabel="Consumer navigation"
+      topbarClassName="con-topbar"
+      banner={upgradeBanner}
+      topbarLeading={(
+        <div>
+          <h1 className="con-topbar__title">
+            {activeNav?.icon && (
+              <span className="con-topbar__hub-icon" aria-hidden="true">{activeNav.icon} </span>
             )}
-            <div className="con-topbar__badge">Consumer</div>
+            {activeNav?.label}
+          </h1>
+          <p className="con-topbar__date">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+            })}
+          </p>
+        </div>
+      )}
+      topbarTrailing={(
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          {consumer?.isPremium && (
+            <span className="con-premium-badge" aria-label="Premium member">
+              Premium
+            </span>
+          )}
+          <div className="con-topbar__badge">Consumer</div>
+        </div>
+      )}
+      sidebar={({ closeSidebar }) => (
+        <>
+          <div className="con-sidebar__brand">
+            <span className="con-brand__name">NutriFit AI</span>
+            <span className="con-brand__sub">My Dashboard</span>
           </div>
-        </header>
 
-        <div className="con-content">
+          <nav className="con-sidebar__nav">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                className={`con-nav-link ${activeTab === item.id ? "con-nav-link--active" : ""}`}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  closeSidebar();
+                }}
+                aria-current={activeTab === item.id ? "page" : undefined}
+              >
+                {item.icon && (
+                  <span className="con-nav-link__icon" aria-hidden="true">{item.icon}</span>
+                )}
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="con-sidebar__footer">
+            <div className="con-sidebar__user">
+              <div style={{ position: "relative" }}>
+                <button
+                  className="con-sidebar__avatar"
+                  id="consumer-avatar-btn"
+                  aria-label="View account info"
+                  onClick={() => setShowPremiumPopup((v) => !v)}
+                  style={{ cursor: consumer?.isPremium ? "pointer" : "default", border: "none" }}
+                >
+                  {consumer.full_name?.charAt(0).toUpperCase()}
+                </button>
+
+                {consumer?.isPremium && showPremiumPopup && (() => {
+                  const expiry   = consumer?.subscriptionExpiry ? new Date(consumer.subscriptionExpiry) : null;
+                  const now      = new Date();
+                  const daysLeft = expiry ? Math.max(0, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))) : null;
+                  return (
+                    <div className="con-premium-popup" id="consumer-premium-popup" role="dialog" aria-label="Premium subscription info">
+                      <div className="con-premium-popup__crown" aria-hidden="true">✦</div>
+                      <p className="con-premium-popup__title">NutriFit Premium</p>
+                      <p className="con-premium-popup__status">Active subscription</p>
+                      {daysLeft !== null ? (
+                        <div className="con-premium-popup__renew">
+                          <span className="con-premium-popup__days">{daysLeft}</span>
+                          <span className="con-premium-popup__days-label">day{daysLeft !== 1 ? "s" : ""} until renewal</span>
+                        </div>
+                      ) : (
+                        <p className="con-premium-popup__no-expiry">Renewal date not set</p>
+                      )}
+                      {expiry && (
+                        <p className="con-premium-popup__date">
+                          Renews {expiry.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div>
+                <span className="con-sidebar__user-name">{consumer.full_name}</span>
+                <span className="con-sidebar__user-role">Consumer</span>
+              </div>
+            </div>
+            <button
+              id="consumer-logout-btn"
+              className="con-btn-logout"
+              onClick={handleLogout}
+              aria-label="Log out"
+            >
+              Logout
+            </button>
+          </div>
+        </>
+      )}
+    >
           {/* Home tab — clean overview: greeting + progress chart only */}
           {activeTab === "home" && (
             <>
@@ -832,9 +837,7 @@ const ConsumerDashboard = () => {
             onConsumerChange={handleProfessionalLinkChange}
           />
           )}
-        </div>
-      </main>
-    </div>
+    </GlobalLayout>
   );
 };
 

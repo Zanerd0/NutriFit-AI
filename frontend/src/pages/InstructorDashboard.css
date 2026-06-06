@@ -919,10 +919,6 @@
 }
 
 @media (max-width: 768px) {
-  .inst-sidebar {
-    display: none;
-  }
-
   .inst-content {
     padding: 1rem;
   }

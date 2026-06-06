@@ -68,10 +68,31 @@ const findDieticianConsumerIds = async (dieticianId) =>
   User.distinct("_id", { role: "Consumer", dieticianId });
 
 /**
- * Consumer IDs currently linked to an instructor (active connection only).
+ * Consumer IDs linked to an instructor — includes active connections and any
+ * consumer who still has a workout plan assigned by this instructor (repairs
+ * missing instructorId links left by legacy plan creation).
  */
-const findInstructorConsumerIds = async (instructorId) =>
-  User.distinct("_id", { role: "Consumer", instructorId });
+const findInstructorConsumerIds = async (instructorId) => {
+  const [planClientIds, planUserIds] = await Promise.all([
+    WorkoutPlan.distinct("clientId", { instructorId }),
+    WorkoutPlan.distinct("userId", { instructorId, userId: { $ne: null } }),
+  ]);
+
+  const planConsumerIds = uniqueIds([...planClientIds, ...planUserIds]);
+
+  if (planConsumerIds.length > 0) {
+    await User.updateMany(
+      {
+        _id: { $in: planConsumerIds },
+        role: "Consumer",
+        $or: [{ instructorId: null }, { instructorId: { $exists: false } }],
+      },
+      { $set: { instructorId } }
+    );
+  }
+
+  return User.distinct("_id", { role: "Consumer", instructorId });
+};
 
 /**
  * Disconnects a consumer from a professional: clears the link, request flags,

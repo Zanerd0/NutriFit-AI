@@ -27,6 +27,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "../api/axios";
+import GlobalLayout from "../components/GlobalLayout";
 import "./AdminDashboard.css";
 
 // ─── Sub-Components ────────────────────────────────────────────────────────
@@ -301,87 +302,80 @@ const AdminDashboard = () => {
     { id: "user-management", label: "User Management" },
   ];
 
+  const activeNav = navItems.find((n) => n.id === activeTab);
+
   // ── Main Render ─────────────────────────────────────────────────────────
   return (
-    <div className="admin-layout">
-
-      {/* ── Sidebar ── */}
-      <aside className="admin-sidebar" aria-label="Admin navigation">
-
-        {/* Brand logo area */}
-        <div className="sidebar-brand">
-          {/*<span className="brand-icon">🥦</span>*/}
-          <div className="brand-text">
-            <span className="brand-name">NutriFit AI</span>
-            <span className="brand-sub">Admin Panel</span>
-          </div>
+    <GlobalLayout
+      layoutClassName="admin-layout"
+      mainClassName="admin-main"
+      contentClassName="admin-content"
+      mainAriaLabel="Admin content"
+      sidebarClassName="admin-sidebar"
+      sidebarAriaLabel="Admin navigation"
+      topbarClassName="admin-topbar"
+      topbarLeading={(
+        <div>
+          <h1 className="topbar-title">{activeNav?.label}</h1>
+          <p className="topbar-date">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+            })}
+          </p>
         </div>
+      )}
+      topbarTrailing={<div className="topbar-badge">Admin</div>}
+      sidebar={({ closeSidebar }) => (
+        <>
+          <div className="sidebar-brand">
+            <div className="brand-text">
+              <span className="brand-name">NutriFit AI</span>
+              <span className="brand-sub">Admin Panel</span>
+            </div>
+          </div>
 
-        {/* Navigation links */}
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
+          <nav className="sidebar-nav">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                className={`sidebar-link ${activeTab === item.id ? "sidebar-link--active" : ""}`}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  closeSidebar();
+                }}
+                aria-current={activeTab === item.id ? "page" : undefined}
+              >
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="sidebar-footer">
+            <div className="sidebar-user">
+              <div className="sidebar-user__avatar">
+                {adminUser?.full_name?.charAt(0).toUpperCase()}
+              </div>
+              <div className="sidebar-user__info">
+                <span className="sidebar-user__name">{adminUser?.full_name}</span>
+                <span className="sidebar-user__role">Administrator</span>
+              </div>
+            </div>
             <button
-              key={item.id}
-              id={`nav-${item.id}`}
-              className={`sidebar-link ${activeTab === item.id ? "sidebar-link--active" : ""}`}
-              onClick={() => setActiveTab(item.id)}
-              aria-current={activeTab === item.id ? "page" : undefined}
+              id="admin-logout-btn"
+              className="btn-logout"
+              onClick={handleLogout}
+              aria-label="Log out of admin panel"
             >
-              <span>{item.label}</span>
+              Logout
             </button>
-          ))}
-        </nav>
-
-        {/* Admin user info + logout at the bottom */}
-        <div className="sidebar-footer">
-          <div className="sidebar-user">
-            <div className="sidebar-user__avatar">
-              {adminUser?.full_name?.charAt(0).toUpperCase()}
-            </div>
-            <div className="sidebar-user__info">
-              <span className="sidebar-user__name">{adminUser?.full_name}</span>
-              <span className="sidebar-user__role">Administrator</span>
-            </div>
           </div>
-          <button
-            id="admin-logout-btn"
-            className="btn-logout"
-            onClick={handleLogout}
-            aria-label="Log out of admin panel"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main Content Area ── */}
-      <main className="admin-main" aria-label="Admin content">
-
-        {/* Top header bar */}
-        <header className="admin-topbar">
-          <div>
-            <h1 className="topbar-title">
-              {navItems.find((n) => n.id === activeTab)?.label}
-            </h1>
-            <p className="topbar-date">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long", year: "numeric", month: "long", day: "numeric",
-              })}
-            </p>
-          </div>
-          <div className="topbar-badge">
-            Admin
-          </div>
-        </header>
-
-        {/* Dynamic section based on activeTab */}
-        <div className="admin-content">
-          {activeTab === "overview"        && renderOverview()}
-          {activeTab === "user-management" && renderUserManagement()}
-        </div>
-      </main>
-
-    </div>
+        </>
+      )}
+    >
+      {activeTab === "overview"        && renderOverview()}
+      {activeTab === "user-management" && renderUserManagement()}
+    </GlobalLayout>
   );
 };
 

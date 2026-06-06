@@ -36,6 +36,7 @@ import { validateWorkoutExercises } from "../utils/workoutExerciseValidation";
 import "./InstructorDashboard.css";
 import ClientList       from "../components/ClientList";
 import TemplateManager  from "../components/TemplateManager";
+import GlobalLayout     from "../components/GlobalLayout";
 
 // =============================================================================
 // HELPERS
@@ -851,117 +852,119 @@ const InstructorDashboard = () => {
   ];
 
 
+  const activeNav = navItems.find((n) => n.id === activeTab);
+
   // ── Main Render ───────────────────────────────────────────────────────────
   return (
-    <div className="inst-layout">
-
-      {/* ── Sidebar ── */}
-      <aside className="inst-sidebar" aria-label="Instructor navigation">
-        <div className="inst-sidebar__brand">
-          <span className="inst-brand__name">NutriFit AI</span>
-          <span className="inst-brand__sub">Instructor Portal</span>
+    <GlobalLayout
+      layoutClassName="inst-layout"
+      mainClassName="inst-main"
+      contentClassName="inst-content"
+      mainAriaLabel="Instructor content"
+      sidebarClassName="inst-sidebar"
+      sidebarAriaLabel="Instructor navigation"
+      topbarClassName="inst-topbar"
+      topbarLeading={(
+        <div>
+          <h1 className="inst-topbar__title">{activeNav?.label}</h1>
+          <p className="inst-topbar__date">
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long", year: "numeric", month: "long", day: "numeric",
+            })}
+          </p>
         </div>
+      )}
+      topbarTrailing={<div className="inst-topbar__badge">Instructor</div>}
+      sidebar={({ closeSidebar }) => (
+        <>
+          <div className="inst-sidebar__brand">
+            <span className="inst-brand__name">NutriFit AI</span>
+            <span className="inst-brand__sub">Instructor Portal</span>
+          </div>
 
-        <nav className="inst-sidebar__nav">
-          {navItems.map((item) => (
-            <button
-              key={item.id}
-              id={`nav-${item.id}`}
-              className={`inst-nav-link ${activeTab === item.id ? "inst-nav-link--active" : ""}`}
-              onClick={() => setActiveTab(item.id)}
-              aria-current={activeTab === item.id ? "page" : undefined}
-            >
-              <span>{item.label}</span>
-              {item.badge > 0 && (
-                <span className="inst-nav-badge" aria-label={`${item.badge} pending requests`}>
-                  {item.badge}
-                </span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-
-        <div className="inst-sidebar__footer">
-          <div className="inst-sidebar__user">
-
-            {/* ── Avatar — clickable for connection code popup ── */}
-            <button
-              ref={avatarBtnRef}
-              className="inst-sidebar__avatar"
-              id="instructor-avatar-btn"
-              aria-label="View your connection code"
-              onClick={handleAvatarClick}
-              style={{ cursor: "pointer", border: "none" }}
-            >
-              {instructor?.full_name?.charAt(0).toUpperCase()}
-            </button>
-
-            {/* Connection code popup — rendered fixed to escape sidebar overflow */}
-            {showCodePopup && (
-              <div
-                className="inst-code-popup"
-                id="instructor-code-popup"
-                role="dialog"
-                aria-label="Your connection code"
-                style={{ bottom: popupPos.bottom, left: popupPos.left }}
+          <nav className="inst-sidebar__nav">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                id={`nav-${item.id}`}
+                className={`inst-nav-link ${activeTab === item.id ? "inst-nav-link--active" : ""}`}
+                onClick={() => {
+                  setActiveTab(item.id);
+                  closeSidebar();
+                }}
+                aria-current={activeTab === item.id ? "page" : undefined}
               >
-                <button
-                  className="inst-code-popup__close"
-                  onClick={() => setShowCodePopup(false)}
-                  aria-label="Close"
-                >✕</button>
-                <p className="inst-code-popup__title">Your Connection Code</p>
-                <p className="inst-code-popup__hint">
-                  Share this code with your consumers so they can connect with you in the Professional Hub.
-                </p>
-                <div className="inst-code-popup__code-wrap">
-                  <code className="inst-code-popup__code">{instructor?._id}</code>
+                <span>{item.label}</span>
+                {item.badge > 0 && (
+                  <span className="inst-nav-badge" aria-label={`${item.badge} pending requests`}>
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          <div className="inst-sidebar__footer">
+            <div className="inst-sidebar__user">
+              <button
+                ref={avatarBtnRef}
+                className="inst-sidebar__avatar"
+                id="instructor-avatar-btn"
+                aria-label="View your connection code"
+                onClick={handleAvatarClick}
+                style={{ cursor: "pointer", border: "none" }}
+              >
+                {instructor?.full_name?.charAt(0).toUpperCase()}
+              </button>
+
+              {showCodePopup && (
+                <div
+                  className="inst-code-popup"
+                  id="instructor-code-popup"
+                  role="dialog"
+                  aria-label="Your connection code"
+                  style={{ bottom: popupPos.bottom, left: popupPos.left }}
+                >
                   <button
-                    className={`inst-code-popup__copy ${codeCopied ? "inst-code-popup__copy--done" : ""}`}
-                    id="copy-instructor-code-btn"
-                    onClick={handleCopyCode}
-                    aria-label="Copy code"
-                  >
-                    {codeCopied ? "✔ Copied" : "Copy"}
-                  </button>
+                    className="inst-code-popup__close"
+                    onClick={() => setShowCodePopup(false)}
+                    aria-label="Close"
+                  >✕</button>
+                  <p className="inst-code-popup__title">Your Connection Code</p>
+                  <p className="inst-code-popup__hint">
+                    Share this code with your consumers so they can connect with you in the Professional Hub.
+                  </p>
+                  <div className="inst-code-popup__code-wrap">
+                    <code className="inst-code-popup__code">{instructor?._id}</code>
+                    <button
+                      className={`inst-code-popup__copy ${codeCopied ? "inst-code-popup__copy--done" : ""}`}
+                      id="copy-instructor-code-btn"
+                      onClick={handleCopyCode}
+                      aria-label="Copy code"
+                    >
+                      {codeCopied ? "✔ Copied" : "Copy"}
+                    </button>
+                  </div>
                 </div>
+              )}
+
+              <div>
+                <span className="inst-sidebar__user-name">{instructor?.full_name}</span>
+                <span className="inst-sidebar__user-role">Instructor</span>
               </div>
-            )}
-
-            <div>
-              <span className="inst-sidebar__user-name">{instructor?.full_name}</span>
-              <span className="inst-sidebar__user-role">Instructor</span>
             </div>
+            <button
+              id="instructor-logout-btn"
+              className="inst-btn-logout"
+              onClick={handleLogout}
+              aria-label="Log out of instructor panel"
+            >
+              Logout
+            </button>
           </div>
-          <button
-            id="instructor-logout-btn"
-            className="inst-btn-logout"
-            onClick={handleLogout}
-            aria-label="Log out of instructor panel"
-          >
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ── Main Content ── */}
-      <main className="inst-main" aria-label="Instructor content">
-        <header className="inst-topbar">
-          <div>
-            <h1 className="inst-topbar__title">
-              {navItems.find((n) => n.id === activeTab)?.label}
-            </h1>
-            <p className="inst-topbar__date">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long", year: "numeric", month: "long", day: "numeric",
-              })}
-            </p>
-          </div>
-          <div className="inst-topbar__badge">Instructor</div>
-        </header>
-
-        <div className="inst-content">
+        </>
+      )}
+    >
           {activeTab === "overview"  && renderOverview()}
           {activeTab === "clients"   && renderClients()}
           {activeTab === "plans"     && renderPlans()}
@@ -975,8 +978,6 @@ const InstructorDashboard = () => {
               }}
             />
           )}
-        </div>
-      </main>
 
       {/* ── Assign Plan Modal ── */}
       {showModal && (
@@ -1287,7 +1288,7 @@ const InstructorDashboard = () => {
           </div>
         </div>
       )}
-    </div>
+    </GlobalLayout>
   );
 };
 
