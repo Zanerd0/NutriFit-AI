@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import axios from "../api/axios";
+import WorkoutSuggestions from "./WorkoutSuggestions";
 import "./TemplateManager.css";
 
 // ─── Goal tag options used in create / edit forms ─────────────────────────────
@@ -353,6 +354,7 @@ const AssignModal = ({ template, clients, onClose, onAssigned }) => {
               Customise sets & reps for{" "}
               <strong>{clients.find((c) => c._id === clientId)?.full_name}</strong>:
             </p>
+            <WorkoutSuggestions client={clients.find((c) => c._id === clientId)} />
             <div className="tm-ex-list" style={{ marginBottom: "1rem" }}>
               {exercises.map((ex, i) => (
                 <div key={i} className="tm-ex-row" id={`assign-ex-${i}`}

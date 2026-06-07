@@ -35,8 +35,9 @@ import axios from "../api/axios";
 import { validateWorkoutExercises } from "../utils/workoutExerciseValidation";
 import "./InstructorDashboard.css";
 import ClientList       from "../components/ClientList";
-import TemplateManager  from "../components/TemplateManager";
-import GlobalLayout     from "../components/GlobalLayout";
+import TemplateManager     from "../components/TemplateManager";
+import GlobalLayout        from "../components/GlobalLayout";
+import WorkoutSuggestions  from "../components/WorkoutSuggestions";
 
 // =============================================================================
 // HELPERS
@@ -1137,6 +1138,7 @@ const InstructorDashboard = () => {
                     </>
                   );
                 })()}
+                {selectedClient && <WorkoutSuggestions client={selectedClient} />}
                 <p className="inst-form__label" style={{ marginTop: "1rem" }}>Pick a template to start from:</p>
                 {modalLoadingTpl ? (
                   <div className="inst-loading"><div className="inst-spinner" /><p>Loading templates…</p></div>
@@ -1178,6 +1180,7 @@ const InstructorDashboard = () => {
                   <button className="inst-btn inst-btn--ghost" style={{ fontSize: "0.72rem", padding: "0.2rem 0.5rem", marginLeft: "0.5rem" }}
                     onClick={() => { setModalPhase("template"); setModalSelectedTpl(null); }}>↩ Back</button>
                 </div>
+                {selectedClient && <WorkoutSuggestions client={selectedClient} />}
                 <p className="inst-form__label">Customise exercises:</p>
                 <div className="inst-exercises-list" style={{ marginBottom: "1.25rem" }}>
                   {modalExercises.map((ex, i) => (
@@ -1218,6 +1221,8 @@ const InstructorDashboard = () => {
                     ↩ Back
                   </button>
                 </div>
+
+                {selectedClient && <WorkoutSuggestions client={selectedClient} />}
 
                 {/* Plan title + description */}
                 <div className="inst-form__group" style={{ marginBottom: "0.85rem" }}>

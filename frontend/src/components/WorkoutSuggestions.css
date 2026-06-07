@@ -1,0 +1,46 @@
+/* =============================================================================
+   WorkoutSuggestions.css
+   Goal-based vague hints shown while instructors build workout plans.
+   ============================================================================= */
+
+.workout-suggestions {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.workout-suggestions__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  letter-spacing: 0.01em;
+}
+
+.workout-suggestions__goal {
+  font-weight: 600;
+  color: #c7d2fe;
+}
+
+.workout-suggestions__list {
+  margin: 0;
+  padding: 0 0 0 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.workout-suggestions__list li {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(230, 237, 243, 0.85);
+}
+
+.workout-suggestions__hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: rgba(125, 133, 144, 0.9);
+  font-style: italic;
+}
