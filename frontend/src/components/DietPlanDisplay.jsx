@@ -19,7 +19,7 @@
  *   connectedDieticianName  {string}   — (Optional) Display name of the connected dietician.
  */
 
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { generatePDF } from "../utils/generatePDF";
 import AdherenceChecklist from "./AdherenceChecklist";
@@ -101,6 +101,10 @@ const DayColumn = ({ day, dayData, isToday }) => {
  *   hasExistingPlan  {boolean}  — Controls the button label (Generate vs Regenerate).
  */
 const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
+  const activePreferences = (consumer?.dietary_preferences ?? []).filter(
+    (pref) => pref && pref !== "None"
+  );
+
   const [form, setForm] = useState({
     age:               consumer?.age               ?? "",
     weight:            consumer?.weight             ?? "",
@@ -109,6 +113,7 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
   });
   const [generating, setGenerating] = useState(false);
   const [error,      setError]      = useState("");
+  const submittingRef = useRef(false);
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -116,6 +121,14 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current || generating) return;
+
+    if (!consumer?._id) {
+      setError("Could not identify your account. Please log out and log back in.");
+      return;
+    }
+
+    submittingRef.current = true;
     setError("");
     setGenerating(true);
 
@@ -125,7 +138,7 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
         body: JSON.stringify({
-          consumerId:        consumer?._id ?? "",
+          consumerId:        consumer._id,
           age:               form.age,
           weight:            form.weight,
           goal:              form.goal,
@@ -135,18 +148,18 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
 
       const data = await response.json().catch(() => ({}));
 
-      if (!response.ok) {
+      if (!response.ok || data.success === false) {
         throw new Error(
           data.message || data.error || `Server error (${response.status})`
         );
       }
 
-      // Backend may return { data: plan } or the plan directly
       const plan = data.data ?? data;
       onSuccess(plan);
     } catch (err) {
       setError(err.message || "Failed to generate your plan. Please try again.");
     } finally {
+      submittingRef.current = false;
       setGenerating(false);
     }
   };
@@ -167,6 +180,7 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
             type="button"
             className="dpd-gen-modal__close"
             onClick={onCancel}
+            disabled={generating}
             aria-label="Close generate form"
           >
             ✕
@@ -176,18 +190,36 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
         {/* Scrollable body below the sticky header */}
         <div className="dpd-gen-modal__body">
           <p className="dpd-gen-modal__sub">
-            Your plan will be built by the Gemini AI model using your health profile.
-            Fill in your details below to get a personalised 7-day schedule.
+            Your plan will be built by the Gemini AI model using your health profile
+            and registered dietary preferences. Fill in your details below to get a
+            personalised 7-day schedule.
           </p>
+
+          {activePreferences.length > 0 && (
+            <div className="dpd-gen-prefs">
+              <p className="dpd-gen-label">Your dietary preferences (always applied)</p>
+              <div className="dpd-gen-prefs__chips" role="list" aria-label="Dietary preferences">
+                {activePreferences.map((pref) => (
+                  <span key={pref} className="dpd-gen-prefs__chip" role="listitem">{pref}</span>
+                ))}
+              </div>
+            </div>
+          )}
 
         {/* Loading overlay */}
           {generating && (
             <div className="dpd-gen-loading" aria-live="polite">
               <span className="dpd-gen-loading__spinner" aria-hidden="true" />
               <p className="dpd-gen-loading__text">
-                Generating your custom AI plan, please wait…
+                Generating your custom AI plan — this can take up to a minute…
               </p>
+              <p className="dpd-gen-loading__hint">Please don&apos;t click again while this runs.</p>
             </div>
+          )}
+
+          {/* Error shown after a failed attempt (including while form is visible again) */}
+          {!generating && error && (
+            <div className="dpd-gen-error" role="alert">{error}</div>
           )}
 
           {/* Form */}
@@ -271,11 +303,6 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
                 />
               </div>
 
-              {/* Error */}
-              {error && (
-                <div className="dpd-gen-error" role="alert">{error}</div>
-              )}
-
               {/* Actions */}
               <div className="dpd-gen-actions">
                 <button
@@ -289,6 +316,7 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
                   type="submit"
                   id="dpd-gen-submit-btn"
                   className="dpd-gen-btn dpd-gen-btn--submit"
+                  disabled={generating}
                 >
                   <span aria-hidden="true">✦</span>
                   {hasExistingPlan ? "Regenerate My Plan" : "Generate My Plan"}

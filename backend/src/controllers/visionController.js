@@ -32,12 +32,14 @@ const MAX_MEAL_CALORIES = 3000;
 const VISION_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
+  "gemini-2.0-flash-001",
   "gemini-2.5-flash-lite",
   "gemini-2.0-flash-lite",
+  "gemini-2.0-flash-lite-001",
 ];
 
-const MAX_RETRIES_PER_MODEL = 2;
-const RETRY_BASE_DELAY_MS = 1500;
+const MAX_RETRIES_PER_MODEL = 3;
+const RETRY_BASE_DELAY_MS = 2000;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -107,9 +109,30 @@ const parseCalorieEstimate = (rawText) => {
   return numericMatch ? Number(numericMatch[0]) : NaN;
 };
 
+const isPlausibleMealCalories = (calories) =>
+  Number.isFinite(calories) &&
+  calories >= MIN_MEAL_CALORIES &&
+  calories <= MAX_MEAL_CALORIES;
+
+/**
+ * Reads model text output; empty or blocked responses are treated as a bad attempt.
+ */
+const extractModelText = (response) => {
+  try {
+    return response.text().trim();
+  } catch (error) {
+    const blockReason =
+      response?.promptFeedback?.blockReason ??
+      response?.candidates?.[0]?.finishReason ??
+      "blocked";
+    throw new Error(`Model returned no text (${blockReason})`);
+  }
+};
+
 /**
  * Calls Gemini with the meal image, cycling models and retrying on transient errors.
- * @returns {Promise<{ rawText: string, modelName: string }>}
+ * Also retries when the response is unparseable or outside a plausible calorie range.
+ * @returns {Promise<{ estimatedCalories: number, rawText: string, modelName: string }>}
  */
 const estimateCaloriesWithFallback = async (genAI, buffer, mimetype) => {
   const imagePart = {
@@ -120,6 +143,7 @@ const estimateCaloriesWithFallback = async (genAI, buffer, mimetype) => {
   };
 
   let lastError = null;
+  let lastBadResponse = null;
 
   for (const modelName of VISION_MODELS) {
     for (let attempt = 0; attempt <= MAX_RETRIES_PER_MODEL; attempt++) {
@@ -142,9 +166,36 @@ const estimateCaloriesWithFallback = async (genAI, buffer, mimetype) => {
           contents: [{ role: "user", parts: [imagePart] }],
           generationConfig: GENERATION_CONFIG,
         });
-        const rawText = result.response.text().trim();
+
+        const rawText = extractModelText(result.response);
+        if (!rawText) {
+          lastBadResponse = "(empty response)";
+          console.warn(`[visionController] ⚠️ ${modelName} returned empty text — trying next attempt`);
+          if (attempt < MAX_RETRIES_PER_MODEL) continue;
+          break;
+        }
+
+        const estimatedCalories = parseCalorieEstimate(rawText);
+        if (!Number.isFinite(estimatedCalories)) {
+          lastBadResponse = rawText;
+          console.warn(
+            `[visionController] ⚠️ ${modelName} unparseable response "${rawText}" — trying next attempt`
+          );
+          if (attempt < MAX_RETRIES_PER_MODEL) continue;
+          break;
+        }
+
+        if (!isPlausibleMealCalories(estimatedCalories)) {
+          lastBadResponse = rawText;
+          console.warn(
+            `[visionController] ⚠️ ${modelName} unrealistic estimate ${estimatedCalories} kcal — trying next attempt`
+          );
+          if (attempt < MAX_RETRIES_PER_MODEL) continue;
+          break;
+        }
+
         console.log(`[visionController] ✅ Response from ${modelName}:`, rawText);
-        return { rawText, modelName };
+        return { estimatedCalories, rawText, modelName };
       } catch (error) {
         lastError = error;
         console.warn(`[visionController] ⚠️ ${modelName} failed: ${formatGeminiError(error)}`);
@@ -156,9 +207,16 @@ const estimateCaloriesWithFallback = async (genAI, buffer, mimetype) => {
         if (isRetryableError(error) && attempt < MAX_RETRIES_PER_MODEL) continue;
         if (isRetryableError(error)) break;
 
-        throw error;
+        // Non-retryable for this model — fall through to the next model instead of aborting.
+        break;
       }
     }
+  }
+
+  if (lastBadResponse) {
+    throw new Error(
+      `All vision models returned unusable calorie estimates. Last response: "${lastBadResponse}"`
+    );
   }
 
   throw lastError ?? new Error("All vision models failed.");
@@ -182,20 +240,11 @@ const scanMeal = async (req, res) => {
     const { buffer, mimetype } = req.file;
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    const { rawText, modelName } = await estimateCaloriesWithFallback(genAI, buffer, mimetype);
-
-    const estimatedCalories = parseCalorieEstimate(rawText);
-    if (!Number.isFinite(estimatedCalories)) {
-      return res.status(422).json({
-        error: "Could not parse a valid calorie estimate from the AI response.",
-      });
-    }
-
-    if (estimatedCalories < MIN_MEAL_CALORIES || estimatedCalories > MAX_MEAL_CALORIES) {
-      return res.status(422).json({
-        error: `AI estimate (${estimatedCalories} kcal) looks unrealistic. Please try scanning again.`,
-      });
-    }
+    const { estimatedCalories, modelName } = await estimateCaloriesWithFallback(
+      genAI,
+      buffer,
+      mimetype
+    );
 
     console.log(`[visionController] ✅ Estimated calories: ${estimatedCalories} (via ${modelName})`);
 
@@ -215,6 +264,13 @@ const scanMeal = async (req, res) => {
     if (isServiceOverloaded(error)) {
       return res.status(503).json({
         error: "The AI service is temporarily busy. Please wait a moment and try again.",
+      });
+    }
+
+    const msg = error?.message ?? "";
+    if (msg.includes("unusable calorie estimates") || msg.includes("All vision models failed")) {
+      return res.status(503).json({
+        error: "Could not analyze this photo right now. Please try again in a moment.",
       });
     }
 

@@ -10,6 +10,11 @@ import axios from "../api/axios";
 import "./MealScanner.css";
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png"];
+const MAX_SCAN_ATTEMPTS = 3;
+const SCAN_TIMEOUT_MS = 120_000;
+const RETRYABLE_STATUSES = new Set([422, 429, 503]);
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const MealScanner = () => {
   const fileInputRef = useRef(null);
@@ -17,6 +22,7 @@ const MealScanner = () => {
   const [selectedFile, setSelectedFile]   = useState(null);
   const [previewUrl,   setPreviewUrl]     = useState(null);
   const [isScanning,   setIsScanning]     = useState(false);
+  const [scanAttempt,  setScanAttempt]    = useState(0);
   const [estimatedCalories, setEstimatedCalories] = useState(null);
   const [error,        setError]        = useState("");
 
@@ -42,6 +48,19 @@ const MealScanner = () => {
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  const getScanErrorMessage = (err) => {
+    const status = err.response?.status;
+    const serverMsg = err.response?.data?.error;
+    if (serverMsg) return serverMsg;
+    if (status === 503) {
+      return "The AI service is temporarily busy. Please wait a moment and try again.";
+    }
+    if (status === 429) {
+      return "API quota reached. Wait a minute and try again.";
+    }
+    return "Failed to scan meal. Please try again.";
+  };
+
   const handleScan = async () => {
     if (!selectedFile) {
       setError("Please choose an image first.");
@@ -49,30 +68,45 @@ const MealScanner = () => {
     }
 
     setIsScanning(true);
+    setScanAttempt(1);
     setError("");
     setEstimatedCalories(null);
 
     const formData = new FormData();
     formData.append("image", selectedFile);
 
+    let lastError = "";
+
     try {
-      const res = await axios.post("/vision/scan", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      setEstimatedCalories(res.data.estimatedCalories);
-    } catch (err) {
-      const status = err.response?.status;
-      const serverMsg = err.response?.data?.error;
-      setError(
-        serverMsg ||
-          (status === 503
-            ? "The AI service is temporarily busy. Please wait a moment and try again."
-            : status === 429
-              ? "API quota reached. Wait a minute and try again."
-              : "Failed to scan meal. Please try again.")
-      );
+      for (let attempt = 1; attempt <= MAX_SCAN_ATTEMPTS; attempt++) {
+        setScanAttempt(attempt);
+
+        if (attempt > 1) {
+          await sleep(2000 * (attempt - 1));
+        }
+
+        try {
+          const res = await axios.post("/vision/scan", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+            timeout: SCAN_TIMEOUT_MS,
+          });
+          setEstimatedCalories(res.data.estimatedCalories);
+          return;
+        } catch (err) {
+          lastError = getScanErrorMessage(err);
+          const status = err.response?.status;
+          const canRetry =
+            attempt < MAX_SCAN_ATTEMPTS &&
+            (RETRYABLE_STATUSES.has(status) || !status);
+
+          if (!canRetry) break;
+        }
+      }
+
+      setError(lastError);
     } finally {
       setIsScanning(false);
+      setScanAttempt(0);
     }
   };
 
@@ -135,7 +169,11 @@ const MealScanner = () => {
         {isScanning && (
           <div className="ms-loading" aria-live="polite">
             <div className="ms-spinner" aria-hidden="true" />
-            <span>Estimating calories…</span>
+            <span>
+              {scanAttempt > 1
+                ? `Still analyzing… (attempt ${scanAttempt} of ${MAX_SCAN_ATTEMPTS})`
+                : "Estimating calories…"}
+            </span>
           </div>
         )}
 

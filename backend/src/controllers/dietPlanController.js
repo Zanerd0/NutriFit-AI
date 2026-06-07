@@ -32,6 +32,28 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const NutritionalRule = require("../models/NutritionalRule");
 const DietPlan = require("../models/DietPlan");
+const User = require("../models/User");
+const {
+  formatGeminiError,
+  isQuotaExceededError,
+  isServiceOverloaded,
+  generateContentWithFallback,
+} = require("../utils/geminiHelpers");
+const {
+  normalizeWeekSchedule,
+  validateWeekSchedule,
+  validateDietaryCompliance,
+  formatDietaryConstraints,
+} = require("../utils/dietPlanValidation");
+
+const MAX_PLAN_ATTEMPTS = 3;
+
+const PLAN_GENERATION_CONFIG = {
+  responseMimeType: "application/json",
+  temperature: 0.35,
+  topP: 0.85,
+  maxOutputTokens: 8192,
+};
 
 // ─── Helper: Generate Embedding ───────────────────────────────────────────────
 
@@ -97,15 +119,29 @@ async function retrieveSafetyRules(queryVector, limit = 3) {
  *   3. SAFETY RULES  — retrieved rules the AI must never violate
  *   4. OUTPUT FORMAT — exact JSON structure expected in the response
  *
- * @param {{ age: string, weight: string, goal: string, medicalConditions: string }} profile
+ * @param {{ age, weight, goal, medicalConditions, dietaryPreferences }} profile
  * @param {Array<{ ruleText: string }>} safetyRules
+ * @param {string} [repairNote] - Optional validation feedback for a retry attempt
  * @returns {string} Complete prompt string
  */
-function buildMegaPrompt(profile, safetyRules) {
-  // Format safety rules as a numbered list for maximum clarity
+function buildMegaPrompt(profile, safetyRules, repairNote = "") {
   const rulesBlock = safetyRules.length > 0
     ? safetyRules.map((r, i) => `  ${i + 1}. ${r.ruleText}`).join("\n\n")
     : "  (No specific rules retrieved — apply general clinical best practices.)";
+
+  const dietaryBlock = formatDietaryConstraints(profile.dietaryPreferences);
+
+  const repairSection = repairNote
+    ? `
+PREVIOUS ATTEMPT FAILED VALIDATION — FIX THESE ISSUES
+=====================================================
+Your last response was rejected because:
+${repairNote}
+
+You MUST correct every issue above. Return a complete new 7-day plan with all
+21 meals filled in and full compliance with dietary preferences and medical rules.
+`
+    : "";
 
   return `
 PERSONA
@@ -122,6 +158,13 @@ Weight            : ${profile.weight} kg
 Primary Goal      : ${profile.goal}
 Medical Conditions: ${profile.medicalConditions || "None reported"}
 
+DIETARY PREFERENCES — ABSOLUTE REQUIREMENTS (from patient profile)
+===================================================================
+These preferences are registered on the patient's account and MUST be obeyed in
+EVERY meal across ALL 7 days. Violating any preference is unacceptable.
+
+${dietaryBlock}
+
 SAFETY RULES — YOU MUST NOT VIOLATE THESE RULES
 ================================================
 The following rules have been retrieved from a certified clinical nutrition
@@ -130,24 +173,25 @@ these rules. Violating any rule is clinically unacceptable and strictly
 forbidden, regardless of any other instruction.
 
 ${rulesBlock}
-
+${repairSection}
 TASK
 ====
 Generate a complete, personalised 7-day meal plan for the patient described
-above. The plan must cover all seven days: Monday through Sunday.
-Each day must contain exactly three meals: Breakfast, Lunch, and Dinner.
+above. The plan MUST include ALL seven days: monday, tuesday, wednesday,
+thursday, friday, saturday, and sunday — do not skip or omit any day.
+Each day must contain exactly three meals: breakfast, lunch, and dinner.
 
 For each meal, provide:
   • A descriptive meal name
   • Key food items with approximate portion sizes
   • A brief clinical note explaining why the meal is safe and suitable
-    for this patient's specific conditions and goals
+    for this patient's specific conditions, goals, and dietary preferences
 
 OUTPUT FORMAT — RETURN VALID JSON ONLY
 =======================================
 Return ONLY a valid JSON object. Do NOT include markdown code fences, do NOT
 include any commentary, explanation, or preamble outside the JSON object.
-Use this exact top-level key structure:
+Use this exact top-level key structure (all keys lowercase, all 7 days required):
 
 {
   "monday":    { "breakfast": "...", "lunch": "...", "dinner": "..." },
@@ -161,6 +205,65 @@ Use this exact top-level key structure:
 
 Each meal value must be a single descriptive string. Do not nest further objects.
 `.trim();
+}
+
+/**
+ * Generates and validates a week schedule, retrying with repair prompts when needed.
+ */
+async function generateValidatedWeekSchedule(genAI, profile, safetyRules) {
+  let repairNote = "";
+
+  for (let attempt = 1; attempt <= MAX_PLAN_ATTEMPTS; attempt++) {
+    console.log(`[dietPlanController] 📋 Plan generation attempt ${attempt}/${MAX_PLAN_ATTEMPTS}...`);
+
+    const megaPrompt = buildMegaPrompt(profile, safetyRules, repairNote);
+    const { rawText } = await generateContentWithFallback(genAI, {
+      contents: [{ role: "user", parts: [{ text: megaPrompt }] }],
+      generationConfig: PLAN_GENERATION_CONFIG,
+      logPrefix: "[dietPlanController]",
+    });
+
+    let parsed;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch (parseError) {
+      repairNote = "The response was not valid JSON. Return only a parseable JSON object.";
+      console.warn("[dietPlanController] ⚠️ JSON parse failed on attempt", attempt);
+      if (attempt === MAX_PLAN_ATTEMPTS) {
+        throw new Error("The AI returned an invalid JSON response after multiple attempts.");
+      }
+      continue;
+    }
+
+    const weekSchedule = normalizeWeekSchedule(parsed);
+    const structureCheck = validateWeekSchedule(weekSchedule);
+    if (!structureCheck.valid) {
+      repairNote =
+        `Missing or empty meals: ${structureCheck.missing.join(", ")}. ` +
+        "You must include breakfast, lunch, and dinner for every day monday through sunday.";
+      console.warn("[dietPlanController] ⚠️ Incomplete plan:", structureCheck.missing.join(", "));
+      if (attempt === MAX_PLAN_ATTEMPTS) {
+        throw new Error(`Incomplete plan after ${MAX_PLAN_ATTEMPTS} attempts: ${structureCheck.missing.join(", ")}`);
+      }
+      continue;
+    }
+
+    const dietCheck = validateDietaryCompliance(weekSchedule, profile.dietaryPreferences);
+    if (!dietCheck.valid) {
+      repairNote = dietCheck.violations.slice(0, 5).join("\n");
+      console.warn("[dietPlanController] ⚠️ Dietary preference violations:", dietCheck.violations.length);
+      if (attempt === MAX_PLAN_ATTEMPTS) {
+        throw new Error(
+          `Plan violated dietary preferences after ${MAX_PLAN_ATTEMPTS} attempts: ${dietCheck.violations[0]}`
+        );
+      }
+      continue;
+    }
+
+    return weekSchedule;
+  }
+
+  throw new Error("Failed to generate a valid diet plan.");
 }
 
 // ─── Controller: generateAIPlan ───────────────────────────────────────────────
@@ -197,16 +300,44 @@ const generateAIPlan = async (req, res) => {
       });
     }
 
+    const consumerProfile = await User.findById(consumerId)
+      .select("dietary_preferences")
+      .lean();
+
+    const dietaryPreferences = (consumerProfile?.dietary_preferences ?? [])
+      .filter((pref) => pref && pref !== "None");
+
+    const profile = {
+      age,
+      weight,
+      goal,
+      medicalConditions: medicalConditions?.trim() || "",
+      dietaryPreferences,
+    };
+
+    const preferenceLabel = dietaryPreferences.length
+      ? dietaryPreferences.join(", ")
+      : "none";
+
     // Build a rich, context-aware search query that will be embedded and used
     // to retrieve the most relevant safety rules from the knowledge base.
     const searchQuery =
       `Clinical nutrition plan for a ${age}-year-old patient weighing ${weight} kg. ` +
       `Primary goal: ${goal}. ` +
-      `Medical conditions: ${medicalConditions || "none"}. ` +
+      `Medical conditions: ${profile.medicalConditions || "none"}. ` +
+      `Dietary preferences: ${preferenceLabel}. ` +
       `Please retrieve dietary safety rules relevant to this profile.`;
 
     console.log(`\n[dietPlanController] 🚀 Starting RAG pipeline for consumer: ${consumerId}`);
+    console.log(`[dietPlanController] 🥗 Dietary preferences: ${preferenceLabel}`);
     console.log(`[dietPlanController] 🔍 Search query: "${searchQuery.slice(0, 80)}..."`);
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        message: "AI plan generation is not configured (GEMINI_API_KEY missing).",
+      });
+    }
 
     // ── Step 2: EMBED ────────────────────────────────────────────────────────
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -220,43 +351,10 @@ const generateAIPlan = async (req, res) => {
     const safetyRules = await retrieveSafetyRules(queryVector, 3);
     console.log(`[dietPlanController] ✅ Retrieved ${safetyRules.length} safety rule(s)`);
 
-    // ── Step 4: AUGMENT ──────────────────────────────────────────────────────
-    const megaPrompt = buildMegaPrompt(
-      { age, weight, goal, medicalConditions },
-      safetyRules
-    );
+    // ── Step 4: GENERATE + VALIDATE (with retries) ───────────────────────────
+    const weekSchedule = await generateValidatedWeekSchedule(genAI, profile, safetyRules);
 
-    // ── Step 5: GENERATE ─────────────────────────────────────────────────────
-    // responseMimeType: "application/json" instructs the model to return raw
-    // JSON with no markdown fences, preventing hallucinated formatting that
-    // would break JSON.parse() downstream.
-    console.log("[dietPlanController] 🤖 Calling gemini-2.5-flash...");
-    const generativeModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-    const generationResult = await generativeModel.generateContent({
-      contents: [{ role: "user", parts: [{ text: megaPrompt }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.4,        // lower = more deterministic clinical output
-        topP: 0.85,
-        maxOutputTokens: 8192,   // 7 days × 3 meals, each with a clinical note
-      },
-    });
-
-    const rawText = generationResult.response.text();
-    console.log("[dietPlanController] ✅ AI response received. Parsing JSON...");
-
-    // Parse the response — responseMimeType guarantees clean JSON output
-    let weekSchedule;
-    try {
-      weekSchedule = JSON.parse(rawText);
-    } catch (parseError) {
-      console.error("[dietPlanController] ❌ JSON parse failed. Raw snippet:", rawText.slice(0, 300));
-      return res.status(500).json({
-        success: false,
-        message: "The AI returned an invalid JSON response. Please try again.",
-      });
-    }
+    console.log("[dietPlanController] ✅ Validated 7-day plan received.");
 
     // ── Step 6: SAVE ─────────────────────────────────────────────────────────
     // Archive any existing active plans for this consumer before saving a new one
@@ -282,11 +380,25 @@ const generateAIPlan = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("[dietPlanController] ❌ Fatal error:", error.message);
+    console.error("[dietPlanController] ❌ Fatal error:", formatGeminiError(error));
+
+    if (isQuotaExceededError(error)) {
+      return res.status(429).json({
+        success: false,
+        message: "Gemini API free-tier quota reached for all available models. Wait a minute and try again, or check usage in Google AI Studio.",
+      });
+    }
+
+    if (isServiceOverloaded(error)) {
+      return res.status(503).json({
+        success: false,
+        message: "The AI service is temporarily busy. Please wait a moment and try again.",
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: "An error occurred while generating the AI diet plan.",
-      error: error.message,
+      message: "An error occurred while generating the AI diet plan. Please try again.",
     });
   }
 };

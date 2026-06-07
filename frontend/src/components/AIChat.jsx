@@ -6,7 +6,7 @@
  *   • Scrollable message history (user + AI bubbles)
  *   • Controlled input with Enter-key and button send
  *   • Typing indicator animation while awaiting AI response
- *   • POST /api/chat fetch call (backend to be wired later)
+ *   • POST /api/chat/send — context-aware Gemini chat via backend
  *   • Auto-scrolls to the latest message on each update
  *
  * State:
@@ -123,12 +123,14 @@ const AIChat = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Server responded with status ${response.status}`);
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok || data.success === false) {
+        throw new Error(
+          data.message || data.error || `Server responded with status ${response.status}`
+        );
       }
 
-      const data = await response.json();
-      // Controller returns: { success: true, reply: string }
       const aiText = data.reply || "I received your message!";
 
       setMessages((prev) => [
@@ -136,12 +138,11 @@ const AIChat = () => {
         { role: "assistant", text: aiText },
       ]);
     } catch (error) {
-      // Show a friendly error bubble instead of crashing
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          text: "I'm having trouble connecting right now. The AI chat backend is being set up — please try again shortly!",
+          text: error.message || "Something went wrong. Please try again in a moment.",
         },
       ]);
     } finally {

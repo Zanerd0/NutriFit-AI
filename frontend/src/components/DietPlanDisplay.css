@@ -571,6 +571,36 @@
   margin:      0;
 }
 
+.dpd-gen-loading__hint {
+  font-size:  0.78rem;
+  color:      var(--color-text-muted);
+  opacity:    0.85;
+  margin:     0;
+  max-width:  300px;
+}
+
+.dpd-gen-prefs {
+  margin-bottom: 1rem;
+}
+
+.dpd-gen-prefs__chips {
+  display:   flex;
+  flex-wrap: wrap;
+  gap:       0.45rem;
+  margin-top: 0.35rem;
+}
+
+.dpd-gen-prefs__chip {
+  display:       inline-block;
+  padding:       0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size:     0.78rem;
+  font-weight:   600;
+  background:    rgba(108, 99, 255, 0.15);
+  color:         var(--color-primary);
+  border:        1px solid rgba(108, 99, 255, 0.35);
+}
+
 /* ── Generate Form ───────────────────────────────────────────────────────────── */
 
 .dpd-gen-form {
