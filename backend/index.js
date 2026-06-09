@@ -21,8 +21,13 @@ const app = express();
 // --- MIDDLEWARE ---
 // CORS configured strictly to allow cookies to pass between frontend and backend
 app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
+  origin: [
+    "https://nutrifitai.site",
+    "https://www.nutrifitai.site",
+    "http://localhost:3000",
+    "http://localhost:5173",
+  ],
+  credentials: true,
 }));
 
 // Parse incoming cookies — must be before ANY route that reads req.cookies,
