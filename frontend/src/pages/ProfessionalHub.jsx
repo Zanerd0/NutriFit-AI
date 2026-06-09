@@ -27,12 +27,8 @@
  */
 
 import { useState, useEffect } from "react";
+import { API_BASE } from "../api/config";
 import "./ProfessionalHub.css";
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-// All requests go through the Vite dev-server proxy → backend:5000
-const API_BASE = "/api";
 
 // ─── Shared Sub-Components ───────────────────────────────────────────────────
 

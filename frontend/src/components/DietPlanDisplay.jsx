@@ -21,6 +21,7 @@
 
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { API_BASE } from "../api/config";
 import { generatePDF } from "../utils/generatePDF";
 import AdherenceChecklist from "./AdherenceChecklist";
 import "./DietPlanDisplay.css";
@@ -133,7 +134,7 @@ const GenerateForm = ({ consumer, onSuccess, onCancel, hasExistingPlan }) => {
     setGenerating(true);
 
     try {
-      const response = await fetch("/api/diet-plan/generate", {
+      const response = await fetch(`${API_BASE}/diet-plan/generate`, {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
@@ -374,7 +375,7 @@ const DietPlanDisplay = ({
     setSendingToDiet(true);
     setSendDietStatus({ type: "", text: "" });
     try {
-      const res = await fetch("/api/diet-plan/send-to-dietician", {
+      const res = await fetch(`${API_BASE}/diet-plan/send-to-dietician`, {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
@@ -395,7 +396,7 @@ const DietPlanDisplay = ({
     setRequestingPlan(true);
     setRequestStatus({ type: "", text: "" });
     try {
-      const res = await fetch("/api/diet-plan/request-from-dietician", {
+      const res = await fetch(`${API_BASE}/diet-plan/request-from-dietician`, {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
@@ -421,7 +422,7 @@ const DietPlanDisplay = ({
     setDeletingPlan(true);
     setDeleteError("");
     try {
-      const res = await fetch(`/api/diet-plan/${planData._id}`, {
+      const res = await fetch(`${API_BASE}/diet-plan/${planData._id}`, {
         method:      "DELETE",
         credentials: "include",
       });

@@ -19,6 +19,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation }          from "react-router-dom";
 import axios                                 from "../api/axios";
+import { API_BASE }                          from "../api/config";
 import ProfessionalHub                       from "./ProfessionalHub";
 import MyWorkout                             from "../components/MyWorkout";
 import DailyLogForm                          from "../components/DailyLogForm";
@@ -189,7 +190,7 @@ const ConsumerDashboard = () => {
         axios.get("/consumer/my-workout"),
         // Restore the persisted AI plan — null response is fine (no plan yet)
         consumerId
-          ? fetch(`/api/diet-plan/active/${consumerId}`, {
+          ? fetch(`${API_BASE}/diet-plan/active/${consumerId}`, {
               credentials: "include",
             }).then((r) => r.json()).catch(() => ({ success: false, data: null }))
           : Promise.resolve({ success: false, data: null }),
@@ -324,7 +325,7 @@ const ConsumerDashboard = () => {
         return;
       }
       try {
-        const res = await fetch("/api/professionals/status", {
+        const res = await fetch(`${API_BASE}/professionals/status`, {
           credentials: "include",
         });
         if (!res.ok) return;

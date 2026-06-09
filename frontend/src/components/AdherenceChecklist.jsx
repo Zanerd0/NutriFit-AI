@@ -4,6 +4,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { API_BASE } from "../api/config";
 import "./AdherenceChecklist.css";
 
 export const formatDateKey = (input = new Date()) => {
@@ -43,7 +44,7 @@ const AdherenceChecklist = ({ type, planId, enabled, title, subtitle }) => {
       }
       setLoading(true);
       try {
-        const res = await fetch(`/api/consumer/adherence?date=${dateKey}`, {
+        const res = await fetch(`${API_BASE}/consumer/adherence?date=${dateKey}`, {
           credentials: "include",
         });
         const data = await res.json().catch(() => ({}));
@@ -87,7 +88,7 @@ const AdherenceChecklist = ({ type, planId, enabled, title, subtitle }) => {
       prev.map((it) => (it.key === item.key ? { ...it, completed: next } : it))
     );
     try {
-      await fetch(`/api/consumer/adherence/${type}`, {
+      await fetch(`${API_BASE}/consumer/adherence/${type}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -16,6 +16,7 @@
  */
 
 import { useState, useEffect, useRef } from "react";
+import { API_BASE } from "../api/config";
 import "./AIChat.css";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -112,7 +113,7 @@ const AIChat = () => {
       //   consumerId   — used to fetch the active DietPlan for context
       //   userMessage  — the new message text
       //   chatHistory  — full conversation array (role + text) for Gemini memory
-      const response = await fetch("/api/chat/send", {
+      const response = await fetch(`${API_BASE}/chat/send`, {
         method:      "POST",
         headers:     { "Content-Type": "application/json" },
         credentials: "include",  // send JWT cookie for future auth middleware

@@ -1,7 +1,8 @@
 import axios from "axios";
+import { API_BASE } from "./config";
 
 const instance = axios.create({
-  baseURL: "/api", // Vite proxy forwards /api/* → http://backend:5000/api/*
+  baseURL: API_BASE,
   withCredentials: true, // This is CRITICAL for sending the JWT cookie!
 });
 

@@ -14,6 +14,7 @@
  */
 
 import { useState } from "react";
+import { API_BASE } from "../api/config";
 import { generatePDF } from "../utils/generatePDF";
 import AdherenceChecklist from "./AdherenceChecklist";
 import "./MyWorkout.css";
@@ -167,7 +168,7 @@ const InstructorRequestPanel = ({ instructorName, consumer }) => {
     setLoading(true);
     setStatus({ type: "", text: "" });
     try {
-      const res = await fetch("/api/professionals/request-workout", {
+      const res = await fetch(`${API_BASE}/professionals/request-workout`, {
         method:      "POST",
         credentials: "include",
         headers:     { "Content-Type": "application/json" },
